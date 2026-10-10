@@ -2,7 +2,9 @@ import { useMemo, useRef, useState } from 'react'
 import {
 	Box,
 	Button,
+	Checkbox,
 	Chip,
+	MenuItem,
 	IconButton,
 	InputAdornment,
 	Paper,
@@ -19,7 +21,8 @@ import DeleteIcon from '@mui/icons-material/DeleteOutline'
 import SearchIcon from '@mui/icons-material/Search'
 import MaleIcon from '@mui/icons-material/Male'
 import FemaleIcon from '@mui/icons-material/Female'
-import { getPal, type Gender } from '../data/gamedata'
+import StarIcon from '@mui/icons-material/Star'
+import { getPal, YAKUMO_ID, type Gender } from '../data/gamedata'
 import { useStore } from '../state/store'
 import type { Plan, PlanNode, TargetResult } from '../solver/types'
 import { GenderIcon, PalAvatar, PassiveList } from './bits'
@@ -30,9 +33,10 @@ interface Draft {
 	palId: string | null
 	gender: Gender
 	passives: string[]
+	stars: number
 }
 
-const emptyDraft: Draft = { palId: null, gender: 'M', passives: [] }
+const emptyDraft: Draft = { palId: null, gender: 'M', passives: [], stars: 0 }
 
 function EntryForm({
 	withGender,
@@ -73,11 +77,29 @@ function EntryForm({
 					</ToggleButton>
 				</ToggleButtonGroup>
 			)}
+			{withGender && draft.palId === YAKUMO_ID && (
+				<Tooltip title="Condensation stars; more stars copy passives more often">
+					<TextField
+						select
+						size="small"
+						label="Stars"
+						value={draft.stars}
+						onChange={(e) => setDraft({ ...draft, stars: Number(e.target.value) })}
+						sx={{ width: 80 }}
+					>
+						{[0, 1, 2, 3, 4].map((n) => (
+							<MenuItem key={n} value={n}>
+								{n}
+							</MenuItem>
+						))}
+					</TextField>
+				</Tooltip>
+			)}
 			<Box sx={{ flex: '2 1 260px', display: 'flex' }}>
 				<PassivePicker
 					value={draft.passives}
 					onChange={(passives) => setDraft({ ...draft, passives })}
-					label={withGender ? 'Passives' : 'Wanted passives'}
+					label={withGender ? (draft.palId === YAKUMO_ID ? 'Passives, in slot order' : 'Passives') : 'Wanted passives'}
 				/>
 			</Box>
 			<Box sx={{ display: 'flex', gap: 1 }}>
@@ -94,8 +116,11 @@ function Row({
 	palId,
 	gender = null,
 	passives,
+	stars,
 	status,
 	selected,
+	enabled,
+	onToggle,
 	onClick,
 	onEdit,
 	onDelete
@@ -103,8 +128,12 @@ function Row({
 	palId: string
 	gender?: Gender | null
 	passives: string[]
+	stars?: number
 	status?: React.ReactNode
 	selected?: boolean
+	/** Wanted pals only: whether it's in the steps and catch list */
+	enabled?: boolean
+	onToggle?: () => void
 	onClick?: () => void
 	onEdit: () => void
 	onDelete: () => void
@@ -126,6 +155,18 @@ function Row({
 				'&:hover .row-actions': { opacity: 1 }
 			}}
 		>
+			{onToggle && (
+				<Tooltip title={enabled ? 'Pause: leave out of the steps for now' : 'Resume'}>
+					<Checkbox
+						size="small"
+						checked={!!enabled}
+						onClick={(e) => e.stopPropagation()}
+						onChange={onToggle}
+						sx={{ p: 0.25, ml: -0.5 }}
+					/>
+				</Tooltip>
+			)}
+			<Box sx={{ display: 'contents', '& > *': { opacity: enabled === false ? 0.45 : 1 } }}>
 			<PalAvatar palId={palId} />
 			<Box sx={{ flex: 1, minWidth: 0 }}>
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: passives.length ? 0.5 : 0 }}>
@@ -133,10 +174,19 @@ function Row({
 						{getPal(palId).name}
 					</Typography>
 					<GenderIcon gender={gender} size={16} />
+					{stars != null && palId === YAKUMO_ID && (
+						<Box sx={{ display: 'flex', alignItems: 'center', color: 'warning.main', ml: 0.5 }}>
+							<StarIcon sx={{ fontSize: 14 }} />
+							<Typography variant="caption" fontWeight={700}>
+								{stars}
+							</Typography>
+						</Box>
+					)}
 				</Box>
 				<PassiveList passives={passives} />
 			</Box>
 			{status}
+			</Box>
 			<Box className="row-actions" sx={{ display: 'flex', opacity: 0.35, transition: 'opacity 120ms' }}>
 				<Tooltip title="Edit">
 					<IconButton
@@ -166,12 +216,13 @@ function Row({
 }
 
 export function countSteps(node: PlanNode | undefined): number {
-	if (!node?.breed) return 0
-	return 1 + countSteps(node.breed.parents[0]) + countSteps(node.breed.parents[1])
+	if (!node?.parents) return 0
+	return 1 + countSteps(node.parents[0]) + countSteps(node.parents[1])
 }
 
 export function StatusChip({ result }: { result?: TargetResult }) {
 	if (!result) return <Chip size="small" label="..." variant="outlined" />
+	if (result.disabled && result.status !== 'unreachable') return <Chip size="small" variant="outlined" label="Paused" />
 	if (result.status === 'unreachable')
 		return (
 			<Tooltip title={result.reason ?? ''}>
@@ -233,7 +284,7 @@ export function ListsPanel({
 			if (draft.uid) store.updateWanted({ ...entry, uid: draft.uid })
 			else store.addWanted(entry)
 		} else {
-			const entry = { palId: draft.palId, gender: draft.gender, passives: draft.passives }
+			const entry = { palId: draft.palId, gender: draft.gender, passives: draft.passives, stars: draft.palId === YAKUMO_ID ? draft.stars : undefined }
 			if (draft.uid) store.updateOwned({ ...entry, uid: draft.uid })
 			else store.addOwned(entry)
 		}
@@ -277,8 +328,10 @@ export function ListsPanel({
 							passives={w.passives}
 							status={<StatusChip result={results.get(w.uid)} />}
 							selected={selectedWanted === w.uid}
+							enabled={!w.disabled}
+							onToggle={() => store.toggleWantedDisabled(w.uid)}
 							onClick={() => onSelectWanted(w.uid)}
-							onEdit={() => setDraft({ uid: w.uid, palId: w.palId, gender: 'M', passives: w.passives })}
+							onEdit={() => setDraft({ uid: w.uid, palId: w.palId, gender: 'M', passives: w.passives, stars: 0 })}
 							onDelete={() => store.removeWanted(w.uid)}
 						/>
 					))}
@@ -289,7 +342,8 @@ export function ListsPanel({
 							palId={o.palId}
 							gender={o.gender}
 							passives={o.passives}
-							onEdit={() => setDraft({ uid: o.uid, palId: o.palId, gender: o.gender, passives: o.passives })}
+							stars={o.stars}
+							onEdit={() => setDraft({ uid: o.uid, palId: o.palId, gender: o.gender, passives: o.passives, stars: o.stars ?? 0 })}
 							onDelete={() => store.removeOwned(o.uid)}
 						/>
 					))}

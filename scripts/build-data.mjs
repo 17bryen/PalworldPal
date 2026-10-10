@@ -93,7 +93,8 @@ if (missing > 0) throw new Error(`${missing} pair results are missing from breed
 const passives = new Map()
 for (const s of db.PassiveSkills) {
 	if (!s.IsStandardPassiveSkill || passives.has(s.Name)) continue
-	passives.set(s.Name, { name: s.Name, rank: s.Rank, description: s.Description ?? '' })
+	// `copyable`: can roll on wild pals, which is also what Yakumo's partner skill can copy
+	passives.set(s.Name, { name: s.Name, rank: s.Rank, description: s.Description ?? '', copyable: s.RandomInheritanceAllowed })
 }
 
 const weights = (w) => Object.fromEntries(Object.entries(w).map(([k, v]) => [Number(k), v]))

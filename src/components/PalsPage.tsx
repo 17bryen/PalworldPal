@@ -1,14 +1,15 @@
-import { memo, useMemo, useState } from 'react'
+import { memo, startTransition, useCallback, useEffect, useMemo, useState } from 'react'
 import {
 	Box,
 	Button,
 	Checkbox,
 	Chip,
+	FormControlLabel,
 	IconButton,
 	InputAdornment,
+	Menu,
 	MenuItem,
 	Paper,
-	Select,
 	Table,
 	TableBody,
 	TableCell,
@@ -23,38 +24,41 @@ import {
 import SearchIcon from '@mui/icons-material/Search'
 import StarIcon from '@mui/icons-material/Star'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown'
 import { pals, WORK_KINDS, type PalInfo, type WorkKind } from '../data/gamedata'
 import { legendaryLine } from '../data/lineage'
-import { worldTree, type WorldTreePresence } from '../data/regions'
+import { OTHER_REGION, REGIONS, regionName, spawnRegions } from '../data/regions'
 import { useStore } from '../state/store'
 import { rarityColor } from '../theme'
 import type { CatchPref } from '../solver/types'
 import { PalAvatar, WORK_INFO, WorkIcon } from './bits'
 
 type SortKey = 'dex' | 'name' | 'rarity' | WorkKind
-type TreeFilter = 'any' | 'only' | 'mostly' | 'found'
 type BreedFilter = 'any' | 'legendaryLine'
 type LegendFilter = 'any' | 'only' | 'none'
+type AccessFilter = 'any' | 'reachable' | 'unreachable'
 
-const TREE_LABEL: Record<WorldTreePresence, string> = {
-	only: 'World Tree only',
-	mostly: 'Mostly World Tree',
-	also: 'World Tree'
-}
-const TREE_TIP: Record<WorldTreePresence, string> = {
-	only: 'Only spawns in the World Tree',
-	mostly: 'Spawns in the World Tree; elsewhere only as a one-off alpha or similar',
-	also: 'Spawns in the World Tree and other regions'
+const PREF_LABEL: Record<CatchPref | 'default', string> = { default: 'Normal', easy: 'Easy', hard: 'Hard', never: 'Never' }
+const PREF_COLOR: Partial<Record<CatchPref, string>> = { easy: 'success.main', never: 'error.main', hard: 'warning.main' }
+
+/** Short region names for the table; the full list is in the cell's hover text */
+const SHORT: Record<string, string> = {
+	windswept: 'Windswept',
+	verdant: 'Verdant',
+	sanctuary1: 'Sanctuary 1',
+	obsidian: 'Obsidian',
+	desert: 'Desert',
+	astral: 'Astral',
+	sanctuary2: 'Sanctuary 2',
+	sakurajima: 'Sakurajima',
+	sanctuary3: 'Sanctuary 3',
+	feybreak: 'Feybreak',
+	sunreach: 'Sunreach',
+	worldTree: 'World Tree',
+	other: 'Other'
 }
 
-function matchesTree(id: string, filter: TreeFilter): boolean {
-	if (filter === 'any') return true
-	const presence = worldTree.get(id)
-	if (filter === 'only') return presence === 'only'
-	if (filter === 'mostly') return presence === 'only' || presence === 'mostly'
-	return presence !== undefined
-}
-
+// Rows render a lot of cells; plain elements and native hover titles keep the page quick
 const PalRow = memo(function PalRow({
 	pal,
 	checked,
@@ -62,7 +66,7 @@ const PalRow = memo(function PalRow({
 	pref,
 	onCheck,
 	onToggleWanted,
-	onPref
+	onPrefMenu
 }: {
 	pal: PalInfo
 	checked: boolean
@@ -70,13 +74,13 @@ const PalRow = memo(function PalRow({
 	pref: CatchPref | undefined
 	onCheck: (id: string) => void
 	onToggleWanted: (id: string, wanted: boolean) => void
-	onPref: (id: string, pref: CatchPref | null) => void
+	onPrefMenu: (id: string, anchor: HTMLElement) => void
 }) {
-	const tree = worldTree.get(pal.id)
+	const regions = spawnRegions(pal.id)
 	return (
 		<TableRow hover selected={checked}>
 			<TableCell padding="checkbox">
-				<Checkbox size="small" checked={checked} onChange={() => onCheck(pal.id)} />
+				<Checkbox size="small" disableRipple checked={checked} onChange={() => onCheck(pal.id)} />
 			</TableCell>
 			<TableCell>
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
@@ -89,18 +93,15 @@ const PalRow = memo(function PalRow({
 							#{pal.dex}
 						</Typography>
 					</Box>
-					<Box sx={{ display: 'flex', gap: 0.5, ml: 'auto' }}>
-						{legendaryLine.has(pal.id) && (
-							<Tooltip title="Can only be bred from itself or legendary pals">
-								<Chip size="small" variant="outlined" label="Self-bred" sx={{ color: rarityColor(20), borderColor: `${rarityColor(20)}66` }} />
-							</Tooltip>
-						)}
-						{tree && (
-							<Tooltip title={TREE_TIP[tree]}>
-								<Chip size="small" variant="outlined" label={TREE_LABEL[tree]} color={tree === 'also' ? 'default' : 'success'} />
-							</Tooltip>
-						)}
-					</Box>
+					{legendaryLine.has(pal.id) && (
+						<Chip
+							size="small"
+							variant="outlined"
+							label="Self-bred"
+							title="Can only be bred from itself or legendary pals"
+							sx={{ ml: 'auto', color: rarityColor(20), borderColor: `${rarityColor(20)}66` }}
+						/>
+					)}
 				</Box>
 			</TableCell>
 			<TableCell align="center">
@@ -110,46 +111,38 @@ const PalRow = memo(function PalRow({
 			</TableCell>
 			{WORK_KINDS.map((kind) => {
 				const level = pal.work[kind]
-				const { color } = WORK_INFO[kind]
 				return (
 					<TableCell key={kind} align="center" sx={{ px: 0.5 }}>
 						{level > 0 && (
-							<Typography variant="body2" sx={{ color, fontWeight: 700, opacity: 0.45 + level * 0.11 }}>
+							<Typography variant="body2" sx={{ color: WORK_INFO[kind].color, fontWeight: 700, opacity: 0.45 + level * 0.11 }}>
 								{level}
 							</Typography>
 						)}
 					</TableCell>
 				)
 			})}
+			<TableCell sx={{ maxWidth: 170 }} title={regions.map(regionName).join(', ')}>
+				<Typography variant="caption" color={regions.length ? 'text.primary' : 'text.disabled'} sx={{ display: 'block', lineHeight: 1.3 }}>
+					{regions.length ? regions.map((r) => SHORT[r] ?? r).join(', ') : 'Not wild'}
+				</Typography>
+			</TableCell>
 			<TableCell>
-				{pal.wild ? (
-					<Select
+				{regions.length > 0 && (
+					<Button
 						size="small"
-						variant="standard"
-						disableUnderline
-						value={pref ?? 'default'}
-						onChange={(e) => onPref(pal.id, e.target.value === 'default' ? null : (e.target.value as CatchPref))}
-						sx={{ fontSize: 13, minWidth: 80, color: pref === 'never' ? 'error.main' : pref === 'easy' ? 'success.main' : undefined }}
+						disableRipple
+						endIcon={<ArrowDropDownIcon />}
+						onClick={(e) => onPrefMenu(pal.id, e.currentTarget)}
+						sx={{ minWidth: 0, px: 0.5, color: (pref && PREF_COLOR[pref]) || 'text.primary', fontWeight: 500 }}
 					>
-						<MenuItem value="default">Normal</MenuItem>
-						<MenuItem value="easy">Easy</MenuItem>
-						<MenuItem value="hard">Hard</MenuItem>
-						<MenuItem value="never">Never</MenuItem>
-					</Select>
-				) : (
-					<Tooltip title="Doesn't spawn in the wild">
-						<Typography variant="caption" color="text.disabled">
-							Not wild
-						</Typography>
-					</Tooltip>
+						{PREF_LABEL[pref ?? 'default']}
+					</Button>
 				)}
 			</TableCell>
 			<TableCell padding="checkbox">
-				<Tooltip title={wanted ? 'Remove from wanted' : 'Add to wanted'}>
-					<IconButton size="small" onClick={() => onToggleWanted(pal.id, wanted)}>
-						{wanted ? <StarIcon fontSize="small" sx={{ color: rarityColor(20) }} /> : <StarBorderIcon fontSize="small" />}
-					</IconButton>
-				</Tooltip>
+				<IconButton size="small" disableRipple title={wanted ? 'Remove from wanted' : 'Add to wanted'} onClick={() => onToggleWanted(pal.id, wanted)}>
+					{wanted ? <StarIcon fontSize="small" sx={{ color: rarityColor(20) }} /> : <StarBorderIcon fontSize="small" />}
+				</IconButton>
 			</TableCell>
 		</TableRow>
 	)
@@ -160,25 +153,37 @@ export function PalsPage() {
 	const [search, setSearch] = useState('')
 	const [work, setWork] = useState<WorkKind | 'any'>('any')
 	const [minLevel, setMinLevel] = useState(1)
-	const [tree, setTree] = useState<TreeFilter>('any')
+	const [region, setRegion] = useState('any')
+	const [onlyThere, setOnlyThere] = useState(false)
+	const [access, setAccess] = useState<AccessFilter>('any')
 	const [breed, setBreed] = useState<BreedFilter>('any')
 	const [legend, setLegend] = useState<LegendFilter>('any')
 	const [sortKey, setSortKey] = useState<SortKey>('dex')
 	const [sortDesc, setSortDesc] = useState(false)
 	const [checked, setChecked] = useState<Set<string>>(new Set())
+	const [prefMenu, setPrefMenu] = useState<{ id: string; anchor: HTMLElement } | null>(null)
+
+	// The first rows show at once; the rest render in the background so opening the page never stalls
+	const [rowLimit, setRowLimit] = useState(50)
+	useEffect(() => startTransition(() => setRowLimit(Infinity)), [])
 
 	const wantedIds = useMemo(() => new Set(store.wanted.map((w) => w.palId)), [store.wanted])
+	const disabledRegions = store.settings.disabledRegions
 
 	const rows = useMemo(() => {
 		const q = search.trim().toLowerCase()
-		const list = pals.filter(
-			(p) =>
+		const list = pals.filter((p) => {
+			const regions = spawnRegions(p.id)
+			const reachable = regions.some((r) => !disabledRegions.includes(r))
+			return (
 				(!q || p.name.toLowerCase().includes(q)) &&
 				(work === 'any' || p.work[work] >= minLevel) &&
-				matchesTree(p.id, tree) &&
+				(region === 'any' || (onlyThere ? regions.length === 1 && regions[0] === region : regions.includes(region))) &&
+				(access === 'any' || (access === 'reachable' ? reachable : !reachable)) &&
 				(breed === 'any' || legendaryLine.has(p.id)) &&
 				(legend === 'any' || (legend === 'only' ? p.legendary : !p.legendary))
-		)
+			)
+		})
 		const value = (p: PalInfo): number | string =>
 			sortKey === 'dex' ? p.dex + (p.variant ? 0.5 : 0) : sortKey === 'name' ? p.name : sortKey === 'rarity' ? p.rarity : p.work[sortKey]
 		return list.sort((a, b) => {
@@ -187,7 +192,7 @@ export function PalsPage() {
 			const cmp = typeof va === 'string' ? va.localeCompare(vb as string) : va - (vb as number)
 			return (sortDesc ? -cmp : cmp) || a.dex - b.dex
 		})
-	}, [search, work, minLevel, tree, breed, legend, sortKey, sortDesc])
+	}, [search, work, minLevel, region, onlyThere, access, disabledRegions, breed, legend, sortKey, sortDesc])
 
 	const sortBy = (key: SortKey) => {
 		if (key === sortKey) setSortDesc(!sortDesc)
@@ -206,8 +211,8 @@ export function PalsPage() {
 		}
 	}
 
-	const onCheck = useMemo(
-		() => (id: string) =>
+	const onCheck = useCallback(
+		(id: string) =>
 			setChecked((c) => {
 				const next = new Set(c)
 				if (next.has(id)) next.delete(id)
@@ -217,10 +222,8 @@ export function PalsPage() {
 		[]
 	)
 	const { addWantedMany, removeWantedPal, setCatchPref } = store
-	const onToggleWanted = useMemo(
-		() => (id: string, wanted: boolean) => (wanted ? removeWantedPal(id) : addWantedMany([id])),
-		[addWantedMany, removeWantedPal]
-	)
+	const onToggleWanted = useCallback((id: string, wanted: boolean) => (wanted ? removeWantedPal(id) : addWantedMany([id])), [addWantedMany, removeWantedPal])
+	const onPrefMenu = useCallback((id: string, anchor: HTMLElement) => setPrefMenu({ id, anchor }), [])
 
 	const allChecked = rows.length > 0 && rows.every((p) => checked.has(p.id))
 
@@ -232,7 +235,7 @@ export function PalsPage() {
 					placeholder="Search pals"
 					value={search}
 					onChange={(e) => setSearch(e.target.value)}
-					sx={{ width: 200 }}
+					sx={{ width: 180 }}
 					slotProps={{
 						input: {
 							startAdornment: (
@@ -243,21 +246,19 @@ export function PalsPage() {
 						}
 					}}
 				/>
-				<TextField select size="small" label="Work" value={work} onChange={(e) => chooseWork(e.target.value as WorkKind | 'any')} sx={{ width: 210 }}>
+				<TextField select size="small" label="Work" value={work} onChange={(e) => chooseWork(e.target.value as WorkKind | 'any')} sx={{ width: 200 }}>
 					<MenuItem value="any">Any</MenuItem>
-					{WORK_KINDS.map((kind) => {
-						return (
-							<MenuItem key={kind} value={kind}>
-								<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-									<WorkIcon kind={kind} />
-									{WORK_INFO[kind].label}
-								</Box>
-							</MenuItem>
-						)
-					})}
+					{WORK_KINDS.map((kind) => (
+						<MenuItem key={kind} value={kind}>
+							<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+								<WorkIcon kind={kind} />
+								{WORK_INFO[kind].label}
+							</Box>
+						</MenuItem>
+					))}
 				</TextField>
 				{work !== 'any' && (
-					<TextField select size="small" label="Min level" value={minLevel} onChange={(e) => setMinLevel(Number(e.target.value))} sx={{ width: 100 }}>
+					<TextField select size="small" label="Min level" value={minLevel} onChange={(e) => setMinLevel(Number(e.target.value))} sx={{ width: 95 }}>
 						{[1, 2, 3, 4, 5].map((n) => (
 							<MenuItem key={n} value={n}>
 								{n}
@@ -265,17 +266,29 @@ export function PalsPage() {
 						))}
 					</TextField>
 				)}
-				<TextField select size="small" label="Breeding" value={breed} onChange={(e) => setBreed(e.target.value as BreedFilter)} sx={{ width: 220 }}>
+				<TextField select size="small" label="Region" value={region} onChange={(e) => setRegion(e.target.value)} sx={{ width: 190 }}>
+					<MenuItem value="any">Any</MenuItem>
+					{[...REGIONS, OTHER_REGION].map((r) => (
+						<MenuItem key={r.key} value={r.key}>
+							{r.name}
+						</MenuItem>
+					))}
+				</TextField>
+				{region !== 'any' && (
+					<FormControlLabel control={<Checkbox size="small" checked={onlyThere} onChange={(e) => setOnlyThere(e.target.checked)} />} label="Only there" />
+				)}
+				<Tooltip title="Based on the regions turned on in Map access" placement="top">
+					<TextField select size="small" label="Map access" value={access} onChange={(e) => setAccess(e.target.value as AccessFilter)} sx={{ width: 150 }}>
+						<MenuItem value="any">Any</MenuItem>
+						<MenuItem value="reachable">Can catch</MenuItem>
+						<MenuItem value="unreachable">Can't catch</MenuItem>
+					</TextField>
+				</Tooltip>
+				<TextField select size="small" label="Breeding" value={breed} onChange={(e) => setBreed(e.target.value as BreedFilter)} sx={{ width: 210 }}>
 					<MenuItem value="any">Any</MenuItem>
 					<MenuItem value="legendaryLine">Only from itself or legendaries</MenuItem>
 				</TextField>
-				<TextField select size="small" label="World Tree" value={tree} onChange={(e) => setTree(e.target.value as TreeFilter)} sx={{ width: 170 }}>
-					<MenuItem value="any">Any</MenuItem>
-					<MenuItem value="only">Only there</MenuItem>
-					<MenuItem value="mostly">Mostly there</MenuItem>
-					<MenuItem value="found">Found there</MenuItem>
-				</TextField>
-				<TextField select size="small" label="Legendary" value={legend} onChange={(e) => setLegend(e.target.value as LegendFilter)} sx={{ width: 140 }}>
+				<TextField select size="small" label="Legendary" value={legend} onChange={(e) => setLegend(e.target.value as LegendFilter)} sx={{ width: 120 }}>
 					<MenuItem value="any">Any</MenuItem>
 					<MenuItem value="only">Only</MenuItem>
 					<MenuItem value="none">Hide</MenuItem>
@@ -313,8 +326,12 @@ export function PalsPage() {
 									onChange={() => setChecked(allChecked ? new Set() : new Set(rows.map((p) => p.id)))}
 								/>
 							</TableCell>
-							<TableCell sx={{ minWidth: 280 }}>
-								<TableSortLabel active={sortKey === 'dex' || sortKey === 'name'} direction={sortDesc ? 'desc' : 'asc'} onClick={() => sortBy(sortKey === 'dex' ? 'name' : 'dex')}>
+							<TableCell sx={{ minWidth: 250 }}>
+								<TableSortLabel
+									active={sortKey === 'dex' || sortKey === 'name'}
+									direction={sortDesc ? 'desc' : 'asc'}
+									onClick={() => sortBy(sortKey === 'dex' ? 'name' : 'dex')}
+								>
 									{sortKey === 'name' ? 'Pal (by name)' : 'Pal (by number)'}
 								</TableSortLabel>
 							</TableCell>
@@ -323,23 +340,22 @@ export function PalsPage() {
 									Rarity
 								</TableSortLabel>
 							</TableCell>
-							{WORK_KINDS.map((kind) => {
-								return (
-									<TableCell key={kind} align="center" sx={{ px: 0.5 }}>
-										<Tooltip title={WORK_INFO[kind].label}>
-											<TableSortLabel
-												active={sortKey === kind}
-												direction={sortDesc ? 'desc' : 'asc'}
-												onClick={() => sortBy(kind)}
-												hideSortIcon
-												sx={{ opacity: sortKey === kind ? 1 : 0.75, borderBottom: 2, borderColor: sortKey === kind ? 'primary.main' : 'transparent' }}
-											>
-												<WorkIcon kind={kind} size={22} />
-											</TableSortLabel>
-										</Tooltip>
-									</TableCell>
-								)
-							})}
+							{WORK_KINDS.map((kind) => (
+								<TableCell key={kind} align="center" sx={{ px: 0.5 }}>
+									<Tooltip title={WORK_INFO[kind].label}>
+										<TableSortLabel
+											active={sortKey === kind}
+											direction={sortDesc ? 'desc' : 'asc'}
+											onClick={() => sortBy(kind)}
+											hideSortIcon
+											sx={{ opacity: sortKey === kind ? 1 : 0.75, borderBottom: 2, borderColor: sortKey === kind ? 'primary.main' : 'transparent' }}
+										>
+											<WorkIcon kind={kind} size={22} />
+										</TableSortLabel>
+									</Tooltip>
+								</TableCell>
+							))}
+							<TableCell>Found in</TableCell>
 							<TableCell>
 								<Tooltip title="How easy this pal is for you to find. Plans favor easy catches and never suggest Never.">
 									<span>Catching</span>
@@ -349,7 +365,7 @@ export function PalsPage() {
 						</TableRow>
 					</TableHead>
 					<TableBody>
-						{rows.map((p) => (
+						{rows.slice(0, rowLimit).map((p) => (
 							<PalRow
 								key={p.id}
 								pal={p}
@@ -358,12 +374,26 @@ export function PalsPage() {
 								pref={store.settings.catchPrefs[p.id]}
 								onCheck={onCheck}
 								onToggleWanted={onToggleWanted}
-								onPref={setCatchPref}
+								onPrefMenu={onPrefMenu}
 							/>
 						))}
 					</TableBody>
 				</Table>
 			</TableContainer>
+			<Menu anchorEl={prefMenu?.anchor} open={!!prefMenu} onClose={() => setPrefMenu(null)}>
+				{(['default', 'easy', 'hard', 'never'] as const).map((pref) => (
+					<MenuItem
+						key={pref}
+						selected={(store.settings.catchPrefs[prefMenu?.id ?? ''] ?? 'default') === pref}
+						onClick={() => {
+							if (prefMenu) setCatchPref(prefMenu.id, pref === 'default' ? null : pref)
+							setPrefMenu(null)
+						}}
+					>
+						{PREF_LABEL[pref]}
+					</MenuItem>
+				))}
+			</Menu>
 		</Paper>
 	)
 }

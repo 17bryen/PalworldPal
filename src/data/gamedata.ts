@@ -37,7 +37,13 @@ export interface PassiveInfo {
 	name: string
 	rank: number
 	description: string
+	/** Can roll on wild pals, so Yakumo's partner skill can copy it */
+	copyable: boolean
 }
+
+export const YAKUMO_ID = 'GuardianDog'
+/** Yakumo's chance per passive to copy onto a captured pal, by condensation stars 0-4 */
+export const YAKUMO_CHANCE = [0.15, 0.18, 0.21, 0.24, 0.3]
 
 export interface GenderRule {
 	a: number

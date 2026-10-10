@@ -23,5 +23,7 @@ export default defineConfig(({ mode }) => ({
 				])
 	],
 	server: { port: 5188 },
+	// The bundle carries the full game data and loads from disk, so its size doesn't matter
+	build: { chunkSizeWarningLimit: 2000 },
 	worker: { format: 'es' as const }
 }))

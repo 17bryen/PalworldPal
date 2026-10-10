@@ -8,6 +8,7 @@ import { usePlan } from './state/usePlan'
 import { ListsPanel } from './components/ListsPanel'
 import { PlanPanel } from './components/PlanPanel'
 import { PalsPage } from './components/PalsPage'
+import { AlternativesProvider } from './components/Alternatives'
 
 function DataMenu() {
 	const store = useStore()
@@ -74,36 +75,46 @@ function DataMenu() {
 export function App() {
 	const store = useStore()
 	const [page, setPage] = useState<'breeding' | 'pals'>('breeding')
+	// The Pals page mounts on first visit and then stays mounted, so switching back is instant
+	const [palsMounted, setPalsMounted] = useState(false)
 	const [selectedWanted, setSelectedWanted] = useState<string | null>(null)
 	const { plan, progress, error } = usePlan(store.owned, store.wanted, store.settings, store.loaded)
 
 	return (
-		<Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
-			<AppBar position="static" color="transparent" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
-				<Toolbar variant="dense" sx={{ gap: 2 }}>
-					<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-						<EggIcon color="primary" />
-						<Typography variant="h6">PalBreeder</Typography>
-					</Box>
-					<Tabs value={page} onChange={(_, v) => setPage(v)}>
-						<Tab value="breeding" label="Breeding" />
-						<Tab value="pals" label="Pals" />
-					</Tabs>
-					<Box sx={{ ml: 'auto' }}>
-						<DataMenu />
-					</Box>
-				</Toolbar>
-			</AppBar>
-			<Box sx={{ flex: 1, minHeight: 0, p: 2 }}>
-				{page === 'breeding' ? (
-					<Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(420px, 2fr) 3fr', gap: 2, height: '100%' }}>
+		<AlternativesProvider>
+			<Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
+				<AppBar position="static" color="transparent" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+					<Toolbar variant="dense" sx={{ gap: 2 }}>
+						<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+							<EggIcon color="primary" />
+							<Typography variant="h6">PalBreeder</Typography>
+						</Box>
+						<Tabs
+							value={page}
+							onChange={(_, v) => {
+								setPage(v)
+								if (v === 'pals') setPalsMounted(true)
+							}}
+						>
+							<Tab value="breeding" label="Breeding" />
+							<Tab value="pals" label="Pals" />
+						</Tabs>
+						<Box sx={{ ml: 'auto' }}>
+							<DataMenu />
+						</Box>
+					</Toolbar>
+				</AppBar>
+				<Box sx={{ flex: 1, minHeight: 0, p: 2 }}>
+					{/* Both pages stay mounted so switching tabs doesn't rebuild the 300-row table */}
+					<Box sx={{ display: page === 'breeding' ? 'grid' : 'none', gridTemplateColumns: 'minmax(420px, 2fr) 3fr', gap: 2, height: '100%' }}>
 						<ListsPanel plan={plan} selectedWanted={selectedWanted} onSelectWanted={setSelectedWanted} />
 						<PlanPanel plan={plan} progress={progress} error={error} selectedWanted={selectedWanted} />
 					</Box>
-				) : (
-					<PalsPage />
-				)}
+					<Box sx={{ display: page === 'pals' ? 'block' : 'none', height: '100%' }}>
+						{palsMounted && <PalsPage />}
+					</Box>
+				</Box>
 			</Box>
-		</Box>
+		</AlternativesProvider>
 	)
 }

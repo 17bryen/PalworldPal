@@ -23,11 +23,20 @@ solver tests.
 - Passive odds use the game's weights: 1-4 passives inherited from the parents' combined pool
   (40/30/20/10%), then 0-3 random ones (40/30/20/10%). With "Only wanted passives" on, a step
   that carries wanted passives aims for an egg with those and nothing else.
-- Cheaper wanted pals are planned first; whatever they produce (bred or caught) is free for the
-  rest of the list.
-- Catching preferences on the Pals page (Easy, Hard, Never) change what a plan suggests.
-  Legendary catches are off by default; a legendary on your wanted list may still be caught
-  directly.
+- Gender only costs extra where a pairing forces it: a bred pal paired with an owned one must be
+  the opposite gender, and two bred parents need one of them re-hatched until they differ. A
+  catch always takes whichever gender its partner needs.
+- Every wanted pal is planned on its own first, then re-planned with what the others make
+  treated as free, so shared intermediates win. Paused wanted pals still take part in that, but
+  their own steps stay out of the steps and catch list.
+- Owned Yakumo (with condensation stars set) add "catch with Yakumo summoned" options: each of
+  its copyable passives lands on a capture with 15/18/21/24/30% chance by stars, in slot order,
+  into free slots. Wild pals' own passives are assumed to follow the egg random-passive weights.
+- Catching preferences on the Pals page (Easy, Hard, Never) and Map access regions change what a
+  plan suggests. Legendary catches are off by default; a legendary on your wanted list may still
+  be caught directly.
+- The swap button on a bred pal lists every pair that makes it. Choosing one pins it for that
+  exact pal (species plus wanted passives) everywhere it appears.
 
 ## Data
 
@@ -35,5 +44,7 @@ solver tests.
   [PalCalc](https://github.com/tylercamp/palcalc) (MIT). Rerun it after a game update.
 - `public/pals` and `public/work` icons come from PalCalc's resources via `npm run icons`. They
   are game assets owned by Pocketpair; keep the repo private if you push it.
-- `src/data/regions.ts` (World Tree spawns) was read from [paldb.cc](https://paldb.cc)'s
-  datamined spawner tables and is maintained by hand.
+- `src/data/spawns.json` (which map regions each pal spawns in) was built from
+  [paldb.cc](https://paldb.cc)'s datamined spawners and the game's Paldeck habitat table (site
+  data v1.0.5). Field spawns, alphas and fishing spots count; raids, dungeons and events don't.
+  Pals the game lists as wild with no mapped spawn fall under "Other spawns".

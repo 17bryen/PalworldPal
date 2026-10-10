@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { getPal } from '../data/gamedata'
-import type { CatchPref, OwnedPal, PlanSettings, WantedPal } from '../solver/types'
+import type { CatchPref, OwnedPal, Pin, PlanSettings, WantedPal } from '../solver/types'
 
 declare global {
 	interface Window {
@@ -21,7 +21,9 @@ export const defaultSettings: PlanSettings = {
 	allowLegendaryCatches: false,
 	onlyWantedPassives: true,
 	minutesPerEgg: 10,
-	catchPrefs: {}
+	catchPrefs: {},
+	disabledRegions: [],
+	pins: {}
 }
 
 const emptyState: AppState = { version: 1, owned: [], wanted: [], settings: defaultSettings }
@@ -44,7 +46,13 @@ export function sanitize(raw: unknown): AppState {
 		version: 1,
 		owned: (s.owned ?? []).filter((o) => known(o.palId)).map((o) => ({ ...o, passives: o.passives ?? [] })),
 		wanted: (s.wanted ?? []).filter((w) => known(w.palId)).map((w) => ({ ...w, passives: w.passives ?? [] })),
-		settings: { ...defaultSettings, ...s.settings, catchPrefs: { ...s.settings?.catchPrefs } }
+		settings: {
+			...defaultSettings,
+			...s.settings,
+			catchPrefs: { ...s.settings?.catchPrefs },
+			disabledRegions: [...(s.settings?.disabledRegions ?? [])],
+			pins: { ...s.settings?.pins }
+		}
 	}
 }
 
@@ -116,6 +124,9 @@ function useStoreValue() {
 	const removeWanted = useCallback((uid: string) => {
 		setState((s) => ({ ...s, wanted: s.wanted.filter((w) => w.uid !== uid) }))
 	}, [])
+	const toggleWantedDisabled = useCallback((uid: string) => {
+		setState((s) => ({ ...s, wanted: s.wanted.map((w) => (w.uid === uid ? { ...w, disabled: !w.disabled } : w)) }))
+	}, [])
 	const removeWantedPal = useCallback((palId: string) => {
 		setState((s) => ({ ...s, wanted: s.wanted.filter((w) => w.palId !== palId) }))
 	}, [])
@@ -129,6 +140,15 @@ function useStoreValue() {
 			if (pref) catchPrefs[palId] = pref
 			else delete catchPrefs[palId]
 			return { ...s, settings: { ...s.settings, catchPrefs } }
+		})
+	}, [])
+
+	const setPin = useCallback((key: string, pin: Pin | null) => {
+		setState((s) => {
+			const pins = { ...s.settings.pins }
+			if (pin) pins[key] = pin
+			else delete pins[key]
+			return { ...s, settings: { ...s.settings, pins } }
 		})
 	}, [])
 
@@ -147,11 +167,29 @@ function useStoreValue() {
 			updateWanted,
 			removeWanted,
 			removeWantedPal,
+			toggleWantedDisabled,
 			updateSettings,
 			setCatchPref,
+			setPin,
 			replaceState
 		}),
-		[state, loaded, addOwned, updateOwned, removeOwned, addWanted, addWantedMany, updateWanted, removeWanted, removeWantedPal, updateSettings, setCatchPref, replaceState]
+		[
+			state,
+			loaded,
+			addOwned,
+			updateOwned,
+			removeOwned,
+			addWanted,
+			addWantedMany,
+			updateWanted,
+			removeWanted,
+			removeWantedPal,
+			toggleWantedDisabled,
+			updateSettings,
+			setCatchPref,
+			setPin,
+			replaceState
+		]
 	)
 }
 

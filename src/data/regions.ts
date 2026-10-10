@@ -1,68 +1,41 @@
-// World Tree spawn data, read from paldb.cc's datamined spawner tables (site data v1.0.5,
-// 2026-09-15) and checked against each pal's spawner list. The game database PalCalc exports
-// has no spawn locations, so update this by hand after big content patches.
+// Where each pal spawns in the wild. Built from paldb.cc's datamined spawners and the game's
+// Paldeck habitat table (site data v1.0.5, 2026-09-15): field spawns, alphas and fishing spots,
+// but not raids, dungeons, events or merchants. Regions follow the tower areas plus the three
+// Wildlife Sanctuaries. Rebuild by hand after big content patches.
+import raw from './spawns.json'
+import { getPal } from './gamedata'
 
-export type WorldTreePresence = 'only' | 'mostly' | 'also'
+export interface Region {
+	key: string
+	name: string
+	wildLevel: [number, number]
+}
 
-/** Field spawns, alphas included, exist only in the World Tree */
-const ONLY = [
-	'SnowTigerBeastman', // Bastigor
-	'ThunderBird_Ice', // Beakon Cryst
-	'GrassMinotaur_Ice', // Elgrove Cryst
-	'Kirin_Ice', // Univolt Cryst
-	'GhostDragon_Fire', // Eidrolon Ignis
-	'SnakeGirl', // Venusa
-	'LanternButler', // Loomen
-	'MushroomLady', // Mycora
-	'WhiteMoth_Neutral', // Sibelyx Primo
-	'ThunderDragonMan', // Orserk
-	'ElecSnail_Ground', // Snock Terra
-	'ThiefBird', // Roujay
-	'FlowerDoll_Fire', // Petallia Ignis
-	'IceNarwhal_Fire', // Whalaska Ignis
-	'MoonQueen', // Selyne
-	'BlueSkyDragon', // Shaolong
-	'NightBlueHorse_Neutral', // Starryon Primo
-	'MonochromeQueen', // Solenne
-	'VolcanoDragon_Ice', // Moldron Cryst (alpha)
-	'DomeArmorDragon', // Aegidron (alpha)
-	'WhiteDeer_Dark', // Celesdir Noct (alpha)
-	'KabukiMan', // Renjishi (alpha)
-	'Mothman', // Silvance (boss)
-	'FlowerPrince' // Dandilord (boss)
-]
+const { _regions: regionInfo, ...palRegions } = raw as unknown as Record<string, string[]> & {
+	_regions: Record<string, { name: string; wildLevel: [number, number] }>
+}
 
-/** Field spawns only in the World Tree, but a one-off alpha or other source exists elsewhere */
-const MOSTLY = [
-	'ElecPanda', // Grizzbolt
-	'LilyQueen', // Lyleen
-	'GrassGolem_Dark', // Dualith Noct
-	'MoonChild', // Wistella
-	'CubeTurtle_Neutral' // Tetroise Primo
-]
+/** Highest level first, the order the map opens up in reverse */
+export const REGIONS: Region[] = Object.entries(regionInfo)
+	.map(([key, r]) => ({ key, name: r.name, wildLevel: r.wildLevel }))
+	.sort((a, b) => b.wildLevel[0] - a.wildLevel[0] || b.wildLevel[1] - a.wildLevel[1])
 
-/** Spawns in the World Tree and in other regions */
-const ALSO = [
-	'GrassGolem', // Dualith
-	'Horus', // Faleris
-	'Horus_Water', // Faleris Aqua
-	'FoxExorcist', // Flaracle
-	'OctopusGirl_Neutral', // Gloopie Primo
-	'WingGolem', // Knocklem
-	'WingGolem_Fire', // Knocklem Ignis
-	'LilyQueen_Dark', // Lyleen Noct
-	'DarkFlameFox', // Majex
-	'MimicDog', // Mimog
-	'GrassPanda_Electric', // Mossanda Lux
-	'ThunderDog_Ice', // Rayhound Cryst
-	'SwordCutlassfish_Fire', // Skutlass Ignis
-	'GhostBlackCat', // Wispaw
-	'ClownRabbit', // Dupin
-	'KingSunfish_Thunder' // Solmora Lux
-]
+/** Pals the game lists as wild but with no mapped field spawn (dungeons, events, gaps in the data) */
+export const OTHER_REGION: Region = { key: 'other', name: 'Other spawns', wildLevel: [0, 0] }
 
-export const worldTree = new Map<string, WorldTreePresence>([
-	...ONLY.map((id) => [id, 'only'] as const),
-	...MOSTLY.map((id) => [id, 'mostly'] as const),
-	...ALSO.map((id) => [id, 'also'] as const)
-])
+export const regionName = (key: string) => (key === OTHER_REGION.key ? OTHER_REGION.name : regionInfo[key]?.name ?? key)
+
+/** Regions a pal spawns in, lowest level first; empty when it can't be caught in the wild */
+export function spawnRegions(palId: string): string[] {
+	const regions = palRegions[palId]
+	if (regions?.length) return regions
+	return getPal(palId).wild ? [OTHER_REGION.key] : []
+}
+
+export type WorldTreePresence = 'only' | 'also'
+
+export const worldTree = new Map<string, WorldTreePresence>(
+	Object.entries(palRegions)
+		.filter(([, regions]) => regions.includes('worldTree'))
+		.map(([id, regions]) => [id, regions.length === 1 ? 'only' : 'also'])
+)

@@ -6,16 +6,24 @@ export interface OwnedPal {
 	uid: string
 	palId: string
 	gender: Gender
+	/** In slot order; Yakumo copies them in this order */
 	passives: string[]
+	/** Condensation stars, 0-4; only used for Yakumo */
+	stars?: number
 }
 
 export interface WantedPal {
 	uid: string
 	palId: string
 	passives: string[]
+	/** Left out of the steps and catch list, but still planned so shared steps favor it */
+	disabled?: boolean
 }
 
 export type CatchPref = 'easy' | 'hard' | 'never'
+
+/** A chosen way to get one pal, keyed by pinKey(palId, passives) */
+export type Pin = { kind: 'pair'; a: string; b: string } | { kind: 'catch' }
 
 export interface PlanSettings {
 	maxGenerations: number
@@ -25,39 +33,41 @@ export interface PlanSettings {
 	onlyWantedPassives: boolean
 	minutesPerEgg: number
 	catchPrefs: Record<string, CatchPref>
+	/** Map regions the player can't reach yet; their spawns aren't suggested as catches */
+	disabledRegions: string[]
+	pins: Record<string, Pin>
 }
 
 export const MAX_GENERATIONS = 5
 
-/** Where a parent in a breeding step comes from */
-export type ParentSource =
-	| { kind: 'owned'; ownedUid: string }
-	| { kind: 'catch'; minutes: number }
-	| { kind: 'step'; stepId: number }
+export function pinKey(palId: string, passives: string[]): string {
+	return `${palId}|${[...passives].sort().join(',')}`
+}
 
-export interface PalRef {
+export type NodeSource =
+	| { kind: 'owned'; ownedUid: string }
+	| { kind: 'catch'; minutes: number; yakumo?: { ownedUid: string; catches: number } }
+	| { kind: 'bred'; eggs: number; stepId?: number }
+
+export interface PlanNode {
+	/** Same key, same pal: shared nodes appear once in the steps */
+	key: string
 	palId: string
-	/** null when either gender works */
+	/** Set when this exact gender is needed (or is the owned pal's gender) */
 	gender: Gender | null
 	/** Wanted passives it carries */
 	passives: string[]
-	/** Count of passives that aren't wanted (an upper bound for bred pals) */
-	otherPassives: number
-	source: ParentSource
-}
-
-export interface PlanNode extends PalRef {
-	/** Present when this pal is bred in this step of the plan */
-	breed?: { stepId: number; eggs: number; parents: [PlanNode, PlanNode] }
+	source: NodeSource
+	parents?: [PlanNode, PlanNode]
+	/** Both parents are bred, so keep breeding one until their genders differ */
+	matchGenders?: boolean
 }
 
 export interface PlanStep {
 	id: number
-	child: PalRef
-	parents: [PalRef, PalRef]
-	eggs: number
-	/** Wanted list entry this step was first planned for */
-	forWanted: string
+	node: PlanNode
+	/** Enabled wanted pals whose trees include this step */
+	forWanted: string[]
 }
 
 export type TargetStatus = 'have' | 'planned' | 'unreachable'
@@ -65,6 +75,7 @@ export type TargetStatus = 'have' | 'planned' | 'unreachable'
 export interface TargetResult {
 	wantedUid: string
 	palId: string
+	disabled: boolean
 	status: TargetStatus
 	tree?: PlanNode
 	missingPassives: string[]
@@ -74,10 +85,12 @@ export interface TargetResult {
 }
 
 export interface CatchItem {
+	key: string
 	palId: string
-	male: number
-	female: number
+	gender: Gender | null
+	passives: string[]
 	minutes: number
+	yakumo?: { ownedUid: string; catches: number }
 	forWanted: string[]
 }
 

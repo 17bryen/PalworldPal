@@ -14,6 +14,37 @@ const inheritCount = normalize(gameData.passiveInheritanceWeights, 0, MAX_PASSIV
 /** Chance the game then adds r random passives (capped by free slots) */
 const randomCount = normalize(gameData.passiveRandomWeights, 0, MAX_PASSIVES)
 
+export interface YakumoOutcome {
+	/** Yakumo passives that landed on the caught pal */
+	landed: string[]
+	/** Passives the wild pal rolled on its own */
+	own: number
+	chance: number
+}
+
+/**
+ * Passives a pal caught with Yakumo summoned ends up with. The wild pal's own passives come
+ * first (assumed to follow the egg random-passive weights), then each Yakumo passive rolls in
+ * slot order and fills a free slot on success.
+ */
+export function yakumoOutcomes(passives: string[], perPassive: number): YakumoOutcome[] {
+	const out: YakumoOutcome[] = []
+	for (let own = 0; own < MAX_PASSIVES; own++) {
+		if (!randomCount[own]) continue
+		for (let rolls = 0; rolls < 1 << passives.length; rolls++) {
+			let chance = randomCount[own]
+			const landed: string[] = []
+			passives.forEach((name, i) => {
+				const hit = (rolls >> i) & 1
+				chance *= hit ? perPassive : 1 - perPassive
+				if (hit && own + landed.length < MAX_PASSIVES) landed.push(name)
+			})
+			out.push({ landed, own, chance })
+		}
+	}
+	return out
+}
+
 function binom(n: number, k: number): number {
 	if (k < 0 || k > n) return 0
 	let r = 1
