@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
 import { readFile, writeFile, rename } from 'node:fs/promises'
+import { renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -22,6 +23,17 @@ ipcMain.handle('store:save', async (_event, json: string) => {
 	await rename(tmp, storePath())
 })
 
+// Blocking save for when the window closes, so an edit made just before closing isn't lost
+ipcMain.on('store:saveNow', (event, json: string) => {
+	try {
+		const tmp = `${storePath()}.tmp`
+		writeFileSync(tmp, json, 'utf8')
+		renameSync(tmp, storePath())
+	} finally {
+		event.returnValue = null
+	}
+})
+
 function createWindow() {
 	const win = new BrowserWindow({
 		width: 1440,
@@ -32,7 +44,7 @@ function createWindow() {
 		backgroundColor: '#14161c',
 		autoHideMenuBar: true,
 		webPreferences: {
-			preload: path.join(__dirname, 'preload.mjs'),
+			preload: path.join(__dirname, 'preload.cjs'),
 			contextIsolation: true,
 			sandbox: false
 		}

@@ -4,7 +4,7 @@ import type { CatchPref, OwnedPal, PlanSettings, WantedPal } from '../solver/typ
 
 declare global {
 	interface Window {
-		palStore?: { load(): Promise<string | null>; save(json: string): Promise<void> }
+		palStore?: { load(): Promise<string | null>; save(json: string): Promise<void>; saveNow(json: string): void }
 	}
 }
 
@@ -50,7 +50,8 @@ export function sanitize(raw: unknown): AppState {
 
 async function loadState(): Promise<AppState> {
 	try {
-		const json = window.palStore ? await window.palStore.load() : localStorage.getItem(LOCAL_KEY)
+		// Lists saved to browser storage by older builds move into the save file on first load
+		const json = (window.palStore && (await window.palStore.load())) || localStorage.getItem(LOCAL_KEY)
 		return json ? sanitize(JSON.parse(json)) : emptyState
 	} catch {
 		return emptyState
@@ -79,6 +80,15 @@ function useStoreValue() {
 		if (!loaded) return
 		clearTimeout(saveTimer.current)
 		saveTimer.current = setTimeout(() => void saveState(state), 300)
+		// Closing the window inside the save delay still writes the latest lists
+		const flush = () => {
+			clearTimeout(saveTimer.current)
+			const json = JSON.stringify(state)
+			if (window.palStore) window.palStore.saveNow(json)
+			else localStorage.setItem(LOCAL_KEY, json)
+		}
+		window.addEventListener('beforeunload', flush)
+		return () => window.removeEventListener('beforeunload', flush)
 	}, [state, loaded])
 
 	const addOwned = useCallback((pal: Omit<OwnedPal, 'uid'>) => {
