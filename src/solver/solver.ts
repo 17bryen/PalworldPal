@@ -1,4 +1,5 @@
 import { pals, palCount, palIndex, breedChild } from '../data/gamedata'
+import { worldTree } from '../data/regions'
 import { childChance, MAX_PASSIVES } from './odds'
 import {
 	MAX_GENERATIONS,
@@ -22,6 +23,9 @@ const EITHER = 2
 type Slot = 0 | 1 | 2
 const TARGET_SLOTS: Slot[] = [EITHER]
 const PARENT_SLOTS: Slot[] = [MALE, FEMALE]
+
+/** Extra minutes to catch a pal that lives (almost) only in the late-game World Tree */
+const WORLD_TREE_MINUTES = 10
 
 /** Paths needing more eggs than this for one step are not worth suggesting */
 const MAX_EGGS_PER_STEP = 500
@@ -155,15 +159,17 @@ class TargetSolver {
 	catchMinutes(pal: number, isTarget: boolean, ignoreLimits = false): number | null {
 		const p = pals[pal]
 		if (!p.wild) return null
-		if (ignoreLimits) return p.catchMinutes
+		const presence = worldTree.get(p.id)
+		const minutes = p.catchMinutes + (presence === 'only' || presence === 'mostly' ? WORLD_TREE_MINUTES : 0)
+		if (ignoreLimits) return minutes
 		if (!this.settings.allowCatching) return null
 		const pref = this.settings.catchPrefs[p.id]
 		if (pref === 'never') return null
 		// A legendary on the wanted list may still be caught directly
 		if (p.legendary && !this.settings.allowLegendaryCatches && !isTarget) return null
 		if (pref === 'easy') return 1
-		if (pref === 'hard') return p.catchMinutes * 3
-		return p.catchMinutes
+		if (pref === 'hard') return minutes * 3
+		return minutes
 	}
 
 	/** Fewest generations from each pal to the target, ignoring passives and gender */
@@ -243,7 +249,6 @@ class TargetSolver {
 					other: 0,
 					cost: minutes,
 					gen: 0,
-					born: 0,
 					born: 0,
 					src: { t: 'catch', minutes }
 				})

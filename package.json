@@ -7,8 +7,10 @@
 	"author": "Brian Rogers",
 	"scripts": {
 		"dev": "vite",
+		"dev:web": "vite --mode web",
 		"build": "tsc && vite build",
 		"data": "node scripts/build-data.mjs",
+		"icons": "node scripts/fetch-icons.mjs",
 		"test": "vitest run",
 		"preview": "vite preview"
 	},
