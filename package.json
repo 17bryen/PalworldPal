@@ -1,0 +1,35 @@
+{
+	"name": "palbreeder",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"description": "A Palworld breeding planner for a whole wanted list.",
+	"author": "Brian Rogers",
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc && vite build",
+		"data": "node scripts/build-data.mjs",
+		"test": "vitest run",
+		"preview": "vite preview"
+	},
+	"dependencies": {
+		"@emotion/react": "^11.14.0",
+		"@emotion/styled": "^11.14.1",
+		"@fontsource/roboto": "^5.2.8",
+		"@mui/icons-material": "^7.3.4",
+		"@mui/material": "^7.3.4",
+		"react": "^18.2.0",
+		"react-dom": "^18.2.0"
+	},
+	"devDependencies": {
+		"@types/react": "^18.2.64",
+		"@types/react-dom": "^18.2.21",
+		"@vitejs/plugin-react": "^4.2.1",
+		"electron": "^30.0.1",
+		"typescript": "^5.2.2",
+		"vite": "^5.1.6",
+		"vite-plugin-electron": "^0.28.6",
+		"vitest": "^1.6.0"
+	},
+	"main": "dist-electron/main.js"
+}
