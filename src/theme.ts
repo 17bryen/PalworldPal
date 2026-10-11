@@ -18,6 +18,23 @@ export const theme = createTheme({
 		subtitle2: { fontWeight: 600 }
 	},
 	components: {
+		MuiCssBaseline: {
+			styleOverrides: {
+				// Native controls (and anything unstyled below) render in their dark variant
+				html: { colorScheme: 'dark' },
+				'*::-webkit-scrollbar': { width: 10, height: 10 },
+				'*::-webkit-scrollbar-track, *::-webkit-scrollbar-corner': { background: 'transparent' },
+				'*::-webkit-scrollbar-thumb': {
+					background: 'rgba(255,255,255,0.12)',
+					borderRadius: 10,
+					// The transparent border insets the thumb so it floats off the panel edge
+					border: '2px solid transparent',
+					backgroundClip: 'padding-box'
+				},
+				'*::-webkit-scrollbar-thumb:hover': { background: 'rgba(255,255,255,0.24)', backgroundClip: 'padding-box' },
+				'*::-webkit-scrollbar-thumb:active': { background: 'rgba(92,200,240,0.45)', backgroundClip: 'padding-box' }
+			}
+		},
 		MuiPaper: { styleOverrides: { root: { backgroundImage: 'none' } } },
 		MuiButton: { defaultProps: { disableElevation: true }, styleOverrides: { root: { textTransform: 'none' } } },
 		MuiTab: { styleOverrides: { root: { textTransform: 'none', minHeight: 44 } } },

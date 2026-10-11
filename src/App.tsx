@@ -8,6 +8,7 @@ import { usePlan } from './state/usePlan'
 import { ListsPanel } from './components/ListsPanel'
 import { PlanPanel } from './components/PlanPanel'
 import { PalsPage } from './components/PalsPage'
+import { MerchantsPage } from './components/MerchantsPage'
 import { AlternativesProvider } from './components/Alternatives'
 
 function DataMenu() {
@@ -72,11 +73,13 @@ function DataMenu() {
 	)
 }
 
+type Page = 'breeding' | 'pals' | 'merchants'
+
 export function App() {
 	const store = useStore()
-	const [page, setPage] = useState<'breeding' | 'pals'>('breeding')
-	// The Pals page mounts on first visit and then stays mounted, so switching back is instant
-	const [palsMounted, setPalsMounted] = useState(false)
+	const [page, setPage] = useState<Page>('breeding')
+	// Pages mount on first visit and then stay mounted, so switching back is instant
+	const [visited, setVisited] = useState<Set<Page>>(new Set(['breeding']))
 	const [selectedWanted, setSelectedWanted] = useState<string | null>(null)
 	const { plan, progress, error } = usePlan(store.owned, store.wanted, store.settings, store.loaded)
 
@@ -104,13 +107,14 @@ export function App() {
 						</Box>
 						<Tabs
 							value={page}
-							onChange={(_, v) => {
+							onChange={(_, v: Page) => {
 								setPage(v)
-								if (v === 'pals') setPalsMounted(true)
+								setVisited((s) => (s.has(v) ? s : new Set([...s, v])))
 							}}
 						>
 							<Tab value="breeding" label="Breeding" />
 							<Tab value="pals" label="Pals" />
+							<Tab value="merchants" label="Merchants" />
 						</Tabs>
 						<Box sx={{ ml: 'auto' }}>
 							<DataMenu />
@@ -124,7 +128,10 @@ export function App() {
 						<PlanPanel plan={plan} progress={progress} error={error} selectedWanted={selectedWanted} />
 					</Box>
 					<Box sx={{ display: page === 'pals' ? 'block' : 'none', height: '100%' }}>
-						{palsMounted && <PalsPage />}
+						{visited.has('pals') && <PalsPage />}
+					</Box>
+					<Box sx={{ display: page === 'merchants' ? 'block' : 'none', height: '100%' }}>
+						{visited.has('merchants') && <MerchantsPage />}
 					</Box>
 				</Box>
 			</Box>
