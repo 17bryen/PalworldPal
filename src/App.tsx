@@ -131,7 +131,8 @@ export function App() {
 							borderColor: 'divider',
 							// Doubles as the window's title bar: drag to move, double-click to maximize
 							'-webkit-app-region': 'drag',
-							'& button, & input, & [role=tab]': { '-webkit-app-region': 'no-drag' },
+							// Everything clickable opts out, including MUI chips, which render as div role=button
+							'& button, & input, & [role=tab], & [role=button]': { '-webkit-app-region': 'no-drag' },
 							// Keep clear of the window buttons Windows draws at the right end (zero in a browser)
 							pr: 'calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))'
 						}}
