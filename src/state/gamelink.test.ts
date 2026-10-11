@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { parseCaptures, parseLive } from '../../electron/gamelink'
 import { normalizeCaptures } from './captures'
 import { worldToPixel, pixelToIngame } from '../data/map'
+import { Motion } from './motion'
 
 describe('bridge files', () => {
 	it('reads live.json and rejects partial writes', () => {
@@ -42,5 +43,26 @@ describe('world to map', () => {
 
 	it('puts World Tree positions on the World Tree map', () => {
 		expect(worldToPixel(500000, -650000).map).toBe(1)
+	})
+})
+
+describe('motion playback', () => {
+	it('blends between updates a fixed delay behind, timed by the mod clock', () => {
+		const m = new Motion()
+		// Updates 50 ms apart on the mod clock, delivered with uneven delays
+		m.push({ x: 0, y: 0, yaw: 0, t: 10.0 }, 1000)
+		m.push({ x: 100, y: 0, yaw: 10, t: 10.05 }, 1080)
+		m.push({ x: 200, y: 0, yaw: 20, t: 10.1 }, 1105)
+		// Offset is 1000 ms (fastest delivery); 90 ms behind 1165 is mod time 10.075
+		const p = m.at(1165)!
+		expect(p.x).toBeCloseTo(150)
+		expect(p.yaw).toBeCloseTo(15)
+	})
+
+	it('turns the short way across north', () => {
+		const m = new Motion()
+		m.push({ x: 0, y: 0, yaw: 170 }, 0)
+		m.push({ x: 0, y: 0, yaw: -170 }, 100)
+		expect(m.at(140)!.yaw).toBeCloseTo(180)
 	})
 })

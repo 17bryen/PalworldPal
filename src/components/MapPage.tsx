@@ -214,63 +214,33 @@ const PLAYER_ICON = L.divIcon({
 /** You, live from the game; the arrow turns with your camera */
 export function PlayerMarker({ map, follow }: { map: MapIndex; follow: boolean }) {
 	const leaflet = useMap()
-	const { live, connected } = useBridge()
+	const { motion, connected } = useBridge()
 	const marker = useRef<L.Marker | null>(null)
-	// Glide between updates: each new position starts from wherever the arrow is drawn now
-	const glide = useRef({ from: [0, 0, 0], to: [0, 0, 0], start: 0, duration: 1, lastAt: 0 })
-	const followRef = useRef(follow)
-	followRef.current = follow
-	const pos = live && connected ? worldToPixel(live.x, live.y) : null
-	const target = pos && pos.map === map ? toLatLng(pos.px, pos.py) : null
-
-	const drawAt = (lat: number, lng: number, yaw: number) => {
-		if (!marker.current) return
-		marker.current.setLatLng([lat, lng])
-		const arrow = marker.current.getElement()?.querySelector<HTMLElement>('.pb-player')
-		// Unreal yaw 0 faces +X, which is up on the map; it grows clockwise
-		if (arrow) arrow.style.transform = `rotate(${yaw}deg)`
-		// A hidden map has no size; panning it then would corrupt the view
-		if (followRef.current && leaflet.getSize().x > 0) leaflet.panTo([lat, lng], { animate: false })
-	}
-
-	useEffect(() => {
-		if (!target || !live) {
-			marker.current?.remove()
-			marker.current = null
-			return
-		}
-		const now = performance.now()
-		const g = glide.current
-		if (!marker.current) {
-			marker.current = L.marker(target, { icon: PLAYER_ICON, interactive: false, zIndexOffset: 1000, keyboard: false }).addTo(leaflet)
-			g.from = g.to = [target[0], target[1], live.yaw]
-			g.start = now
-			drawAt(target[0], target[1], live.yaw)
-		} else {
-			const t = Math.min(1, (now - g.start) / g.duration)
-			const current = g.from.map((v, i) => v + (g.to[i] - v) * t)
-			// Turn the short way round
-			const turn = ((((live.yaw - current[2]) % 360) + 540) % 360) - 180
-			g.from = current
-			g.to = [target[0], target[1], current[2] + turn]
-			g.start = now
-			// Spread the move over the time since the last update, so motion stays continuous
-			g.duration = Math.min(300, Math.max(60, now - g.lastAt))
-		}
-		g.lastAt = now
-	}, [live, target?.[0], target?.[1]])
+	// Read inside the frame loop, which is set up once
+	const state = useRef({ map, follow, connected })
+	state.current = { map, follow, connected }
 
 	useEffect(() => {
 		let frame = 0
 		const tick = () => {
-			const g = glide.current
-			if (marker.current) {
-				const t = Math.min(1, (performance.now() - g.start) / g.duration)
-				if (t < 1 || g.start + g.duration > performance.now() - 50) {
-					drawAt(g.from[0] + (g.to[0] - g.from[0]) * t, g.from[1] + (g.to[1] - g.from[1]) * t, g.from[2] + (g.to[2] - g.from[2]) * t)
-				}
-			}
 			frame = requestAnimationFrame(tick)
+			const { map, follow, connected } = state.current
+			const pose = connected ? motion.at() : null
+			const here = pose ? worldToPixel(pose.x, pose.y) : null
+			if (!pose || !here || here.map !== map) {
+				marker.current?.remove()
+				marker.current = null
+				return
+			}
+			const latLng = toLatLng(here.px, here.py)
+			if (!marker.current) {
+				marker.current = L.marker(latLng, { icon: PLAYER_ICON, interactive: false, zIndexOffset: 1000, keyboard: false }).addTo(leaflet)
+			} else marker.current.setLatLng(latLng)
+			const arrow = marker.current.getElement()?.querySelector<HTMLElement>('.pb-player')
+			// Unreal yaw 0 faces +X, which is up on the map; it grows clockwise
+			if (arrow) arrow.style.transform = `rotate(${pose.yaw}deg)`
+			// A hidden map has no size; panning it then would corrupt the view
+			if (follow && leaflet.getSize().x > 0) leaflet.panTo(latLng, { animate: false })
 		}
 		frame = requestAnimationFrame(tick)
 		return () => {
@@ -278,7 +248,7 @@ export function PlayerMarker({ map, follow }: { map: MapIndex; follow: boolean }
 			marker.current?.remove()
 			marker.current = null
 		}
-	}, [leaflet])
+	}, [leaflet, motion])
 	return null
 }
 

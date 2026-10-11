@@ -25,6 +25,8 @@ export interface LiveData {
 	yaw: number
 	/** A menu, inventory, chest or the map is open (the game is showing its cursor) */
 	ui: boolean
+	/** The mod's clock in seconds when it read the position (mod 1.2+) */
+	t?: number
 	mod: string
 	/** When the app last saw the file change, ms since epoch */
 	at: number
@@ -41,7 +43,7 @@ export function parseLive(text: string, at: number): LiveData | null {
 	try {
 		const d = JSON.parse(text)
 		if (typeof d.x !== 'number' || typeof d.y !== 'number') return null
-		return { x: d.x, y: d.y, z: d.z ?? 0, yaw: d.yaw ?? 0, ui: d.ui === true, mod: String(d.mod ?? ''), at }
+		return { x: d.x, y: d.y, z: d.z ?? 0, yaw: d.yaw ?? 0, ui: d.ui === true, t: typeof d.t === 'number' ? d.t : undefined, mod: String(d.mod ?? ''), at }
 	} catch {
 		return null
 	}
@@ -87,8 +89,8 @@ export function startBridge() {
 			}
 		}, everyMs)
 	}
-	// The mod writes about 10 times a second; reading often keeps the delay under a frame or two
-	watchFile('live.json', 50, (text) => {
+	// The mod writes about 20 times a second; reading often catches every update
+	watchFile('live.json', 25, (text) => {
 		const live = parseLive(text, Date.now())
 		if (!live) return
 		latestLive = live

@@ -11,9 +11,9 @@
 --   * the timer-thread predicate is pure arithmetic and allocates nothing;
 --   * every UObject read happens on the game thread, inside pcall.
 
-local VERSION = "1.1.0"
+local VERSION = "1.2.0"
 local TICK_MS = 33            -- timer resolution, not the write rate
-local POSITION_EVERY = 0.1    -- seconds between position writes
+local POSITION_EVERY = 0.05   -- seconds between position writes
 local CAPTURES_EVERY = 3.0    -- seconds between capture-count reads
 local DISPATCH_GAP = 0.033    -- seconds after a job ends before the next dispatch
 local DISPATCH_TIMEOUT = 3.0  -- a dispatch this old was dropped (world transition); try again
@@ -105,8 +105,9 @@ local function writePosition(pc)
     local ui = get(rawCursor, pc) == true
     seq = seq + 1
     writeFile("live.json", string.format(
-        '{"v":1,"mod":"%s","seq":%d,"x":%.1f,"y":%.1f,"z":%.1f,"yaw":%.1f,"ui":%s}',
-        VERSION, seq, loc.X, loc.Y, loc.Z, yaw, ui and "true" or "false"))
+        -- t is the game-side clock, so the app can play motion back at the pace it really happened
+        '{"v":1,"mod":"%s","seq":%d,"t":%.3f,"x":%.1f,"y":%.1f,"z":%.1f,"yaw":%.2f,"ui":%s}',
+        VERSION, seq, os.clock(), loc.X, loc.Y, loc.Z, yaw, ui and "true" or "false"))
 end
 
 -- Capture counts live on the player state's record data as an array of { Key = pal id,

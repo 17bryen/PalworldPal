@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { normalizeCaptures } from './captures'
+import { Motion } from './motion'
 import { useStore } from './store'
 
 /** What the PalBreeder Bridge mod reports, relayed by the main process */
@@ -10,6 +11,8 @@ export interface LiveData {
 	yaw: number
 	/** A menu, inventory, chest or the map is open */
 	ui: boolean
+	/** The mod's clock in seconds when it read the position (mod 1.2+) */
+	t?: number
 	mod: string
 	at: number
 }
@@ -57,12 +60,14 @@ const STALE_MS = 3000
 interface Bridge {
 	/** False in a plain browser, where there's no main process to read the mod's files */
 	available: boolean
+	/** Smoothed player motion for per-frame drawing */
+	motion: Motion
 	live: LiveData | null
 	connected: boolean
 	captures: CaptureData | null
 }
 
-const BridgeContext = createContext<Bridge>({ available: false, live: null, connected: false, captures: null })
+const BridgeContext = createContext<Bridge>({ available: false, motion: new Motion(), live: null, connected: false, captures: null })
 
 /** Dev-only stand-in for the game: walks a loop near Small Settlement (open with ?fakebridge) */
 function fakeBridge(): PalBridgeApi {
@@ -108,6 +113,7 @@ export const bridgeApi: PalBridgeApi | undefined =
 export function BridgeProvider({ children, syncCatches: canSync = true }: { children: ReactNode; syncCatches?: boolean }) {
 	const { syncCatches, replaceCatches, loaded } = useStore()
 	const [live, setLive] = useState<LiveData | null>(null)
+	const [motion] = useState(() => new Motion())
 	const [captures, setCaptures] = useState<CaptureData | null>(null)
 	const [now, setNow] = useState(Date.now())
 
@@ -117,7 +123,11 @@ export function BridgeProvider({ children, syncCatches: canSync = true }: { chil
 			if (d.live) setLive(d.live)
 			if (d.captures) setCaptures(d.captures)
 		})
-		const offLive = bridgeApi.onLive(setLive)
+		// Timestamp each update as it arrives, before React gets involved
+		const offLive = bridgeApi.onLive((d) => {
+			motion.push(d)
+			setLive(d)
+		})
 		const offCaptures = bridgeApi.onCaptures(setCaptures)
 		// Re-check staleness while no updates arrive
 		const timer = setInterval(() => setNow(Date.now()), 1000)
@@ -134,7 +144,7 @@ export function BridgeProvider({ children, syncCatches: canSync = true }: { chil
 	}, [canSync, captures, syncCatches, loaded, replaceCatches])
 
 	const connected = !!live && Math.max(now, Date.now()) - live.at < STALE_MS
-	return <BridgeContext.Provider value={{ available: !!bridgeApi, live, connected, captures }}>{children}</BridgeContext.Provider>
+	return <BridgeContext.Provider value={{ available: !!bridgeApi, motion, live, connected, captures }}>{children}</BridgeContext.Provider>
 }
 
 export const useBridge = () => useContext(BridgeContext)
