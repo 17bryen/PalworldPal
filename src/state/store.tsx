@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { getPal } from '../data/gamedata'
+import { LOOT_DEFAULT_MINUTES } from '../data/map'
 import type { CatchPref, OwnedPal, Pin, PlanSettings, WantedPal } from '../solver/types'
 
 declare global {
@@ -24,6 +25,26 @@ export interface AppState {
 	/** Take Paldeck catches from the game while the bridge mod is running */
 	syncCatches: boolean
 	overlay: OverlayPrefs
+	loot: LootState
+}
+
+export interface LootState {
+	/** Mark a spot looted after standing on it for a moment */
+	auto: boolean
+	/** Minutes until each lootable marker type comes back */
+	minutes: Record<string, number>
+	/** When each spot was looted (ms since epoch), by spot key */
+	looted: Record<string, number>
+}
+
+const defaultLoot: LootState = { auto: true, minutes: { ...LOOT_DEFAULT_MINUTES }, looted: {} }
+
+/** When a looted spot comes back (ms since epoch), or null when it's ready now */
+export function lootReadyAt(key: string, loot: LootState, now = Date.now()): number | null {
+	const at = loot.looted[key]
+	if (at == null) return null
+	const ready = at + (loot.minutes[key.slice(0, key.indexOf(':'))] ?? 0) * 60000
+	return ready > now ? ready : null
 }
 
 /** Where the compass and minimap sit, as fractions of the screen so it survives resolution changes */
@@ -46,6 +67,10 @@ export interface OverlayPrefs extends OverlayLayout {
 	/** Shown over the game (also toggled by the hotkey) */
 	enabled: boolean
 	compass: boolean
+	/** Compass parts; with all three off, only the marker icons show (e.g. over the game's own compass) */
+	compassBar: boolean
+	compassTicks: boolean
+	compassLetters: boolean
 	minimap: boolean
 	/** Display to cover; null for the primary display */
 	display: number | null
@@ -59,7 +84,7 @@ export const COMPASS_DEFAULT_RANGE = 200
 /** Range choices in meters; 0 is unlimited (JSON can't store Infinity) */
 export const COMPASS_RANGES = [50, 100, 150, 200, 300, 500, 0]
 
-const defaultOverlay: OverlayPrefs = { ...defaultLayout, enabled: false, compass: true, minimap: true, display: null, zoom: 4, range: COMPASS_DEFAULT_RANGE }
+const defaultOverlay: OverlayPrefs = { ...defaultLayout, enabled: false, compass: true, compassBar: true, compassTicks: true, compassLetters: true, minimap: true, display: null, zoom: 4, range: COMPASS_DEFAULT_RANGE }
 
 export interface MapPrefs {
 	/** Marker layers shown on the map */
@@ -81,7 +106,7 @@ export const defaultSettings: PlanSettings = {
 	pins: {}
 }
 
-const emptyState: AppState = { version: 1, owned: [], wanted: [], settings: defaultSettings, catches: {}, map: defaultMap, syncCatches: true, overlay: defaultOverlay }
+const emptyState: AppState = { version: 1, owned: [], wanted: [], settings: defaultSettings, catches: {}, map: defaultMap, syncCatches: true, overlay: defaultOverlay, loot: defaultLoot }
 const LOCAL_KEY = 'palbreeder'
 
 const newUid = () => crypto.randomUUID()
@@ -117,8 +142,22 @@ export function sanitize(raw: unknown): AppState {
 			...defaultOverlay,
 			...savedOverlay,
 			range: COMPASS_RANGES.includes(savedOverlay.range as number) ? (savedOverlay.range as number) : COMPASS_DEFAULT_RANGE
-		}
+		},
+		loot: sanitizeLoot(s.loot)
 	}
+}
+
+function sanitizeLoot(raw: Partial<LootState> | undefined): LootState {
+	const loot: LootState = {
+		auto: raw?.auto ?? true,
+		minutes: { ...LOOT_DEFAULT_MINUTES, ...raw?.minutes },
+		looted: {}
+	}
+	// Drop timers that have run out
+	for (const [key, at] of Object.entries(raw?.looted ?? {})) {
+		if (typeof at === 'number' && lootReadyAt(key, { ...loot, looted: { [key]: at } }) != null) loot.looted[key] = at
+	}
+	return loot
 }
 
 async function loadState(): Promise<AppState> {
@@ -251,6 +290,18 @@ function useStoreValue(readOnly: boolean) {
 		setState((s) => ({ ...s, overlay: { ...s.overlay, ...patch } }))
 	}, [])
 
+	const setLooted = useCallback((key: string, at: number | null) => {
+		setState((s) => {
+			const looted = { ...s.loot.looted }
+			if (at == null) delete looted[key]
+			else looted[key] = at
+			return { ...s, loot: { ...s.loot, looted } }
+		})
+	}, [])
+	const updateLoot = useCallback((patch: Partial<LootState>) => {
+		setState((s) => ({ ...s, loot: { ...s.loot, ...patch } }))
+	}, [])
+
 	const replaceState = useCallback((next: AppState) => setState(next), [])
 
 	return useMemo(
@@ -275,6 +326,8 @@ function useStoreValue(readOnly: boolean) {
 			replaceCatches,
 			setSyncCatches,
 			updateOverlay,
+			setLooted,
+			updateLoot,
 			replaceState
 		}),
 		[
@@ -297,6 +350,8 @@ function useStoreValue(readOnly: boolean) {
 			replaceCatches,
 			setSyncCatches,
 			updateOverlay,
+			setLooted,
+			updateLoot,
 			replaceState
 		]
 	)

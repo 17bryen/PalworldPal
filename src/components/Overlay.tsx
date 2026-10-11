@@ -6,7 +6,8 @@ import { Box, Button, Paper, Typography } from '@mui/material'
 import { layerPoints, mapLayers, pixelToWorld, worldToPixel, type MapIndex } from '../data/map'
 import { useBridge, type LiveData } from '../state/bridge'
 import type { Motion, Pose } from '../state/motion'
-import { defaultLayout, useStore, type OverlayLayout } from '../state/store'
+import { defaultLayout, lootReadyAt, useStore, type OverlayLayout, type OverlayPrefs } from '../state/store'
+import { useMinuteTick } from '../state/loot'
 import { asset, BOUNDS, LayerMarkers, PlayerMarker, toLatLng } from './MapPage'
 
 const COMPASS_HEIGHT = 84
@@ -51,21 +52,25 @@ function useFramePose(motion: Motion, active: boolean): Pose | null {
 /** Every point of the shown marker layers in world units, for distance and direction */
 function useWorldPoints(layerIds: string[], map: MapIndex) {
 	return useMemo(() => {
-		const points: { x: number; y: number; icon: string | null; name: string }[] = []
+		const points: { key: string; x: number; y: number; icon: string | null; name: string }[] = []
 		for (const layer of mapLayers) {
 			if (!layerIds.includes(layer.id)) continue
 			for (const p of layerPoints(layer, map)) {
 				const w = pixelToWorld(map, p.px, p.py)
-				points.push({ ...w, icon: layer.icon, name: p.label ?? layer.name })
+				points.push({ ...w, key: p.key, icon: layer.icon, name: p.label ?? layer.name })
 			}
 		}
 		return points
 	}, [layerIds, map])
 }
 
-function Compass({ pose, layerIds, range, width }: { pose: Pose; layerIds: string[]; range: number; width: number }) {
+function Compass({ pose, layerIds, range, width, prefs }: { pose: Pose; layerIds: string[]; range: number; width: number; prefs: OverlayPrefs }) {
 	const map = worldToPixel(pose.x, pose.y).map
-	const points = useWorldPoints(layerIds, map)
+	const all = useWorldPoints(layerIds, map)
+	const { loot } = useStore()
+	const minute = useMinuteTick()
+	// Looted spots stay off the compass until they're back
+	const points = useMemo(() => all.filter((p) => lootReadyAt(p.key, loot) == null), [all, loot, minute])
 	const toX = (relDeg: number) => width / 2 + (relDeg / COMPASS_HALF_FOV) * (width / 2)
 
 	// The nearest markers in any direction, refreshed only when you've moved a few meters, so each
@@ -118,12 +123,15 @@ function Compass({ pose, layerIds, range, width }: { pose: Pose; layerIds: strin
 				maskImage: 'linear-gradient(to right, transparent, black 12%, black 88%, transparent)'
 			}}
 		>
-			<Box sx={{ position: 'absolute', left: 0, right: 0, top: 0, height: COMPASS_BAR, background: 'rgba(14,16,20,0.55)', borderRadius: 1 }} />
+			{prefs.compassBar && (
+				<Box sx={{ position: 'absolute', left: 0, right: 0, top: 0, height: COMPASS_BAR, background: 'rgba(14,16,20,0.55)', borderRadius: 1 }} />
+			)}
 			{ticks.map(({ rel, heading }) => {
-				const label = CARDINALS[heading]
+				const label = prefs.compassLetters ? CARDINALS[heading] : undefined
+				if (!label && !prefs.compassTicks) return null
 				return (
 					<Box key={heading} sx={{ position: 'absolute', left: toX(rel), top: 0, transform: 'translateX(-50%)', textAlign: 'center' }}>
-						<Box sx={{ width: '2px', height: label ? 10 : 6, mx: 'auto', bgcolor: label ? '#e8ecf2' : 'rgba(232,236,242,0.5)' }} />
+						{prefs.compassTicks && <Box sx={{ width: '2px', height: CARDINALS[heading] ? 10 : 6, mx: 'auto', bgcolor: CARDINALS[heading] ? '#e8ecf2' : 'rgba(232,236,242,0.5)' }} />}
 						{label && (
 							<Box sx={{ fontSize: label.length === 1 ? 15 : 12, fontWeight: 800, color: label === 'N' ? '#f07a7a' : '#e8ecf2', textShadow: '0 1px 3px #000' }}>
 								{label}
@@ -153,7 +161,9 @@ function Compass({ pose, layerIds, range, width }: { pose: Pose; layerIds: strin
 				</Box>
 			))}
 			{/* Where you're looking */}
-			<Box sx={{ position: 'absolute', left: '50%', top: 0, width: '2px', height: COMPASS_BAR, bgcolor: '#5cc8f0', transform: 'translateX(-50%)', boxShadow: '0 0 6px #5cc8f0' }} />
+			{prefs.compassTicks && (
+				<Box sx={{ position: 'absolute', left: '50%', top: 0, width: '2px', height: COMPASS_BAR, bgcolor: '#5cc8f0', transform: 'translateX(-50%)', boxShadow: '0 0 6px #5cc8f0' }} />
+			)}
 		</Box>
 	)
 }
@@ -200,7 +210,7 @@ function Minimap({ live, layerIds, size, zoom }: { live: LiveData; layerIds: str
 			>
 				<TileLayer url={asset(`map/${here.map === 0 ? 'main' : 'worldTree'}/z{z}x{x}y{y}.webp`)} tileSize={512} maxNativeZoom={4} noWrap bounds={BOUNDS} />
 				{shown.map((l) => (
-					<LayerMarkers key={l.id} layer={l} map={here.map} />
+					<LayerMarkers key={l.id} layer={l} map={here.map} hideLooted />
 				))}
 				<PlayerMarker map={here.map} follow />
 			</MapContainer>
@@ -342,7 +352,7 @@ export function OverlayApp() {
 					onResize={(dx) => setDraft({ ...layout, compassWidth: clamp(layout.compassWidth + dx * 2, COMPASS_WIDTH_RANGE) })}
 					onDone={() => draft && commit(draft)}
 				>
-					<Compass pose={current} layerIds={map.layers} range={overlay.range} width={layout.compassWidth} />
+					<Compass pose={current} layerIds={map.layers} range={overlay.range} width={layout.compassWidth} prefs={overlay} />
 				</Movable>
 			)}
 			{overlay.minimap && (

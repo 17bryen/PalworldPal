@@ -159,6 +159,24 @@ export function OverlayPage() {
 						<Switch checked={overlay.compass} onChange={(e) => updateOverlay({ compass: e.target.checked })} />
 					</Row>
 					{overlay.compass && (
+						<>
+							<Row label="Background">
+								<Switch checked={overlay.compassBar} onChange={(e) => updateOverlay({ compassBar: e.target.checked })} />
+							</Row>
+							<Row label="Tick marks and center line">
+								<Switch checked={overlay.compassTicks} onChange={(e) => updateOverlay({ compassTicks: e.target.checked })} />
+							</Row>
+							<Row label="Direction letters">
+								<Switch checked={overlay.compassLetters} onChange={(e) => updateOverlay({ compassLetters: e.target.checked })} />
+							</Row>
+							{!overlay.compassBar && !overlay.compassTicks && !overlay.compassLetters && (
+								<Typography variant="caption" color="text.secondary" component="div" sx={{ mt: -0.5 }}>
+									Only the marker icons show. Line them up over the game's own compass with Edit layout.
+								</Typography>
+							)}
+						</>
+					)}
+					{overlay.compass && (
 						<Row label="Compass range">
 							<TextField select size="small" value={overlay.range} onChange={(e) => updateOverlay({ range: Number(e.target.value) })} sx={selectSx}>
 								{COMPASS_RANGES.map((m) => (

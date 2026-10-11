@@ -16,8 +16,15 @@ interface Sample extends Pose {
 	time: number
 }
 
-/** How far behind real time playback runs; a little over the gap between updates */
+/** How far behind real time position playback runs; a little over the gap between updates */
 const DELAY_MS = 90
+/**
+ * Facing can't lag like position does: turning the camera has to feel instant. It follows the
+ * newest update, projected ahead along the current turn rate for up to this long, and is eased
+ * with this time constant so the steps between updates don't show.
+ */
+const YAW_PREDICT_MS = 80
+const YAW_EASE_MS = 25
 /** An update gap longer than this (a load screen, a teleport) restarts playback */
 const RESET_GAP_MS = 1500
 const KEEP = 24
@@ -26,6 +33,8 @@ const wrap180 = (deg: number) => ((((deg + 180) % 360) + 360) % 360) - 180
 
 export class Motion {
 	private samples: Sample[] = []
+	private shownYaw: number | null = null
+	private shownYawAt = 0
 	/** Converts the mod's clock to performance.now(); the smallest seen delivery delay */
 	private clockOffset: number | null = null
 
@@ -39,7 +48,10 @@ export class Motion {
 			time = modMs + this.clockOffset
 		}
 		const last = this.samples[this.samples.length - 1]
-		if (last && (time - last.time > RESET_GAP_MS || time <= last.time - RESET_GAP_MS)) this.samples = []
+		if (last && (time - last.time > RESET_GAP_MS || time <= last.time - RESET_GAP_MS)) {
+			this.samples = []
+			this.shownYaw = null
+		}
 		const prev = this.samples[this.samples.length - 1]
 		if (prev && time <= prev.time) return
 		const yaw = prev ? prev.yaw + wrap180(update.yaw - prev.yaw) : update.yaw
@@ -51,6 +63,11 @@ export class Motion {
 	at(now = performance.now()): Pose | null {
 		const s = this.samples
 		if (!s.length) return null
+		return { ...this.positionAt(now), yaw: this.yawAt(now) }
+	}
+
+	private positionAt(now: number): { x: number; y: number } {
+		const s = this.samples
 		const target = now - DELAY_MS
 		if (target <= s[0].time) return s[0]
 		const last = s[s.length - 1]
@@ -60,11 +77,30 @@ export class Motion {
 		const a = s[i - 1]
 		const b = s[i]
 		const t = (target - a.time) / (b.time - a.time)
-		return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, yaw: a.yaw + (b.yaw - a.yaw) * t }
+		return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
+	}
+
+	private yawAt(now: number): number {
+		const s = this.samples
+		const last = s[s.length - 1]
+		const prev = s[s.length - 2]
+		let target = last.yaw
+		if (prev && last.time - prev.time < 250) {
+			const rate = (last.yaw - prev.yaw) / (last.time - prev.time)
+			target += rate * Math.min(YAW_PREDICT_MS, Math.max(0, now - last.time))
+		}
+		if (this.shownYaw == null) this.shownYaw = target
+		else {
+			const dt = Math.max(0, now - this.shownYawAt)
+			this.shownYaw += (target - this.shownYaw) * (1 - Math.exp(-dt / YAW_EASE_MS))
+		}
+		this.shownYawAt = now
+		return this.shownYaw
 	}
 
 	clear() {
 		this.samples = []
 		this.clockOffset = null
+		this.shownYaw = null
 	}
 }

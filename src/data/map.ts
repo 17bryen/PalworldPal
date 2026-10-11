@@ -68,11 +68,42 @@ export function pixelToIngame(map: MapIndex, px: number, py: number): [number, n
 }
 
 /** Points of one layer on one map */
-export function layerPoints(layer: MapLayer, map: MapIndex): { px: number; py: number; label?: string }[] {
-	const out: { px: number; py: number; label?: string }[] = []
+export interface LayerPoint {
+	/** Stable id for this spot, e.g. "junk:12" */
+	key: string
+	px: number
+	py: number
+	label?: string
+}
+
+export function layerPoints(layer: MapLayer, map: MapIndex): LayerPoint[] {
+	const out: LayerPoint[] = []
 	for (let i = 0; i < layer.points.length; i += 3) {
 		if (layer.points[i] !== map) continue
-		out.push({ px: layer.points[i + 1], py: layer.points[i + 2], label: layer.labels?.[i / 3] || undefined })
+		out.push({ key: `${layer.id}:${i / 3}`, px: layer.points[i + 1], py: layer.points[i + 2], label: layer.labels?.[i / 3] || undefined })
 	}
 	return out
+}
+
+/**
+ * Lootable spots that come back after a while, with default minutes until they do. Junk piles'
+ * 300 comes from the game data; chest and crate timers vary by source and server settings, so
+ * these are editable.
+ */
+export const LOOT_DEFAULT_MINUTES: Record<string, number> = { junk: 300, chest: 240, chest_element: 240, supply: 240 }
+export const isLootLayer = (layerId: string) => layerId in LOOT_DEFAULT_MINUTES
+
+let lootSpots: { key: string; map: MapIndex; x: number; y: number }[] | null = null
+/** Every lootable spot in world units, for standing-on-it detection */
+export function allLootSpots() {
+	if (!lootSpots) {
+		lootSpots = []
+		for (const layer of mapLayers) {
+			if (!isLootLayer(layer.id)) continue
+			for (const map of [0, 1] as MapIndex[]) {
+				for (const p of layerPoints(layer, map)) lootSpots.push({ key: p.key, map, ...pixelToWorld(map, p.px, p.py) })
+			}
+		}
+	}
+	return lootSpots
 }
