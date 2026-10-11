@@ -11,8 +11,25 @@ npm install
 npm run dev
 ```
 
-`npm run dev:web` serves the UI in a browser without the Electron window. `npm test` runs the
-solver tests.
+`npm run dev:web` serves the UI in a browser without the Electron window; add `?fakebridge` to its
+URL to simulate a player walking around for map and Paldeck work. `npm test` runs the tests.
+
+## Game link (optional)
+
+The `mod/PalBreederBridge` UE4SS mod shares your live position and Paldeck catches with the app.
+It's client-side only, so it works on dedicated servers that don't have it; don't use it on
+official servers.
+
+1. Install UE4SS's Palworld build (https://github.com/Okaetsu/RE-UE4SS/releases): unzip
+   `UE4SS-Palworld.zip` into `Palworld\Pal\Binaries\Win64`.
+2. In the app, open **Game link** (top bar) and click **Install**. It finds Palworld in your Steam
+   libraries (or lets you choose the folder) and copies the mod into UE4SS's `Mods` folder.
+3. Start Palworld and load into a world. The Game link chip turns green, the map can follow you,
+   and Paldeck catches update from the game.
+
+The mod writes `live.json` (about 10 times a second) and `captures.json` (when your catches
+change) to `%APPDATA%\palbreeder\bridge\`. If nothing arrives, check `ue4ss\UE4SS.log` for lines
+starting with `[PalBreederBridge]`.
 
 ## How plans are chosen
 

@@ -1,10 +1,8 @@
--- PalworldPal companion mod: tells the app where you are and what you've caught. (Its folder keeps
--- the app's original name, PalBreederBridge, so existing installs stay valid.)
+-- PalBreeder Bridge: tells the PalBreeder app where you are and what you've caught.
 --
--- Client-side only. It reads the local player's position, facing, Paldeck capture counts, own
--- pals (pals.lua) and the wild pals loaded nearby (wild.lua) and writes them as small JSON files to %APPDATA%\palbreeder\bridge\, which the
--- app reads. It changes nothing in the game and sends nothing over the network, so it works on
--- servers without the mod.
+-- Client-side only. It reads the local player's position, facing and Paldeck capture counts and
+-- writes them as small JSON files to %APPDATA%\palbreeder\bridge\, which the app reads. It changes
+-- nothing in the game and sends nothing over the network, so it works on servers without the mod.
 --
 -- THREADING. UE4SS's Lua state is shared and unlocked between its timer thread and the game
 -- thread. Following PalMiniMap's hard-won rules (github.com/jeankassio/PalMiniMap):
@@ -13,9 +11,9 @@
 --   * the timer-thread predicate is pure arithmetic and allocates nothing;
 --   * every UObject read happens on the game thread, inside pcall.
 
-local VERSION = "1.9.0"
+local VERSION = "1.0.0"
 local TICK_MS = 33            -- timer resolution, not the write rate
-local POSITION_EVERY = 0.05   -- seconds between position writes
+local POSITION_EVERY = 0.1    -- seconds between position writes
 local CAPTURES_EVERY = 3.0    -- seconds between capture-count reads
 local DISPATCH_GAP = 0.033    -- seconds after a job ends before the next dispatch
 local DISPATCH_TIMEOUT = 3.0  -- a dispatch this old was dropped (world transition); try again
@@ -64,8 +62,6 @@ local function rawIsLocal(pc) return pc:IsLocalPlayerController() end
 local function rawPawn(pc) return pc.Pawn end
 local function rawLocation(pawn) return pawn:K2_GetActorLocation() end
 local function rawYaw(pc) return pc:GetControlRotation().Yaw end
--- Palworld shows the mouse cursor whenever a menu, inventory, chest or the map is open
-local function rawCursor(pc) return pc.bShowMouseCursor end
 local function rawPlayerState(pc) return pc.PlayerState end
 local function rawRecordData(ps) return ps.RecordData end
 local function rawCaptureItems(rd) return rd.PalCaptureCount.Items end
@@ -104,12 +100,10 @@ local function writePosition(pc)
     local loc = get(rawLocation, pawn)
     if loc == nil then return end
     local yaw = get(rawYaw, pc) or 0
-    local ui = get(rawCursor, pc) == true
     seq = seq + 1
     writeFile("live.json", string.format(
-        -- t is the game-side clock, so the app can play motion back at the pace it really happened
-        '{"v":1,"mod":"%s","seq":%d,"t":%.3f,"x":%.1f,"y":%.1f,"z":%.1f,"yaw":%.2f,"ui":%s}',
-        VERSION, seq, os.clock(), loc.X, loc.Y, loc.Z, yaw, ui and "true" or "false"))
+        '{"v":1,"mod":"%s","seq":%d,"x":%.1f,"y":%.1f,"z":%.1f,"yaw":%.1f}',
+        VERSION, seq, loc.X, loc.Y, loc.Z, yaw))
 end
 
 -- Capture counts live on the player state's record data as an array of { Key = pal id,
@@ -119,8 +113,7 @@ local function readCaptureItem(elem)
     local item = elem:get()
     return item.Key:ToString(), item.Value
 end
--- `world` is the pal sync's world id, so the app files the catches under the right save
-local function writeCaptures(pc, world)
+local function writeCaptures(pc)
     local ps = get(rawPlayerState, pc)
     if not alive(ps) then return end
     local rd = get(rawRecordData, ps)
@@ -138,36 +131,10 @@ local function writeCaptures(pc, world)
     end)
     if not ok then return end
     table.sort(parts)
-    local worldPart = world and string.format(',"world":"%s"', (world:gsub('[%c"\\]', ""))) or ""
-    local text = '{"v":1,"mod":"' .. VERSION .. '"' .. worldPart .. ',"counts":{' .. table.concat(parts, ",") .. '}}'
+    local text = '{"v":1,"mod":"' .. VERSION .. '","counts":{' .. table.concat(parts, ",") .. '}}'
     if text ~= lastCaptures then
         if writeFile("captures.json", text) then lastCaptures = text end
     end
-end
-
--- Pal sync (pals.lua). Loaded by name, or from this script's folder if UE4SS didn't put it on
--- the search path.
-local function loadScript(name)
-    local ok, mod = pcall(require, name)
-    if ok then return mod end
-    local here = debug.getinfo(1, "S").source:match("^@(.*[\\/])") or ""
-    return dofile(here .. name .. ".lua")
-end
-local okPals, pals = pcall(loadScript, "pals")
-if okPals and pals ~= nil then
-    pals.setup({ log = log, writeFile = writeFile, get = get, alive = alive, version = VERSION })
-else
-    log("pal sync not loaded: " .. tostring(pals))
-    pals = nil
-end
-
--- Nearby wild pals (wild.lua)
-local okWild, wild = pcall(loadScript, "wild")
-if okWild and wild ~= nil then
-    wild.setup({ log = log, writeFile = writeFile, get = get, alive = alive, version = VERSION })
-else
-    log("nearby pals not loaded: " .. tostring(wild))
-    wild = nil
 end
 
 -- Scheduling state, touched by both threads. Plain numbers and booleans only.
@@ -176,7 +143,6 @@ local sentAt = 0.0
 local endedAt = 0.0
 local lastPosition = 0.0
 local lastCaptureRead = -1000.0
-local palsPC = nil
 
 -- Runs on the TIMER thread. Pure arithmetic; returning true claims the dispatch.
 local function due()
@@ -200,16 +166,8 @@ local function job()
         pcall(writePosition, pc)
         if (now - lastCaptureRead) >= CAPTURES_EVERY then
             lastCaptureRead = now
-            pcall(writeCaptures, pc, pals and pals.worldId() or nil)
+            pcall(writeCaptures, pc)
         end
-        -- A different controller means a new world or character
-        if pc ~= palsPC then
-            palsPC = pc
-            if pals ~= nil then pcall(pals.reset) end
-            if wild ~= nil then pcall(wild.reset) end
-        end
-        if pals ~= nil then pcall(pals.tick, pc, now, get(rawCursor, pc) == true) end
-        if wild ~= nil then pcall(wild.tick, now) end
     end
     -- Release the timer thread last; the gap keeps the next dispatch clear of this one's cleanup
     endedAt = os.clock()

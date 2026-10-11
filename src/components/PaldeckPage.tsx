@@ -35,6 +35,7 @@ import { legendaryLine } from '../data/lineage'
 import { OTHER_REGION, REGIONS, regionName, spawnRegions } from '../data/regions'
 import { useStore } from '../state/store'
 import { useNavigation } from '../state/nav'
+import { useBridge } from '../state/bridge'
 import { palHabitat } from '../data/map'
 import { CATCH_TARGET } from '../data/paldeck'
 import { rarityColor } from '../theme'
@@ -296,6 +297,8 @@ export function PaldeckPage() {
 	)
 	const { addWantedMany, removeWantedPal, setCatchPref, setCatches } = store
 	const { openPalOnMap } = useNavigation()
+	const { captures } = useBridge()
+	const fromGame = !!captures && store.syncCatches
 	const onToggleWanted = useCallback((id: string, wanted: boolean) => (wanted ? removeWantedPal(id) : addWantedMany([id])), [addWantedMany, removeWantedPal])
 	const onPrefMenu = useCallback((id: string, anchor: HTMLElement) => setPrefMenu({ id, anchor }), [])
 
@@ -388,10 +391,15 @@ export function PaldeckPage() {
 						</>
 					) : (
 						<Box sx={{ width: 170 }} title={`${completed} of ${pals.length} pals caught ${CATCH_TARGET} times`}>
-							<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+							<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
 								<Typography variant="caption" fontWeight={700}>
 									{completed} / {pals.length} done
 								</Typography>
+								{fromGame && (
+									<Tooltip title={`Catches come from the game, last read ${new Date(captures!.at).toLocaleTimeString()}. Turn this off in Game link.`}>
+										<Chip size="small" color="success" variant="outlined" label="From game" sx={{ height: 18, fontSize: 11 }} />
+									</Tooltip>
+								)}
 								<Typography variant="caption" color="text.secondary">
 									{rows.length} shown
 								</Typography>

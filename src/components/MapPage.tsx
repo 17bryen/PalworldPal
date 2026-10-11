@@ -21,11 +21,13 @@ import {
 import SearchIcon from '@mui/icons-material/Search'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import CloseIcon from '@mui/icons-material/Close'
+import MyLocationIcon from '@mui/icons-material/MyLocation'
 import { getPal, pals } from '../data/gamedata'
-import { CATEGORY_NAMES, CATEGORY_ORDER, HABITAT, layerPoints, MAP_SIZE, mapLayers, palHabitat, pixelToIngame, type MapIndex, type MapLayer } from '../data/map'
+import { CATEGORY_NAMES, CATEGORY_ORDER, HABITAT, layerPoints, MAP_SIZE, mapLayers, palHabitat, pixelToIngame, worldToPixel, type MapIndex, type MapLayer } from '../data/map'
 import { CATCH_TARGET } from '../data/paldeck'
 import { REGIONS, regionName, spawnRegions } from '../data/regions'
 import { useStore } from '../state/store'
+import { useBridge } from '../state/bridge'
 import { theme } from '../theme'
 import { PalAvatar } from './bits'
 import { PalPicker } from './pickers'
@@ -187,6 +189,60 @@ function FitToPal({ palId, map, nonce }: { palId: string | null; map: MapIndex; 
 	return null
 }
 
+const PLAYER_ICON = L.divIcon({
+	className: '',
+	iconSize: [34, 34],
+	iconAnchor: [17, 17],
+	html: `<div class="pb-player" style="width:34px;height:34px;filter:drop-shadow(0 0 4px rgba(0,0,0,0.8))">
+		<svg viewBox="0 0 34 34" width="34" height="34">
+			<circle cx="17" cy="17" r="15" fill="rgba(92,200,240,0.18)" stroke="rgba(92,200,240,0.6)" stroke-width="1.5"/>
+			<path d="M17 4 L26 27 L17 22 L8 27 Z" fill="#5cc8f0" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
+		</svg>
+	</div>`
+})
+
+/** You, live from the game; the arrow turns with your camera */
+function PlayerMarker({ map, follow }: { map: MapIndex; follow: boolean }) {
+	const leaflet = useMap()
+	const { live, connected } = useBridge()
+	const marker = useRef<L.Marker | null>(null)
+	const pos = live && connected ? worldToPixel(live.x, live.y) : null
+	const here = pos && pos.map === map ? toLatLng(pos.px, pos.py) : null
+
+	useEffect(() => {
+		if (!here) {
+			marker.current?.remove()
+			marker.current = null
+			return
+		}
+		if (!marker.current) {
+			marker.current = L.marker(here, { icon: PLAYER_ICON, interactive: false, zIndexOffset: 1000, keyboard: false }).addTo(leaflet)
+		} else marker.current.setLatLng(here)
+		const arrow = marker.current.getElement()?.querySelector<HTMLElement>('.pb-player')
+		// Unreal yaw 0 faces +X, which is up on the map; it grows clockwise
+		if (arrow) arrow.style.transform = `rotate(${live!.yaw}deg)`
+		// A hidden map has no size; panning it then would corrupt the view
+		if (follow && leaflet.getSize().x > 0) leaflet.panTo(here, { animate: true, duration: 0.15, easeLinearity: 1 })
+	})
+	useEffect(
+		() => () => {
+			marker.current?.remove()
+			marker.current = null
+		},
+		[]
+	)
+	return null
+}
+
+/** Leaflet measures its container once; re-measure whenever the Map tab is shown again */
+function ResizeWhenShown({ visible }: { visible: boolean }) {
+	const leaflet = useMap()
+	useEffect(() => {
+		if (visible) leaflet.invalidateSize({ pan: false })
+	}, [leaflet, visible])
+	return null
+}
+
 function CoordinateReadout({ map }: { map: MapIndex }) {
 	const [pos, setPos] = useState<[number, number] | null>(null)
 	useMapEvents({
@@ -318,12 +374,20 @@ function LayerList({ map }: { map: MapIndex }) {
 	)
 }
 
-export function MapPage({ focus }: { focus: { palId: string; nonce: number } | null }) {
+export function MapPage({ focus, visible }: { focus: { palId: string; nonce: number } | null; visible: boolean }) {
 	const { catches, map: prefs, updateMap, settings } = useStore()
 	const [map, setMap] = useState<MapIndex>(0)
 	const [ready, setReady] = useState(false)
 	const [palId, setPalId] = useState<string | null>(null)
 	const [fitNonce, setFitNonce] = useState(0)
+	const [follow, setFollow] = useState(false)
+	const { live, connected } = useBridge()
+	const playerMap = live && connected ? worldToPixel(live.x, live.y).map : null
+
+	// While following, show whichever map you're on
+	useEffect(() => {
+		if (follow && playerMap != null && playerMap !== map) setMap(playerMap)
+	}, [follow, playerMap, map])
 	const lastFocus = useRef<number | null>(null)
 
 	useEffect(() => {
@@ -469,7 +533,20 @@ export function MapPage({ focus }: { focus: { palId: string; nonce: number } | n
 					{palId && <PalHabitat palId={palId} map={map} time={prefs.time} />}
 					<FitToPal palId={palId} map={map} nonce={fitNonce} />
 					<CoordinateReadout map={map} />
+					<PlayerMarker map={map} follow={follow} />
+					<ResizeWhenShown visible={visible} />
 				</MapContainer>
+				{connected && (
+					<Button
+						size="small"
+						variant={follow ? 'contained' : 'outlined'}
+						startIcon={<MyLocationIcon />}
+						onClick={() => setFollow((f) => !f)}
+						sx={{ position: 'absolute', top: 12, right: 12, zIndex: 1000, bgcolor: follow ? undefined : 'rgba(20,22,28,0.85)' }}
+					>
+						{follow ? 'Following you' : 'Follow me'}
+					</Button>
+				)}
 				{palId && (
 					<Box
 						sx={{

@@ -16,6 +16,8 @@ export interface AppState {
 	/** Paldeck catches per pal, tracked by hand */
 	catches: Record<string, number>
 	map: MapPrefs
+	/** Take Paldeck catches from the game while the bridge mod is running */
+	syncCatches: boolean
 }
 
 export interface MapPrefs {
@@ -40,7 +42,7 @@ export const defaultSettings: PlanSettings = {
 	pins: {}
 }
 
-const emptyState: AppState = { version: 1, owned: [], wanted: [], settings: defaultSettings, catches: {}, map: defaultMap }
+const emptyState: AppState = { version: 1, owned: [], wanted: [], settings: defaultSettings, catches: {}, map: defaultMap, syncCatches: true }
 const LOCAL_KEY = 'palbreeder'
 
 const newUid = () => crypto.randomUUID()
@@ -68,7 +70,8 @@ export function sanitize(raw: unknown): AppState {
 			pins: { ...s.settings?.pins }
 		},
 		catches: Object.fromEntries(Object.entries(s.catches ?? {}).filter(([id, n]) => known(id) && Number.isFinite(n) && n > 0)),
-		map: { ...defaultMap, ...s.map, layers: [...(s.map?.layers ?? defaultMap.layers)] }
+		map: { ...defaultMap, ...s.map, layers: [...(s.map?.layers ?? defaultMap.layers)] },
+		syncCatches: s.syncCatches ?? true
 	}
 }
 
@@ -177,6 +180,13 @@ function useStoreValue() {
 		})
 	}, [])
 
+	const replaceCatches = useCallback((catches: Record<string, number>) => {
+		setState((s) => ({ ...s, catches }))
+	}, [])
+	const setSyncCatches = useCallback((syncCatches: boolean) => {
+		setState((s) => ({ ...s, syncCatches }))
+	}, [])
+
 	const updateMap = useCallback((patch: Partial<MapPrefs>) => {
 		setState((s) => ({ ...s, map: { ...s.map, ...patch } }))
 	}, [])
@@ -202,6 +212,8 @@ function useStoreValue() {
 			setPin,
 			setCatches,
 			updateMap,
+			replaceCatches,
+			setSyncCatches,
 			replaceState
 		}),
 		[
@@ -221,6 +233,8 @@ function useStoreValue() {
 			setPin,
 			setCatches,
 			updateMap,
+			replaceCatches,
+			setSyncCatches,
 			replaceState
 		]
 	)

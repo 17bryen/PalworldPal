@@ -41,6 +41,20 @@ export const CATEGORY_NAMES: Record<string, string> = {
 	Fishing: 'Fishing and salvage'
 }
 
+// World (Unreal) bounds of each map image; X points north, Y east
+const WORLD_BOUNDS = [
+	{ minX: -1099400, maxX: 349400, minY: -724400, maxY: 724400 },
+	{ minX: 347351.5, maxX: 689148.5, minY: -818197, maxY: -476400 }
+] as const
+
+/** Which map and pixel a world position falls on; the World Tree is checked first because its edge overlaps the main map's ocean */
+export function worldToPixel(x: number, y: number): { map: MapIndex; px: number; py: number } {
+	const tree = WORLD_BOUNDS[1]
+	const map: MapIndex = x >= tree.minX && x <= tree.maxX && y >= tree.minY && y <= tree.maxY ? 1 : 0
+	const b = WORLD_BOUNDS[map]
+	return { map, px: ((y - b.minY) / (b.maxY - b.minY)) * MAP_SIZE, py: ((b.maxX - x) / (b.maxX - b.minX)) * MAP_SIZE }
+}
+
 /** In-game map coordinates (as the game shows them) for a pixel on a map image */
 export function pixelToIngame(map: MapIndex, px: number, py: number): [number, number] {
 	const c = MAPS[map].ingame

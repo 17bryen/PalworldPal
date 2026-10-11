@@ -11,6 +11,7 @@ import { PaldeckPage } from './components/PaldeckPage'
 import { MerchantsPage } from './components/MerchantsPage'
 import { MapPage } from './components/MapPage'
 import { NavigationContext } from './state/nav'
+import { GameLinkChip } from './components/GameLink'
 import { AlternativesProvider } from './components/Alternatives'
 
 function DataMenu() {
@@ -149,7 +150,8 @@ export function App() {
 								<Tab value="breeding" label="Breeding" />
 								<Tab value="merchants" label="Merchants" />
 							</Tabs>
-							<Box sx={{ ml: 'auto' }}>
+							<Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
+								<GameLinkChip />
 								<DataMenu />
 							</Box>
 						</Toolbar>
@@ -164,7 +166,7 @@ export function App() {
 							{visited.has('paldeck') && <PaldeckPage />}
 						</Box>
 						<Box sx={{ display: page === 'map' ? 'block' : 'none', height: '100%' }}>
-							{visited.has('map') && <MapPage focus={mapFocus} />}
+							{visited.has('map') && <MapPage focus={mapFocus} visible={page === 'map'} />}
 						</Box>
 						<Box sx={{ display: page === 'merchants' ? 'block' : 'none', height: '100%' }}>
 							{visited.has('merchants') && <MerchantsPage />}

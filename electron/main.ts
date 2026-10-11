@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { readFile, writeFile, rename } from 'node:fs/promises'
 import { renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { registerGameLinkHandlers, startBridge } from './gamelink'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
@@ -34,6 +35,9 @@ ipcMain.on('store:saveNow', (event, json: string) => {
 	}
 })
 
+let mainWindow: BrowserWindow | null = null
+const getWindow = () => mainWindow
+
 function createWindow() {
 	const win = new BrowserWindow({
 		width: 1440,
@@ -54,9 +58,17 @@ function createWindow() {
 	})
 	if (DEV_SERVER_URL) win.loadURL(DEV_SERVER_URL)
 	else win.loadFile(path.join(__dirname, '../dist/index.html'))
+	mainWindow = win
+	win.on('closed', () => {
+		if (mainWindow === win) mainWindow = null
+	})
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+	registerGameLinkHandlers(getWindow)
+	startBridge(getWindow)
+	createWindow()
+})
 
 app.on('window-all-closed', () => {
 	if (process.platform !== 'darwin') app.quit()

@@ -7,6 +7,7 @@ import '@fontsource/roboto/600.css'
 import '@fontsource/roboto/700.css'
 import { theme } from './theme'
 import { StoreProvider } from './state/store'
+import { BridgeProvider } from './state/bridge'
 import { App } from './App'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -14,7 +15,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 		<ThemeProvider theme={theme}>
 			<CssBaseline />
 			<StoreProvider>
-				<App />
+				<BridgeProvider>
+					<App />
+				</BridgeProvider>
 			</StoreProvider>
 		</ThemeProvider>
 	</React.StrictMode>
