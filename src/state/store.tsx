@@ -25,11 +25,9 @@ export interface MapPrefs {
 	layers: string[]
 	/** Shade the areas where pals you still need to catch live */
 	uncaught: boolean
-	/** Show pal habitats for any time, or only day or night spawns */
-	time: 'any' | 'day' | 'night'
 }
 
-const defaultMap: MapPrefs = { layers: ['fast_travel'], uncaught: false, time: 'any' }
+const defaultMap: MapPrefs = { layers: ['fast_travel'], uncaught: false }
 
 export const defaultSettings: PlanSettings = {
 	maxGenerations: 4,

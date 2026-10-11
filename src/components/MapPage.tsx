@@ -45,10 +45,6 @@ const BOUNDS: L.LatLngBoundsExpression = [
 
 const HABITAT_COLORS = { day: '#f0c35c', night: '#8f8cf0', both: '#5cc8f0', alpha: '#f07a7a' }
 
-type TimeFilter = 'any' | 'day' | 'night'
-/** Whether a habitat point's flags match the chosen time of day */
-const atTime = (flags: number, time: TimeFilter) => time === 'any' || !!(flags & (time === 'day' ? HABITAT.DAY : HABITAT.NIGHT))
-
 // Marker icons are loaded once up front so the canvas can draw them synchronously
 const iconImages = new Map<string, HTMLImageElement>()
 function loadIcons(): Promise<void> {
@@ -99,14 +95,21 @@ function LayerMarkers({ layer, map }: { layer: MapLayer; map: MapIndex }) {
 	return null
 }
 
+/** Habitat points are thinned to a grid this many map units wide */
+const HABITAT_CELL = 24 / UNIT
+
+/** Circles about one habitat cell across, so they grow with zoom but never shrink out of sight */
+const habitatRadius = (zoom: number, alpha: boolean) => Math.max(alpha ? 7 : 4, HABITAT_CELL * 0.6 * 2 ** zoom) + (alpha ? 3 : 0)
+
 /** Where one pal lives: day, night and alpha spots from the game's Paldeck habitat data */
-function PalHabitat({ palId, map, time }: { palId: string; map: MapIndex; time: TimeFilter }) {
+function PalHabitat({ palId, map }: { palId: string; map: MapIndex }) {
 	const leaflet = useMap()
 	useEffect(() => {
 		const flat = palHabitat[palId] ?? []
 		const group = L.layerGroup()
+		const circles: { marker: L.CircleMarker; alpha: boolean }[] = []
 		for (let i = 0; i < flat.length; i += 4) {
-			if (flat[i] !== map || !atTime(flat[i + 3], time)) continue
+			if (flat[i] !== map) continue
 			const f = flat[i + 3]
 			const alpha = !!(f & HABITAT.ALPHA)
 			const color = alpha
@@ -116,24 +119,31 @@ function PalHabitat({ palId, map, time }: { palId: string; map: MapIndex; time: 
 					: f & HABITAT.NIGHT
 						? HABITAT_COLORS.night
 						: HABITAT_COLORS.day
-			L.circleMarker(toLatLng(flat[i + 1], flat[i + 2]), {
-				radius: alpha ? 8 : 5,
+			const marker = L.circleMarker(toLatLng(flat[i + 1], flat[i + 2]), {
+				radius: habitatRadius(leaflet.getZoom(), alpha),
 				color,
 				weight: alpha ? 2.5 : 1,
 				fillColor: color,
-				fillOpacity: alpha ? 0.15 : 0.55
+				fillOpacity: alpha ? 0.15 : 0.45
 			}).addTo(group)
+			circles.push({ marker, alpha })
+		}
+		const resize = () => {
+			const zoom = leaflet.getZoom()
+			for (const c of circles) c.marker.setRadius(habitatRadius(zoom, c.alpha))
 		}
 		group.addTo(leaflet)
+		leaflet.on('zoomend', resize)
 		return () => {
+			leaflet.off('zoomend', resize)
 			group.remove()
 		}
-	}, [leaflet, palId, map, time])
+	}, [leaflet, palId, map])
 	return null
 }
 
 /** Shades areas by how many pals you still need to catch live there */
-function UncaughtShading({ map, palIds, time }: { map: MapIndex; palIds: string[]; time: TimeFilter }) {
+function UncaughtShading({ map, palIds }: { map: MapIndex; palIds: string[] }) {
 	const leaflet = useMap()
 	useEffect(() => {
 		const CELL = 256
@@ -141,7 +151,7 @@ function UncaughtShading({ map, palIds, time }: { map: MapIndex; palIds: string[
 		for (const palId of palIds) {
 			const flat = palHabitat[palId] ?? []
 			for (let i = 0; i < flat.length; i += 4) {
-				if (flat[i] !== map || !atTime(flat[i + 3], time)) continue
+				if (flat[i] !== map) continue
 				const cx = Math.floor(flat[i + 1] / CELL)
 				const cy = Math.floor(flat[i + 2] / CELL)
 				const key = `${cx}:${cy}`
@@ -172,7 +182,7 @@ function UncaughtShading({ map, palIds, time }: { map: MapIndex; palIds: string[
 		return () => {
 			group.remove()
 		}
-	}, [leaflet, map, palIds, time])
+	}, [leaflet, map, palIds])
 	return null
 }
 
@@ -450,18 +460,6 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 							</IconButton>
 						)}
 					</Box>
-					<ToggleButtonGroup
-						size="small"
-						exclusive
-						fullWidth
-						value={prefs.time}
-						onChange={(_, v: TimeFilter | null) => v && updateMap({ time: v })}
-						sx={{ mt: 1 }}
-					>
-						<ToggleButton value="any">Any time</ToggleButton>
-						<ToggleButton value="day">Day</ToggleButton>
-						<ToggleButton value="night">Night</ToggleButton>
-					</ToggleButtonGroup>
 					{palId && (
 						<Box sx={{ display: 'flex', gap: 1.5, mt: 1, flexWrap: 'wrap' }}>
 							{(
@@ -529,8 +527,8 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 				>
 					<TileLayer url={tileUrl} tileSize={512} minNativeZoom={0} maxNativeZoom={4} noWrap bounds={BOUNDS} />
 					{ready && shownLayers.map((l) => <LayerMarkers key={l.id} layer={l} map={map} />)}
-					{prefs.uncaught && <UncaughtShading map={map} palIds={uncaught} time={prefs.time} />}
-					{palId && <PalHabitat palId={palId} map={map} time={prefs.time} />}
+					{prefs.uncaught && <UncaughtShading map={map} palIds={uncaught} />}
+					{palId && <PalHabitat palId={palId} map={map} />}
 					<FitToPal palId={palId} map={map} nonce={fitNonce} />
 					<CoordinateReadout map={map} />
 					<PlayerMarker map={map} follow={follow} />
