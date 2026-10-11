@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Box, MenuItem, Switch, TextField, Typography } from '@mui/material'
-import { COMPASS_MAX_RANGE, useStore, type OverlayCorner } from '../state/store'
+import { COMPASS_RANGES, useStore, type OverlayCorner } from '../state/store'
 
 declare global {
 	interface Window {
@@ -58,9 +58,9 @@ export function OverlaySettings() {
 			{overlay.compass && (
 				<Row label="Compass range">
 					<TextField select size="small" value={overlay.range} onChange={(e) => updateOverlay({ range: Number(e.target.value) })} sx={selectSx}>
-						{[50, 100, 150, COMPASS_MAX_RANGE].map((m) => (
+						{COMPASS_RANGES.map((m) => (
 							<MenuItem key={m} value={m}>
-								{m} m
+								{m ? `${m} m` : 'Unlimited'}
 							</MenuItem>
 						))}
 					</TextField>

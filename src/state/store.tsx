@@ -38,14 +38,15 @@ export interface OverlayPrefs {
 	size: number
 	/** Minimap zoom, same scale as the Map tab */
 	zoom: number
-	/** Compass shows markers within this many meters, up to COMPASS_MAX_RANGE */
+	/** Compass shows markers within this many meters; 0 means no limit */
 	range: number
 }
 
-/** Beyond this the compass gets too crowded to read */
-export const COMPASS_MAX_RANGE = 200
+export const COMPASS_DEFAULT_RANGE = 200
+/** Range choices in meters; 0 is unlimited (JSON can't store Infinity) */
+export const COMPASS_RANGES = [50, 100, 150, 200, 300, 500, 0]
 
-const defaultOverlay: OverlayPrefs = { enabled: false, compass: true, minimap: true, corner: 'top-right', size: 240, zoom: 4, range: COMPASS_MAX_RANGE }
+const defaultOverlay: OverlayPrefs = { enabled: false, compass: true, minimap: true, corner: 'top-right', size: 240, zoom: 4, range: COMPASS_DEFAULT_RANGE }
 
 export interface MapPrefs {
 	/** Marker layers shown on the map */
@@ -97,7 +98,11 @@ export function sanitize(raw: unknown): AppState {
 		catches: Object.fromEntries(Object.entries(s.catches ?? {}).filter(([id, n]) => known(id) && Number.isFinite(n) && n > 0)),
 		map: { ...defaultMap, ...s.map, layers: [...(s.map?.layers ?? defaultMap.layers)] },
 		syncCatches: s.syncCatches ?? true,
-		overlay: { ...defaultOverlay, ...s.overlay, range: Math.min(COMPASS_MAX_RANGE, s.overlay?.range ?? COMPASS_MAX_RANGE) }
+		overlay: {
+			...defaultOverlay,
+			...s.overlay,
+			range: COMPASS_RANGES.includes(s.overlay?.range as number) ? (s.overlay!.range as number) : COMPASS_DEFAULT_RANGE
+		}
 	}
 }
 

@@ -80,7 +80,7 @@ function Compass({ live, layerIds, range }: { live: LiveData; layerIds: string[]
 			const rel = wrap180((Math.atan2(dy, dx) * 180) / Math.PI - live.yaw)
 			return { ...p, meters, rel }
 		})
-		.filter((p) => p.meters <= range && Math.abs(p.rel) <= COMPASS_HALF_FOV)
+		.filter((p) => (!range || p.meters <= range) && Math.abs(p.rel) <= COMPASS_HALF_FOV)
 		.sort((a, b) => a.meters - b.meters)
 		.slice(0, COMPASS_MAX_MARKERS)
 
@@ -136,7 +136,8 @@ function Compass({ live, layerIds, range }: { live: LiveData; layerIds: string[]
 						top: 14,
 						transform: 'translateX(-50%)',
 						textAlign: 'center',
-						opacity: 1 - (p.meters / range) * 0.6,
+						// Farther markers fade; with no range limit, the fade runs out at 1 km
+						opacity: 1 - Math.min(1, p.meters / (range || 1000)) * 0.6,
 						zIndex: COMPASS_MAX_MARKERS - i
 					}}
 				>
