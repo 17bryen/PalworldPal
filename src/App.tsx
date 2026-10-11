@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { AppBar, Box, IconButton, Menu, MenuItem, Snackbar, Tab, Tabs, Toolbar, Tooltip, Typography } from '@mui/material'
 import MoreVertIcon from '@mui/icons-material/MoreVert'
 import EggIcon from '@mui/icons-material/Egg'
@@ -9,6 +9,8 @@ import { ListsPanel } from './components/ListsPanel'
 import { PlanPanel } from './components/PlanPanel'
 import { PaldeckPage } from './components/PaldeckPage'
 import { MerchantsPage } from './components/MerchantsPage'
+import { MapPage } from './components/MapPage'
+import { NavigationContext } from './state/nav'
 import { AlternativesProvider } from './components/Alternatives'
 
 function DataMenu() {
@@ -73,8 +75,8 @@ function DataMenu() {
 	)
 }
 
-type Page = 'paldeck' | 'breeding' | 'merchants'
-const PAGES: Page[] = ['paldeck', 'breeding', 'merchants']
+type Page = 'paldeck' | 'map' | 'breeding' | 'merchants'
+const PAGES: Page[] = ['paldeck', 'map', 'breeding', 'merchants']
 const PAGE_KEY = 'palbreeder.page'
 
 /** The tab the app reopens on: the last one used, or the first */
@@ -92,66 +94,84 @@ export function App() {
 	const [page, setPage] = useState<Page>(initialPage)
 	// Pages mount on first visit and then stay mounted, so switching back is instant
 	const [visited, setVisited] = useState<Set<Page>>(() => new Set([page]))
+	const [mapFocus, setMapFocus] = useState<{ palId: string; nonce: number } | null>(null)
+
+	const goTo = (v: Page) => {
+		setPage(v)
+		setVisited((s) => (s.has(v) ? s : new Set([...s, v])))
+		try {
+			localStorage.setItem(PAGE_KEY, v)
+		} catch {
+			// Only a convenience; the app still opens fine on the first tab
+		}
+	}
+	const navigation = useMemo(
+		() => ({
+			openPalOnMap: (palId: string) => {
+				setMapFocus((f) => ({ palId, nonce: (f?.nonce ?? 0) + 1 }))
+				goTo('map')
+			}
+		}),
+		[]
+	)
 	const [selectedWanted, setSelectedWanted] = useState<string | null>(null)
 	const { plan, progress, error } = usePlan(store.owned, store.wanted, store.settings, store.loaded)
 
 	return (
-		<AlternativesProvider>
-			<Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
-				<AppBar
-					position="static"
-					color="transparent"
-					elevation={0}
-					sx={{
-						borderBottom: 1,
-						borderColor: 'divider',
-						// Doubles as the window's title bar: drag to move, double-click to maximize
-						'-webkit-app-region': 'drag',
-						'& button, & input, & [role=tab]': { '-webkit-app-region': 'no-drag' },
-						// Keep clear of the window buttons Windows draws at the right end (zero in a browser)
-						pr: 'calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))'
-					}}
-				>
-					<Toolbar variant="dense" sx={{ gap: 2, minHeight: 48 }}>
-						<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-							<EggIcon color="primary" />
-							<Typography variant="h6">PalBreeder</Typography>
+		<NavigationContext.Provider value={navigation}>
+			<AlternativesProvider>
+				<Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
+					<AppBar
+						position="static"
+						color="transparent"
+						elevation={0}
+						sx={{
+							borderBottom: 1,
+							borderColor: 'divider',
+							// Doubles as the window's title bar: drag to move, double-click to maximize
+							'-webkit-app-region': 'drag',
+							'& button, & input, & [role=tab]': { '-webkit-app-region': 'no-drag' },
+							// Keep clear of the window buttons Windows draws at the right end (zero in a browser)
+							pr: 'calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))'
+						}}
+					>
+						<Toolbar variant="dense" sx={{ gap: 2, minHeight: 48 }}>
+							<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+								<EggIcon color="primary" />
+								<Typography variant="h6">PalBreeder</Typography>
+							</Box>
+							<Tabs
+								value={page}
+								onChange={(_, v: Page) => goTo(v)}
+							>
+								<Tab value="paldeck" label="Paldeck" />
+								<Tab value="map" label="Map" />
+								<Tab value="breeding" label="Breeding" />
+								<Tab value="merchants" label="Merchants" />
+							</Tabs>
+							<Box sx={{ ml: 'auto' }}>
+								<DataMenu />
+							</Box>
+						</Toolbar>
+					</AppBar>
+					<Box sx={{ flex: 1, minHeight: 0, p: 2 }}>
+						{/* Both pages stay mounted so switching tabs doesn't rebuild the 300-row table */}
+						<Box sx={{ display: page === 'breeding' ? 'grid' : 'none', gridTemplateColumns: 'minmax(420px, 2fr) 3fr', gap: 2, height: '100%' }}>
+							<ListsPanel plan={plan} selectedWanted={selectedWanted} onSelectWanted={setSelectedWanted} />
+							<PlanPanel plan={plan} progress={progress} error={error} selectedWanted={selectedWanted} />
 						</Box>
-						<Tabs
-							value={page}
-							onChange={(_, v: Page) => {
-								setPage(v)
-								setVisited((s) => (s.has(v) ? s : new Set([...s, v])))
-								try {
-									localStorage.setItem(PAGE_KEY, v)
-								} catch {
-									// Only a convenience; the app still opens fine on the first tab
-								}
-							}}
-						>
-							<Tab value="paldeck" label="Paldeck" />
-							<Tab value="breeding" label="Breeding" />
-							<Tab value="merchants" label="Merchants" />
-						</Tabs>
-						<Box sx={{ ml: 'auto' }}>
-							<DataMenu />
+						<Box sx={{ display: page === 'paldeck' ? 'block' : 'none', height: '100%' }}>
+							{visited.has('paldeck') && <PaldeckPage />}
 						</Box>
-					</Toolbar>
-				</AppBar>
-				<Box sx={{ flex: 1, minHeight: 0, p: 2 }}>
-					{/* Both pages stay mounted so switching tabs doesn't rebuild the 300-row table */}
-					<Box sx={{ display: page === 'breeding' ? 'grid' : 'none', gridTemplateColumns: 'minmax(420px, 2fr) 3fr', gap: 2, height: '100%' }}>
-						<ListsPanel plan={plan} selectedWanted={selectedWanted} onSelectWanted={setSelectedWanted} />
-						<PlanPanel plan={plan} progress={progress} error={error} selectedWanted={selectedWanted} />
-					</Box>
-					<Box sx={{ display: page === 'paldeck' ? 'block' : 'none', height: '100%' }}>
-						{visited.has('paldeck') && <PaldeckPage />}
-					</Box>
-					<Box sx={{ display: page === 'merchants' ? 'block' : 'none', height: '100%' }}>
-						{visited.has('merchants') && <MerchantsPage />}
+						<Box sx={{ display: page === 'map' ? 'block' : 'none', height: '100%' }}>
+							{visited.has('map') && <MapPage focus={mapFocus} />}
+						</Box>
+						<Box sx={{ display: page === 'merchants' ? 'block' : 'none', height: '100%' }}>
+							{visited.has('merchants') && <MerchantsPage />}
+						</Box>
 					</Box>
 				</Box>
-			</Box>
-		</AlternativesProvider>
+			</AlternativesProvider>
+		</NavigationContext.Provider>
 	)
 }

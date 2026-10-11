@@ -45,6 +45,9 @@ solver tests.
 - `public/pals` and `public/work` icons come from PalCalc's resources, and `public/items` and
   `public/npc` from paldb.cc's image CDN, all via `npm run icons`. They are game assets owned by
   Pocketpair; keep the repo private if you push it.
+- `src/data/maplayers.json` (map markers) and `src/data/palhabitat.json` (each pal's day, night and
+  alpha spots, thinned to a grid) come from paldb.cc's map data and the game's Paldeck
+  distribution table (site data v1.0.5). `public/map` holds paldb's map tiles and marker icons.
 - `src/data/merchants.json` (stationed merchants and their stock) was read from paldb.cc's shop
   pages and NPC placement (site data v1.0.5) and cross-checked against palworld.tools. Pal
   merchant prices across a level range are estimates; maintained by hand.

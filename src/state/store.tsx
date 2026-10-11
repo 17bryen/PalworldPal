@@ -15,7 +15,19 @@ export interface AppState {
 	settings: PlanSettings
 	/** Paldeck catches per pal, tracked by hand */
 	catches: Record<string, number>
+	map: MapPrefs
 }
+
+export interface MapPrefs {
+	/** Marker layers shown on the map */
+	layers: string[]
+	/** Shade the areas where pals you still need to catch live */
+	uncaught: boolean
+	/** Show pal habitats for any time, or only day or night spawns */
+	time: 'any' | 'day' | 'night'
+}
+
+const defaultMap: MapPrefs = { layers: ['fast_travel'], uncaught: false, time: 'any' }
 
 export const defaultSettings: PlanSettings = {
 	maxGenerations: 4,
@@ -28,7 +40,7 @@ export const defaultSettings: PlanSettings = {
 	pins: {}
 }
 
-const emptyState: AppState = { version: 1, owned: [], wanted: [], settings: defaultSettings, catches: {} }
+const emptyState: AppState = { version: 1, owned: [], wanted: [], settings: defaultSettings, catches: {}, map: defaultMap }
 const LOCAL_KEY = 'palbreeder'
 
 const newUid = () => crypto.randomUUID()
@@ -55,7 +67,8 @@ export function sanitize(raw: unknown): AppState {
 			disabledRegions: [...(s.settings?.disabledRegions ?? [])],
 			pins: { ...s.settings?.pins }
 		},
-		catches: Object.fromEntries(Object.entries(s.catches ?? {}).filter(([id, n]) => known(id) && Number.isFinite(n) && n > 0))
+		catches: Object.fromEntries(Object.entries(s.catches ?? {}).filter(([id, n]) => known(id) && Number.isFinite(n) && n > 0)),
+		map: { ...defaultMap, ...s.map, layers: [...(s.map?.layers ?? defaultMap.layers)] }
 	}
 }
 
@@ -164,6 +177,10 @@ function useStoreValue() {
 		})
 	}, [])
 
+	const updateMap = useCallback((patch: Partial<MapPrefs>) => {
+		setState((s) => ({ ...s, map: { ...s.map, ...patch } }))
+	}, [])
+
 	const replaceState = useCallback((next: AppState) => setState(next), [])
 
 	return useMemo(
@@ -184,6 +201,7 @@ function useStoreValue() {
 			setCatchPref,
 			setPin,
 			setCatches,
+			updateMap,
 			replaceState
 		}),
 		[
@@ -202,6 +220,7 @@ function useStoreValue() {
 			setCatchPref,
 			setPin,
 			setCatches,
+			updateMap,
 			replaceState
 		]
 	)

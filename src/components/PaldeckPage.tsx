@@ -26,6 +26,7 @@ import SearchIcon from '@mui/icons-material/Search'
 import StarIcon from '@mui/icons-material/Star'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown'
+import LinkIcon from '@mui/icons-material/Link'
 import AddIcon from '@mui/icons-material/Add'
 import RemoveIcon from '@mui/icons-material/Remove'
 import CheckIcon from '@mui/icons-material/Check'
@@ -33,6 +34,8 @@ import { pals, WORK_KINDS, type PalInfo, type WorkKind } from '../data/gamedata'
 import { legendaryLine } from '../data/lineage'
 import { OTHER_REGION, REGIONS, regionName, spawnRegions } from '../data/regions'
 import { useStore } from '../state/store'
+import { useNavigation } from '../state/nav'
+import { palHabitat } from '../data/map'
 import { CATCH_TARGET } from '../data/paldeck'
 import { rarityColor } from '../theme'
 import type { CatchPref } from '../solver/types'
@@ -112,7 +115,8 @@ const PalRow = memo(function PalRow({
 	onCheck,
 	onToggleWanted,
 	onPrefMenu,
-	onSetCatches
+	onSetCatches,
+	onShowOnMap
 }: {
 	pal: PalInfo
 	checked: boolean
@@ -120,6 +124,7 @@ const PalRow = memo(function PalRow({
 	pref: CatchPref | undefined
 	caught: number
 	onSetCatches: (id: string, n: number) => void
+	onShowOnMap: (id: string) => void
 	onCheck: (id: string) => void
 	onToggleWanted: (id: string, wanted: boolean) => void
 	onPrefMenu: (id: string, anchor: HTMLElement) => void
@@ -172,10 +177,22 @@ const PalRow = memo(function PalRow({
 					</TableCell>
 				)
 			})}
-			<TableCell sx={{ maxWidth: 170 }} title={regions.map(regionName).join(', ')}>
-				<Typography variant="caption" color={regions.length ? 'text.primary' : 'text.disabled'} sx={{ display: 'block', lineHeight: 1.3 }}>
-					{regions.length ? regions.map((r) => SHORT[r] ?? r).join(', ') : 'Not wild'}
-				</Typography>
+			<TableCell sx={{ maxWidth: 200 }}>
+				<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+					<Typography
+						variant="caption"
+						color={regions.length ? 'text.primary' : 'text.disabled'}
+						sx={{ display: 'block', lineHeight: 1.3, flex: 1 }}
+						title={regions.map(regionName).join(', ')}
+					>
+						{regions.length ? regions.map((r) => SHORT[r] ?? r).join(', ') : 'Not wild'}
+					</Typography>
+					{palHabitat[pal.id]?.length > 0 && (
+						<IconButton size="small" disableRipple title="Show on map" onClick={() => onShowOnMap(pal.id)} sx={{ color: 'primary.main' }}>
+							<LinkIcon sx={{ fontSize: 18 }} />
+						</IconButton>
+					)}
+				</Box>
 			</TableCell>
 			<TableCell>
 				{regions.length > 0 && (
@@ -278,6 +295,7 @@ export function PaldeckPage() {
 		[]
 	)
 	const { addWantedMany, removeWantedPal, setCatchPref, setCatches } = store
+	const { openPalOnMap } = useNavigation()
 	const onToggleWanted = useCallback((id: string, wanted: boolean) => (wanted ? removeWantedPal(id) : addWantedMany([id])), [addWantedMany, removeWantedPal])
 	const onPrefMenu = useCallback((id: string, anchor: HTMLElement) => setPrefMenu({ id, anchor }), [])
 
@@ -452,6 +470,7 @@ export function PaldeckPage() {
 								onPrefMenu={onPrefMenu}
 								caught={catches[p.id] ?? 0}
 								onSetCatches={setCatches}
+								onShowOnMap={openPalOnMap}
 							/>
 						))}
 					</TableBody>
