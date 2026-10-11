@@ -21,6 +21,11 @@ export interface CaptureData {
 export interface GameLinkStatus {
 	gamePath: string | null
 	ue4ss: boolean
+	ue4ssSource: 'workshop' | 'manual' | null
+	/** The Workshop UE4SS is downloaded but hasn't been turned on in Mod Management yet */
+	workshopPending: boolean
+	/** Both a Workshop and a manual UE4SS are present, which can crash the game */
+	ue4ssConflict: boolean
 	modVersion: string | null
 	bundledVersion: string | null
 	bridgeDir: string
@@ -34,6 +39,7 @@ interface PalBridgeApi {
 	install(): Promise<GameLinkStatus>
 	chooseGameFolder(): Promise<GameLinkStatus>
 	openUe4ssDownloads(): Promise<void>
+	openUe4ssWorkshop(): Promise<void>
 	openBridgeFolder(): Promise<void>
 }
 
@@ -70,7 +76,16 @@ function fakeBridge(): PalBridgeApi {
 		const captures = { counts: { SheepBall: 5, PinkCat: 3, BOSS_ChickenPal: 1, ChickenPal: 2 }, mod: 'fake', at: Date.now() }
 		captureListeners.forEach((cb) => cb(captures))
 	}, 1500)
-	const status: GameLinkStatus = { gamePath: 'C:\\Fake\\Palworld', ue4ss: true, modVersion: '1.0.0', bundledVersion: '1.0.0', bridgeDir: 'C:\\Fake\\bridge' }
+	const status: GameLinkStatus = {
+		gamePath: 'C:\\Fake\\Palworld',
+		ue4ss: true,
+		ue4ssSource: 'workshop',
+		workshopPending: false,
+		ue4ssConflict: false,
+		modVersion: '1.0.0',
+		bundledVersion: '1.0.0',
+		bridgeDir: 'C:\\Fake\\bridge'
+	}
 	return {
 		latest: async () => ({ live: null, captures: null }),
 		onLive: (cb) => (liveListeners.add(cb), () => void liveListeners.delete(cb)),
@@ -79,6 +94,7 @@ function fakeBridge(): PalBridgeApi {
 		install: async () => status,
 		chooseGameFolder: async () => status,
 		openUe4ssDownloads: async () => {},
+		openUe4ssWorkshop: async () => {},
 		openBridgeFolder: async () => {}
 	}
 }

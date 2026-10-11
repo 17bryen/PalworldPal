@@ -103,22 +103,38 @@ function GameLinkDialog({ onClose }: { onClose: () => void }) {
 						<Step done={status.ue4ss} title="UE4SS (Palworld build)">
 							{status.ue4ss ? (
 								<Typography variant="body2" color="text.secondary">
-									Installed.
+									{status.ue4ssSource === 'workshop' ? 'Installed from the Steam Workshop.' : 'Installed manually.'}
+								</Typography>
+							) : status.workshopPending ? (
+								<Typography variant="body2" color="text.secondary">
+									Subscribed on the Workshop. Turn it on in Palworld under Options, Mod Management, then start the game once.
 								</Typography>
 							) : (
-								<>
-									<Typography variant="body2" color="text.secondary">
-										Download UE4SS-Palworld.zip from Okaetsu's releases and unzip it into Pal\Binaries\Win64 in your Palworld folder.
-									</Typography>
-									<Box sx={{ display: 'flex', gap: 1, mt: 0.5, ml: -1 }}>
-										<Button size="small" onClick={() => bridgeApi!.openUe4ssDownloads()}>
-											Open downloads
+								<Typography variant="body2" color="text.secondary">
+									Subscribe to UE4SS Experimental (Palworld) on the Steam Workshop, turn it on in Palworld under Options, Mod
+									Management, then start the game once. Or unzip Okaetsu's UE4SS-Palworld.zip into Pal\Binaries\Win64.
+								</Typography>
+							)}
+							{status.ue4ssConflict && (
+								<Alert severity="warning" sx={{ mt: 1, py: 0 }}>
+									Both the Workshop and a manual UE4SS are installed, which can crash the game. Delete dwmapi.dll from Pal\Binaries\Win64
+									to keep only the Workshop one.
+								</Alert>
+							)}
+							{!status.ue4ss && (
+								<Box sx={{ display: 'flex', gap: 1, mt: 0.5, ml: -1 }}>
+									{!status.workshopPending && (
+										<Button size="small" onClick={() => bridgeApi!.openUe4ssWorkshop()}>
+											Open in Steam
 										</Button>
-										<Button size="small" disabled={busy} onClick={() => run(() => bridgeApi!.status())}>
-											Check again
-										</Button>
-									</Box>
-								</>
+									)}
+									<Button size="small" onClick={() => bridgeApi!.openUe4ssDownloads()}>
+										Manual download
+									</Button>
+									<Button size="small" disabled={busy} onClick={() => run(() => bridgeApi!.status())}>
+										Check again
+									</Button>
+								</Box>
 							)}
 						</Step>
 						<Step done={modCurrent} title="PalBreeder Bridge mod">

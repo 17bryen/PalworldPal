@@ -22,5 +22,6 @@ contextBridge.exposeInMainWorld('palBridge', {
 	install: () => ipcRenderer.invoke('gamelink:install'),
 	chooseGameFolder: () => ipcRenderer.invoke('gamelink:choose'),
 	openUe4ssDownloads: () => ipcRenderer.invoke('gamelink:openUe4ss'),
+	openUe4ssWorkshop: () => ipcRenderer.invoke('gamelink:openWorkshop'),
 	openBridgeFolder: () => ipcRenderer.invoke('gamelink:openBridgeFolder')
 })

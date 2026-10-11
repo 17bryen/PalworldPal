@@ -8,6 +8,9 @@ import { promisify } from 'node:util'
 
 const MOD_NAME = 'PalBreederBridge'
 const UE4SS_RELEASES = 'https://github.com/Okaetsu/RE-UE4SS/releases'
+/** Steam Workshop item "UE4SS Experimental (Palworld)" and Palworld's Steam app id */
+const UE4SS_WORKSHOP_ID = '3625223587'
+const PALWORLD_APP_ID = '1623730'
 
 const bridgeDir = () => path.join(app.getPath('userData'), 'bridge')
 const configPath = () => path.join(app.getPath('userData'), 'gamelink.json')
@@ -129,6 +132,14 @@ async function steamLibraries(): Promise<string[]> {
 	return [...libraries]
 }
 
+/** Whether the UE4SS Workshop item is downloaded in any Steam library */
+async function workshopSubscribed(): Promise<boolean> {
+	for (const lib of await steamLibraries()) {
+		if (existsSync(path.join(lib, 'steamapps', 'workshop', 'content', PALWORLD_APP_ID, UE4SS_WORKSHOP_ID))) return true
+	}
+	return false
+}
+
 async function findGame(): Promise<string | null> {
 	const saved = await savedGamePath()
 	if (saved && isGameFolder(saved)) return saved
@@ -139,14 +150,31 @@ async function findGame(): Promise<string | null> {
 	return null
 }
 
-/** UE4SS's Mods folder: newer builds keep it under ue4ss\, older ones beside the game binary */
-function modsDir(game: string): { dir: string; ue4ss: boolean } {
+type Ue4ssSource = 'workshop' | 'manual'
+
+/**
+ * Where UE4SS lives. The Steam Workshop build (turned on in Palworld's Mod Management) loads Lua
+ * mods from Mods\NativeMods\UE4SS\Mods under the game folder. A manual install keeps them in
+ * Pal\Binaries\Win64\ue4ss\Mods, or Win64\Mods on older builds.
+ */
+function findUe4ss(game: string): { workshop: string | null; manual: string | null } {
+	const workshopRoot = path.join(game, 'Mods', 'NativeMods', 'UE4SS')
 	const win64 = path.join(game, 'Pal', 'Binaries', 'Win64')
 	const nested = path.join(win64, 'ue4ss', 'Mods')
 	const flat = path.join(win64, 'Mods')
-	if (existsSync(nested)) return { dir: nested, ue4ss: true }
-	if (existsSync(flat) && existsSync(path.join(win64, 'UE4SS.dll'))) return { dir: flat, ue4ss: true }
-	return { dir: nested, ue4ss: existsSync(path.join(win64, 'ue4ss')) || existsSync(path.join(win64, 'UE4SS.dll')) }
+	const manual = existsSync(path.join(win64, 'dwmapi.dll')) || existsSync(path.join(win64, 'ue4ss')) || existsSync(path.join(win64, 'UE4SS.dll'))
+	return {
+		workshop: existsSync(workshopRoot) ? path.join(workshopRoot, 'Mods') : null,
+		manual: manual ? (existsSync(nested) || !existsSync(flat) ? nested : flat) : null
+	}
+}
+
+/** The Mods folder to install into, preferring the Workshop build when it's set up */
+function modsDir(game: string): { dir: string; source: Ue4ssSource } | null {
+	const found = findUe4ss(game)
+	if (found.workshop) return { dir: found.workshop, source: 'workshop' }
+	if (found.manual) return { dir: found.manual, source: 'manual' }
+	return null
 }
 
 const versionOf = async (file: string) => {
@@ -160,6 +188,11 @@ const versionOf = async (file: string) => {
 export interface GameLinkStatus {
 	gamePath: string | null
 	ue4ss: boolean
+	ue4ssSource: Ue4ssSource | null
+	/** The Workshop UE4SS is downloaded but hasn't been turned on in Mod Management yet */
+	workshopPending: boolean
+	/** Both a Workshop and a manual UE4SS are present, which can crash the game */
+	ue4ssConflict: boolean
 	modVersion: string | null
 	bundledVersion: string | null
 	bridgeDir: string
@@ -167,15 +200,24 @@ export interface GameLinkStatus {
 
 async function status(): Promise<GameLinkStatus> {
 	const gamePath = await findGame()
-	const bundledVersion = await versionOf(path.join(bundledModDir(), 'Scripts', 'main.lua'))
-	if (!gamePath) return { gamePath, ue4ss: false, modVersion: null, bundledVersion, bridgeDir: bridgeDir() }
+	const base = {
+		bundledVersion: await versionOf(path.join(bundledModDir(), 'Scripts', 'main.lua')),
+		bridgeDir: bridgeDir()
+	}
+	const subscribed = await workshopSubscribed()
+	if (!gamePath) {
+		return { ...base, gamePath, ue4ss: false, ue4ssSource: null, workshopPending: subscribed, ue4ssConflict: false, modVersion: null }
+	}
+	const found = findUe4ss(gamePath)
 	const mods = modsDir(gamePath)
 	return {
+		...base,
 		gamePath,
-		ue4ss: mods.ue4ss,
-		modVersion: await versionOf(path.join(mods.dir, MOD_NAME, 'Scripts', 'main.lua')),
-		bundledVersion,
-		bridgeDir: bridgeDir()
+		ue4ss: !!mods,
+		ue4ssSource: mods?.source ?? null,
+		workshopPending: subscribed && !found.workshop,
+		ue4ssConflict: !!found.workshop && !!found.manual,
+		modVersion: mods ? await versionOf(path.join(mods.dir, MOD_NAME, 'Scripts', 'main.lua')) : null
 	}
 }
 
@@ -193,7 +235,7 @@ async function install(): Promise<GameLinkStatus> {
 	const gamePath = await findGame()
 	if (!gamePath) throw new Error('Palworld wasn\'t found. Choose its folder first.')
 	const mods = modsDir(gamePath)
-	if (!mods.ue4ss) throw new Error('UE4SS isn\'t installed in this Palworld folder yet.')
+	if (!mods) throw new Error('UE4SS isn\'t set up in this Palworld folder yet.')
 	await copyDir(bundledModDir(), path.join(mods.dir, MOD_NAME))
 	// Older UE4SS builds only load mods listed in mods.txt; newer ones also honor enabled.txt
 	const list = path.join(mods.dir, 'mods.txt')
@@ -222,5 +264,7 @@ export function registerGameLinkHandlers(getWindow: () => BrowserWindow | null) 
 		return status()
 	})
 	ipcMain.handle('gamelink:openUe4ss', () => shell.openExternal(UE4SS_RELEASES))
+	// Opens the item in the Steam client, where subscribing is one click
+	ipcMain.handle('gamelink:openWorkshop', () => shell.openExternal(`steam://url/CommunityFilePage/${UE4SS_WORKSHOP_ID}`))
 	ipcMain.handle('gamelink:openBridgeFolder', () => shell.openPath(bridgeDir()))
 }
