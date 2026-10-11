@@ -13,6 +13,8 @@ export interface AppState {
 	owned: OwnedPal[]
 	wanted: WantedPal[]
 	settings: PlanSettings
+	/** Paldeck catches per pal, tracked by hand */
+	catches: Record<string, number>
 }
 
 export const defaultSettings: PlanSettings = {
@@ -26,7 +28,7 @@ export const defaultSettings: PlanSettings = {
 	pins: {}
 }
 
-const emptyState: AppState = { version: 1, owned: [], wanted: [], settings: defaultSettings }
+const emptyState: AppState = { version: 1, owned: [], wanted: [], settings: defaultSettings, catches: {} }
 const LOCAL_KEY = 'palbreeder'
 
 const newUid = () => crypto.randomUUID()
@@ -52,7 +54,8 @@ export function sanitize(raw: unknown): AppState {
 			catchPrefs: { ...s.settings?.catchPrefs },
 			disabledRegions: [...(s.settings?.disabledRegions ?? [])],
 			pins: { ...s.settings?.pins }
-		}
+		},
+		catches: Object.fromEntries(Object.entries(s.catches ?? {}).filter(([id, n]) => known(id) && Number.isFinite(n) && n > 0))
 	}
 }
 
@@ -152,6 +155,15 @@ function useStoreValue() {
 		})
 	}, [])
 
+	const setCatches = useCallback((palId: string, count: number) => {
+		setState((s) => {
+			const catches = { ...s.catches }
+			if (count > 0) catches[palId] = count
+			else delete catches[palId]
+			return { ...s, catches }
+		})
+	}, [])
+
 	const replaceState = useCallback((next: AppState) => setState(next), [])
 
 	return useMemo(
@@ -171,6 +183,7 @@ function useStoreValue() {
 			updateSettings,
 			setCatchPref,
 			setPin,
+			setCatches,
 			replaceState
 		}),
 		[
@@ -188,6 +201,7 @@ function useStoreValue() {
 			updateSettings,
 			setCatchPref,
 			setPin,
+			setCatches,
 			replaceState
 		]
 	)

@@ -4,6 +4,7 @@ import {
 	Button,
 	Checkbox,
 	Chip,
+	LinearProgress,
 	FormControlLabel,
 	IconButton,
 	InputAdornment,
@@ -25,10 +26,14 @@ import SearchIcon from '@mui/icons-material/Search'
 import StarIcon from '@mui/icons-material/Star'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown'
+import AddIcon from '@mui/icons-material/Add'
+import RemoveIcon from '@mui/icons-material/Remove'
+import CheckIcon from '@mui/icons-material/Check'
 import { pals, WORK_KINDS, type PalInfo, type WorkKind } from '../data/gamedata'
 import { legendaryLine } from '../data/lineage'
 import { OTHER_REGION, REGIONS, regionName, spawnRegions } from '../data/regions'
 import { useStore } from '../state/store'
+import { CATCH_TARGET } from '../data/paldeck'
 import { rarityColor } from '../theme'
 import type { CatchPref } from '../solver/types'
 import { PalAvatar, WORK_INFO, WorkIcon } from './bits'
@@ -37,6 +42,7 @@ type SortKey = 'dex' | 'name' | 'rarity' | WorkKind
 type BreedFilter = 'any' | 'legendaryLine'
 type LegendFilter = 'any' | 'only' | 'none'
 type AccessFilter = 'any' | 'reachable' | 'unreachable'
+type CaughtFilter = 'any' | 'need' | 'done'
 
 const PREF_LABEL: Record<CatchPref | 'default', string> = { default: 'Normal', easy: 'Easy', hard: 'Hard', never: 'Never' }
 const PREF_COLOR: Partial<Record<CatchPref, string>> = { easy: 'success.main', never: 'error.main', hard: 'warning.main' }
@@ -58,20 +64,62 @@ const SHORT: Record<string, string> = {
 	other: 'Other'
 }
 
+/** Catch counter: minus, count (click to mark complete or clear), plus */
+function CatchStepper({ palId, count, onSet }: { palId: string; count: number; onSet: (id: string, n: number) => void }) {
+	const done = count >= CATCH_TARGET
+	return (
+		<Box sx={{ display: 'flex', alignItems: 'center' }}>
+			<IconButton size="small" disableRipple disabled={count === 0} title="One fewer" onClick={() => onSet(palId, count - 1)}>
+				<RemoveIcon sx={{ fontSize: 16 }} />
+			</IconButton>
+			<Box
+				component="button"
+				title={done ? 'Clear catches' : 'Mark all caught'}
+				onClick={() => onSet(palId, done ? 0 : CATCH_TARGET)}
+				sx={{
+					all: 'unset',
+					cursor: 'pointer',
+					minWidth: 44,
+					height: 24,
+					borderRadius: 12,
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'center',
+					fontSize: 13,
+					fontWeight: 700,
+					fontVariantNumeric: 'tabular-nums',
+					color: done ? 'success.main' : count ? 'text.primary' : 'text.disabled',
+					bgcolor: done ? 'rgba(111,207,138,0.12)' : 'transparent',
+					'&:hover': { bgcolor: 'action.hover' }
+				}}
+			>
+				{done ? <CheckIcon sx={{ fontSize: 18 }} /> : `${count}/${CATCH_TARGET}`}
+			</Box>
+			<IconButton size="small" disableRipple disabled={done} title="Caught one" onClick={() => onSet(palId, count + 1)}>
+				<AddIcon sx={{ fontSize: 16 }} />
+			</IconButton>
+		</Box>
+	)
+}
+
 // Rows render a lot of cells; plain elements and native hover titles keep the page quick
 const PalRow = memo(function PalRow({
 	pal,
 	checked,
 	wanted,
 	pref,
+	caught,
 	onCheck,
 	onToggleWanted,
-	onPrefMenu
+	onPrefMenu,
+	onSetCatches
 }: {
 	pal: PalInfo
 	checked: boolean
 	wanted: boolean
 	pref: CatchPref | undefined
+	caught: number
+	onSetCatches: (id: string, n: number) => void
 	onCheck: (id: string) => void
 	onToggleWanted: (id: string, wanted: boolean) => void
 	onPrefMenu: (id: string, anchor: HTMLElement) => void
@@ -103,6 +151,9 @@ const PalRow = memo(function PalRow({
 						/>
 					)}
 				</Box>
+			</TableCell>
+			<TableCell>
+				<CatchStepper palId={pal.id} count={caught} onSet={onSetCatches} />
 			</TableCell>
 			<TableCell align="center">
 				<Typography variant="body2" sx={{ color: rarityColor(pal.rarity), fontWeight: 600 }}>
@@ -148,7 +199,7 @@ const PalRow = memo(function PalRow({
 	)
 })
 
-export function PalsPage() {
+export function PaldeckPage() {
 	const store = useStore()
 	const [search, setSearch] = useState('')
 	const [work, setWork] = useState<WorkKind | 'any'>('any')
@@ -156,6 +207,7 @@ export function PalsPage() {
 	const [region, setRegion] = useState('any')
 	const [onlyThere, setOnlyThere] = useState(false)
 	const [access, setAccess] = useState<AccessFilter>('any')
+	const [caughtFilter, setCaughtFilter] = useState<CaughtFilter>('any')
 	const [breed, setBreed] = useState<BreedFilter>('any')
 	const [legend, setLegend] = useState<LegendFilter>('any')
 	const [sortKey, setSortKey] = useState<SortKey>('dex')
@@ -169,6 +221,7 @@ export function PalsPage() {
 
 	const wantedIds = useMemo(() => new Set(store.wanted.map((w) => w.palId)), [store.wanted])
 	const disabledRegions = store.settings.disabledRegions
+	const catches = store.catches
 
 	const rows = useMemo(() => {
 		const q = search.trim().toLowerCase()
@@ -180,6 +233,7 @@ export function PalsPage() {
 				(work === 'any' || p.work[work] >= minLevel) &&
 				(region === 'any' || (onlyThere ? regions.length === 1 && regions[0] === region : regions.includes(region))) &&
 				(access === 'any' || (access === 'reachable' ? reachable : !reachable)) &&
+				(caughtFilter === 'any' || ((catches[p.id] ?? 0) >= CATCH_TARGET) === (caughtFilter === 'done')) &&
 				(breed === 'any' || legendaryLine.has(p.id)) &&
 				(legend === 'any' || (legend === 'only' ? p.legendary : !p.legendary))
 			)
@@ -192,7 +246,9 @@ export function PalsPage() {
 			const cmp = typeof va === 'string' ? va.localeCompare(vb as string) : va - (vb as number)
 			return (sortDesc ? -cmp : cmp) || a.dex - b.dex
 		})
-	}, [search, work, minLevel, region, onlyThere, access, disabledRegions, breed, legend, sortKey, sortDesc])
+	}, [search, work, minLevel, region, onlyThere, access, caughtFilter, catches, disabledRegions, breed, legend, sortKey, sortDesc])
+
+	const completed = useMemo(() => pals.filter((p) => (catches[p.id] ?? 0) >= CATCH_TARGET).length, [catches])
 
 	const sortBy = (key: SortKey) => {
 		if (key === sortKey) setSortDesc(!sortDesc)
@@ -221,7 +277,7 @@ export function PalsPage() {
 			}),
 		[]
 	)
-	const { addWantedMany, removeWantedPal, setCatchPref } = store
+	const { addWantedMany, removeWantedPal, setCatchPref, setCatches } = store
 	const onToggleWanted = useCallback((id: string, wanted: boolean) => (wanted ? removeWantedPal(id) : addWantedMany([id])), [addWantedMany, removeWantedPal])
 	const onPrefMenu = useCallback((id: string, anchor: HTMLElement) => setPrefMenu({ id, anchor }), [])
 
@@ -288,6 +344,11 @@ export function PalsPage() {
 					<MenuItem value="any">Any</MenuItem>
 					<MenuItem value="legendaryLine">Only from itself or legendaries</MenuItem>
 				</TextField>
+				<TextField select size="small" label="Caught" value={caughtFilter} onChange={(e) => setCaughtFilter(e.target.value as CaughtFilter)} sx={{ width: 130 }}>
+					<MenuItem value="any">Any</MenuItem>
+					<MenuItem value="need">Still need</MenuItem>
+					<MenuItem value="done">Done</MenuItem>
+				</TextField>
 				<TextField select size="small" label="Legendary" value={legend} onChange={(e) => setLegend(e.target.value as LegendFilter)} sx={{ width: 120 }}>
 					<MenuItem value="any">Any</MenuItem>
 					<MenuItem value="only">Only</MenuItem>
@@ -308,9 +369,22 @@ export function PalsPage() {
 							</Button>
 						</>
 					) : (
-						<Typography variant="caption" color="text.secondary">
-							{rows.length} pals
-						</Typography>
+						<Box sx={{ width: 170 }} title={`${completed} of ${pals.length} pals caught ${CATCH_TARGET} times`}>
+							<Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+								<Typography variant="caption" fontWeight={700}>
+									{completed} / {pals.length} done
+								</Typography>
+								<Typography variant="caption" color="text.secondary">
+									{rows.length} shown
+								</Typography>
+							</Box>
+							<LinearProgress
+								variant="determinate"
+								value={(completed / pals.length) * 100}
+								color="success"
+								sx={{ height: 6, borderRadius: 3, mt: 0.25, bgcolor: 'rgba(255,255,255,0.08)', '& .MuiLinearProgress-bar': { borderRadius: 3 } }}
+							/>
+						</Box>
 					)}
 				</Box>
 			</Box>
@@ -335,6 +409,7 @@ export function PalsPage() {
 									{sortKey === 'name' ? 'Pal (by name)' : 'Pal (by number)'}
 								</TableSortLabel>
 							</TableCell>
+							<TableCell>Caught</TableCell>
 							<TableCell align="center">
 								<TableSortLabel active={sortKey === 'rarity'} direction={sortDesc ? 'desc' : 'asc'} onClick={() => sortBy('rarity')}>
 									Rarity
@@ -375,6 +450,8 @@ export function PalsPage() {
 								onCheck={onCheck}
 								onToggleWanted={onToggleWanted}
 								onPrefMenu={onPrefMenu}
+								caught={catches[p.id] ?? 0}
+								onSetCatches={setCatches}
 							/>
 						))}
 					</TableBody>

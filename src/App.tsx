@@ -7,7 +7,7 @@ import { sanitize, useStore } from './state/store'
 import { usePlan } from './state/usePlan'
 import { ListsPanel } from './components/ListsPanel'
 import { PlanPanel } from './components/PlanPanel'
-import { PalsPage } from './components/PalsPage'
+import { PaldeckPage } from './components/PaldeckPage'
 import { MerchantsPage } from './components/MerchantsPage'
 import { AlternativesProvider } from './components/Alternatives'
 
@@ -73,13 +73,25 @@ function DataMenu() {
 	)
 }
 
-type Page = 'breeding' | 'pals' | 'merchants'
+type Page = 'paldeck' | 'breeding' | 'merchants'
+const PAGES: Page[] = ['paldeck', 'breeding', 'merchants']
+const PAGE_KEY = 'palbreeder.page'
+
+/** The tab the app reopens on: the last one used, or the first */
+function initialPage(): Page {
+	try {
+		const saved = localStorage.getItem(PAGE_KEY) as Page | null
+		return saved && PAGES.includes(saved) ? saved : PAGES[0]
+	} catch {
+		return PAGES[0]
+	}
+}
 
 export function App() {
 	const store = useStore()
-	const [page, setPage] = useState<Page>('breeding')
+	const [page, setPage] = useState<Page>(initialPage)
 	// Pages mount on first visit and then stay mounted, so switching back is instant
-	const [visited, setVisited] = useState<Set<Page>>(new Set(['breeding']))
+	const [visited, setVisited] = useState<Set<Page>>(() => new Set([page]))
 	const [selectedWanted, setSelectedWanted] = useState<string | null>(null)
 	const { plan, progress, error } = usePlan(store.owned, store.wanted, store.settings, store.loaded)
 
@@ -110,10 +122,15 @@ export function App() {
 							onChange={(_, v: Page) => {
 								setPage(v)
 								setVisited((s) => (s.has(v) ? s : new Set([...s, v])))
+								try {
+									localStorage.setItem(PAGE_KEY, v)
+								} catch {
+									// Only a convenience; the app still opens fine on the first tab
+								}
 							}}
 						>
+							<Tab value="paldeck" label="Paldeck" />
 							<Tab value="breeding" label="Breeding" />
-							<Tab value="pals" label="Pals" />
 							<Tab value="merchants" label="Merchants" />
 						</Tabs>
 						<Box sx={{ ml: 'auto' }}>
@@ -127,8 +144,8 @@ export function App() {
 						<ListsPanel plan={plan} selectedWanted={selectedWanted} onSelectWanted={setSelectedWanted} />
 						<PlanPanel plan={plan} progress={progress} error={error} selectedWanted={selectedWanted} />
 					</Box>
-					<Box sx={{ display: page === 'pals' ? 'block' : 'none', height: '100%' }}>
-						{visited.has('pals') && <PalsPage />}
+					<Box sx={{ display: page === 'paldeck' ? 'block' : 'none', height: '100%' }}>
+						{visited.has('paldeck') && <PaldeckPage />}
 					</Box>
 					<Box sx={{ display: page === 'merchants' ? 'block' : 'none', height: '100%' }}>
 						{visited.has('merchants') && <MerchantsPage />}

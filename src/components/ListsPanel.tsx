@@ -348,7 +348,7 @@ export function ListsPanel({
 						/>
 					))}
 				{tab === 'wanted' && !store.wanted.length && (
-					<Empty text="Add the pals you want to breed. You can also tag them from the Pals page." />
+					<Empty text="Add the pals you want to breed. You can also star them in the Paldeck." />
 				)}
 				{tab === 'owned' && !store.owned.length && (
 					<Empty text="Add the pals you have, with their gender and passives, so plans can start from them." />
