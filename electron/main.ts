@@ -43,6 +43,9 @@ function createWindow() {
 		title: 'PalBreeder',
 		backgroundColor: '#14161c',
 		autoHideMenuBar: true,
+		// The app's own top bar is the title bar; Windows draws its window buttons over the right end
+		titleBarStyle: 'hidden',
+		titleBarOverlay: { color: '#14161c', symbolColor: '#c8ccd6', height: 48 },
 		webPreferences: {
 			preload: path.join(__dirname, 'preload.cjs'),
 			contextIsolation: true,

@@ -83,8 +83,21 @@ export function App() {
 	return (
 		<AlternativesProvider>
 			<Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
-				<AppBar position="static" color="transparent" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider' }}>
-					<Toolbar variant="dense" sx={{ gap: 2 }}>
+				<AppBar
+					position="static"
+					color="transparent"
+					elevation={0}
+					sx={{
+						borderBottom: 1,
+						borderColor: 'divider',
+						// Doubles as the window's title bar: drag to move, double-click to maximize
+						'-webkit-app-region': 'drag',
+						'& button, & input, & [role=tab]': { '-webkit-app-region': 'no-drag' },
+						// Keep clear of the window buttons Windows draws at the right end (zero in a browser)
+						pr: 'calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))'
+					}}
+				>
+					<Toolbar variant="dense" sx={{ gap: 2, minHeight: 48 }}>
 						<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
 							<EggIcon color="primary" />
 							<Typography variant="h6">PalBreeder</Typography>

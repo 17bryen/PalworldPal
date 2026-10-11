@@ -1,0 +1,3093 @@
+{
+	"source": "paldb.cc (site data v1.0.5, 2026-09-15): shop pages /en/Village_Shop_1, /en/Desert_Shop_1, /en/Desert_Shop_2, /en/Volcano_Shop_1, /en/Volcano_Shop_2, /en/Wander_Shop_1, /en/Test_00, /en/Desert_00, /en/Volcano_00, /en/Pal_Merchant, /en/Black_Marketeer, /en/Bounty_Merchant, per-item pages (Code + buy price), map data /js/map_data_en.js (NPC placement, converted to in-game map coords). Pal base prices and item-price cross-check: palworld.tools/merchants (v1.0.5 build 25246127, 2026-10-03). Appearance from paldb NPC icons and palworld.wiki.gg. Retrieved 2026-10-11.",
+	"towns": [
+		{
+			"id": "smallSettlement",
+			"name": "Small Settlement",
+			"area": "Windswept Hills",
+			"coords": [
+				75,
+				-480
+			],
+			"merchants": [
+				{
+					"id": "smallSettlement_items",
+					"role": "goods",
+					"npc": "Wandering Merchant",
+					"portrait": "T_SalesPerson",
+					"currency": "gold",
+					"stock": [
+						{
+							"itemId": "Blueprint_Head003_1",
+							"name": "Long-Eared Headband Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head004_1",
+							"name": "Witch Hat Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head011_1",
+							"name": "Farming Hat Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head012_1",
+							"name": "Bowler Hat Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head013_1",
+							"name": "Tocotoco Cap Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head015_1",
+							"name": "Gumoss Cap Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head016_1",
+							"name": "Penking Cap Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_HeadEquip028_1",
+							"name": "Ribbuny Headband Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Wood_Fine",
+							"name": "Hardwood",
+							"price": 100,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Wood_Fine"
+						},
+						{
+							"itemId": "PalSphere",
+							"name": "Pal Sphere",
+							"price": 80,
+							"quantity": 1,
+							"category": "Sphere",
+							"icon": "T_itemicon_PalSphere"
+						},
+						{
+							"itemId": "FishingBait_1",
+							"name": "Simple Bait",
+							"price": 160,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_FishingBait_1"
+						},
+						{
+							"itemId": "Arrow",
+							"name": "Arrow",
+							"price": 10,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_Arrow"
+						},
+						{
+							"itemId": "Herbs",
+							"name": "Low Grade Medical Supplies",
+							"price": 780,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Herbs"
+						},
+						{
+							"itemId": "Medicines",
+							"name": "Medical Supplies",
+							"price": 1820,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Medicines"
+						},
+						{
+							"itemId": "LuxuryMedicines",
+							"name": "High Grade Medical Supplies",
+							"price": 3120,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_LuxuryMedicines"
+						},
+						{
+							"itemId": "BerrySeeds",
+							"name": "Berry Seeds",
+							"price": 10,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_BerrySeeds"
+						},
+						{
+							"itemId": "WheatSeeds",
+							"name": "Wheat Seeds",
+							"price": 20,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_WheatSeeds"
+						},
+						{
+							"itemId": "Egg",
+							"name": "Egg",
+							"price": 200,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Egg"
+						},
+						{
+							"itemId": "Milk",
+							"name": "Milk",
+							"price": 200,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Milk"
+						},
+						{
+							"itemId": "Berries",
+							"name": "Red Berries",
+							"price": 50,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Berries"
+						},
+						{
+							"itemId": "Wheat",
+							"name": "Wheat",
+							"price": 70,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Wheat"
+						},
+						{
+							"itemId": "Meat_ChickenPal",
+							"name": "Chikipi Poultry",
+							"price": 100,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Meat_ChickenPal"
+						},
+						{
+							"itemId": "Meat_SheepBall",
+							"name": "Lamball Mutton",
+							"price": 120,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Meat_SheepBall"
+						},
+						{
+							"itemId": "Wool",
+							"name": "Wool",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Wool"
+						},
+						{
+							"itemId": "Leather",
+							"name": "Leather",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Leather"
+						},
+						{
+							"itemId": "Bone",
+							"name": "Bone",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Bone"
+						},
+						{
+							"itemId": "Horn",
+							"name": "Horn",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Horn"
+						},
+						{
+							"itemId": "ElectricOrgan",
+							"name": "Electric Organ",
+							"price": 300,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_ElectricOrgan"
+						},
+						{
+							"itemId": "Venom",
+							"name": "Venom Gland",
+							"price": 300,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Venom"
+						},
+						{
+							"itemId": "FireOrgan",
+							"name": "Flame Organ",
+							"price": 300,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_FireOrgan"
+						}
+					]
+				},
+				{
+					"id": "smallSettlement_pals",
+					"role": "pals",
+					"npc": "Pal Merchant",
+					"portrait": "T_PalDealer",
+					"currency": "gold",
+					"stock": [
+						{
+							"palId": "ChickenPal",
+							"price": 313,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								939,
+								1174
+							]
+						},
+						{
+							"palId": "PinkCat",
+							"price": 436,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1308,
+								1635
+							]
+						},
+						{
+							"palId": "SheepBall",
+							"price": 421,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1263,
+								1579
+							]
+						},
+						{
+							"palId": "Kitsunebi",
+							"price": 394,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1182,
+								1478
+							]
+						},
+						{
+							"palId": "Penguin",
+							"price": 463,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1389,
+								1736
+							]
+						},
+						{
+							"palId": "Carbunclo",
+							"price": 480,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1440,
+								1800
+							]
+						},
+						{
+							"palId": "LeafMomonga",
+							"price": 541,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1623,
+								2029
+							]
+						},
+						{
+							"palId": "HawkBird",
+							"price": 1012,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								3036,
+								3795
+							]
+						},
+						{
+							"palId": "Garm",
+							"price": 611,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1833,
+								2291
+							]
+						},
+						{
+							"palId": "Deer",
+							"price": 791,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								2373,
+								2966
+							]
+						}
+					]
+				},
+				{
+					"id": "smallSettlement_bounty",
+					"role": "bounty",
+					"npc": "PIDF Bounty Officer",
+					"portrait": "T_Police",
+					"currency": "bounty",
+					"stock": [
+						{
+							"itemId": "Money",
+							"name": "Gold Coin",
+							"price": 1,
+							"quantity": 2000,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Money"
+						},
+						{
+							"itemId": "TechnologyBook_G1",
+							"name": "Advanced Technical Manual",
+							"price": 5,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_TechnologyBook_G1"
+						},
+						{
+							"itemId": "PalGenderReverse",
+							"name": "Pal Reverser",
+							"price": 7,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Material_PalGenderReverse"
+						},
+						{
+							"itemId": "HeadEquip055",
+							"name": "Croajiro Cap",
+							"price": 5,
+							"quantity": 1,
+							"category": "Armor",
+							"icon": "T_itemicon_Armor_HeadEquip055"
+						},
+						{
+							"itemId": "HeadEquip050",
+							"name": "Herbil Headband",
+							"price": 5,
+							"quantity": 1,
+							"category": "Armor",
+							"icon": "T_itemicon_Armor_HeadEquip050"
+						},
+						{
+							"itemId": "HeadEquip054",
+							"name": "Turtacle Cap",
+							"price": 5,
+							"quantity": 1,
+							"category": "Armor",
+							"icon": "T_itemicon_Armor_HeadEquip054"
+						},
+						{
+							"itemId": "AffectionFruit_01",
+							"name": "Kinship Peach",
+							"price": 15,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_AffectionFruit_01"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_Noukin",
+							"name": "Implant: Musclehead",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_Deffence_up2",
+							"name": "Implant: Burly Body",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_CraftSpeed_up2",
+							"name": "Implant: Artisan",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_TrainerATK_UP_1",
+							"name": "Implant: Vanguard",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_TrainerDEF_UP_1",
+							"name": "Implant: Stronghold Strategist",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_TrainerWorkSpeed_UP_1",
+							"name": "Implant: Motivational Leader",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_PlayerSP_DecreaseRate_Passive",
+							"name": "Implant: Wellness Watcher",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "Fruit_hp_01",
+							"name": "Life Fruit",
+							"price": 25,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Fruit_hp_01"
+						},
+						{
+							"itemId": "Fruit_attack_01",
+							"name": "Power Fruit",
+							"price": 25,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Fruit_attack_01"
+						},
+						{
+							"itemId": "Fruit__defense_01",
+							"name": "Stout Fruit",
+							"price": 25,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Fruit__defense_01"
+						},
+						{
+							"itemId": "Rankup_Arbitrary",
+							"name": "Ripe Starfruit",
+							"price": 50,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Rankup_Arbitrary"
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "duneshelter",
+			"name": "Duneshelter",
+			"area": "Desiccated Desert",
+			"coords": [
+				349,
+				353
+			],
+			"merchants": [
+				{
+					"id": "duneshelter_items",
+					"role": "goods",
+					"npc": "Wandering Merchant",
+					"portrait": "T_SalesPerson",
+					"currency": "gold",
+					"stock": [
+						{
+							"itemId": "Wood_Fine",
+							"name": "Hardwood",
+							"price": 100,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Wood_Fine"
+						},
+						{
+							"itemId": "FishingBait_1",
+							"name": "Simple Bait",
+							"price": 160,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_FishingBait_1"
+						},
+						{
+							"itemId": "FishingBait_2",
+							"name": "High Quality Bait",
+							"price": 240,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_FishingBait_2"
+						},
+						{
+							"itemId": "SkillCard_SandTornado",
+							"name": "Ground Skill Fruit: Sand Tornado",
+							"price": 3000,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_SkillCard_Earth"
+						},
+						{
+							"itemId": "SkillCard_ThrowRock",
+							"name": "Ground Skill Fruit: Stone Cannon",
+							"price": 1000,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_SkillCard_Earth"
+						},
+						{
+							"itemId": "SkillCard_SeedMine",
+							"name": "Grass Skill Fruit: Seed Mine",
+							"price": 3000,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_SkillCard_Grass"
+						},
+						{
+							"itemId": "Herbs",
+							"name": "Low Grade Medical Supplies",
+							"price": 780,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Herbs"
+						},
+						{
+							"itemId": "Medicines",
+							"name": "Medical Supplies",
+							"price": 1820,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Medicines"
+						},
+						{
+							"itemId": "LuxuryMedicines",
+							"name": "High Grade Medical Supplies",
+							"price": 3120,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_LuxuryMedicines"
+						},
+						{
+							"itemId": "Tomato",
+							"name": "Tomato",
+							"price": 80,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Tomato"
+						},
+						{
+							"itemId": "Lettuce",
+							"name": "Lettuce",
+							"price": 80,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Lettuce"
+						},
+						{
+							"itemId": "Leather",
+							"name": "Leather",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Leather"
+						},
+						{
+							"itemId": "Bone",
+							"name": "Bone",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Bone"
+						},
+						{
+							"itemId": "Horn",
+							"name": "Horn",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Horn"
+						},
+						{
+							"itemId": "IceOrgan",
+							"name": "Ice Organ",
+							"price": 300,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_IceOrgan"
+						},
+						{
+							"itemId": "PalOil",
+							"name": "High Quality Pal Oil",
+							"price": 300,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_PalOil"
+						},
+						{
+							"itemId": "TomatoSeeds",
+							"name": "Tomato Seeds",
+							"price": 30,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_TomatoSeeds"
+						},
+						{
+							"itemId": "LettuceSeeds",
+							"name": "Lettuce Seeds",
+							"price": 40,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_LettuceSeeds"
+						}
+					]
+				},
+				{
+					"id": "duneshelter_gear",
+					"role": "gear",
+					"npc": "Wandering Merchant",
+					"portrait": "T_SalesPerson_Green",
+					"currency": "gold",
+					"stock": [
+						{
+							"itemId": "Blueprint_Head005_1",
+							"name": "Soft Hat Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head007_1",
+							"name": "Silk Hat Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head008_1",
+							"name": "Tricorne Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head009_1",
+							"name": "Exploration Cap Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head014_1",
+							"name": "Grinning Tocotoco Cap Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head017_1",
+							"name": "Katress Cap Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_HeadEquip025_1",
+							"name": "Leezpunk Hood Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "FurArmorHeat",
+							"name": "Heat Resistant Pelt Armor",
+							"price": 7920,
+							"quantity": 1,
+							"category": "Armor",
+							"icon": "T_itemicon_Armor_FurArmorHeat"
+						},
+						{
+							"itemId": "FurArmorCold",
+							"name": "Cold Resistant Pelt Armor",
+							"price": 7920,
+							"quantity": 1,
+							"category": "Armor",
+							"icon": "T_itemicon_Armor_FurArmorCold"
+						},
+						{
+							"itemId": "Musket",
+							"name": "Musket",
+							"price": 9940,
+							"quantity": 1,
+							"category": "Weapon",
+							"icon": "T_itemicon_Weapon_Musket"
+						},
+						{
+							"itemId": "RoughBullet",
+							"name": "Coarse Ammo",
+							"price": 40,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_RoughBullet"
+						},
+						{
+							"itemId": "HandgunBullet",
+							"name": "Handgun Ammo",
+							"price": 40,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_HandgunBullet"
+						},
+						{
+							"itemId": "RifleBullet",
+							"name": "Rifle Ammo",
+							"price": 280,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_RifleBullet"
+						},
+						{
+							"itemId": "ShotgunBullet",
+							"name": "Shotgun Shell",
+							"price": 330,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_ShotgunBullet"
+						},
+						{
+							"itemId": "AssaultRifleBullet",
+							"name": "Assault Rifle Ammo",
+							"price": 90,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_AssaultRifleBullet"
+						}
+					]
+				},
+				{
+					"id": "duneshelter_pals",
+					"role": "pals",
+					"npc": "Pal Merchant",
+					"portrait": "T_PalDealer",
+					"currency": "gold",
+					"stock": [
+						{
+							"palId": "RaijinDaughter",
+							"price": 616,
+							"level": [
+								40,
+								45
+							],
+							"priceAtLevel": [
+								4620,
+								5082
+							]
+						},
+						{
+							"palId": "CactusDoll",
+							"price": 702,
+							"level": [
+								40,
+								45
+							],
+							"priceAtLevel": [
+								5265,
+								5792
+							]
+						},
+						{
+							"palId": "DarkCrow",
+							"price": 770,
+							"level": [
+								40,
+								45
+							],
+							"priceAtLevel": [
+								5775,
+								6352
+							]
+						},
+						{
+							"palId": "DrillGame",
+							"price": 1577,
+							"level": [
+								40,
+								45
+							],
+							"priceAtLevel": [
+								11828,
+								13010
+							]
+						},
+						{
+							"palId": "FlowerDinosaur_Electric",
+							"price": 1543,
+							"level": [
+								40,
+								45
+							],
+							"priceAtLevel": [
+								11572,
+								12730
+							]
+						},
+						{
+							"palId": "Gorilla_Ground",
+							"price": 1284,
+							"level": [
+								40,
+								45
+							],
+							"priceAtLevel": [
+								9630,
+								10593
+							]
+						},
+						{
+							"palId": "FeatherOstrich",
+							"price": 896,
+							"level": [
+								40,
+								45
+							],
+							"priceAtLevel": [
+								6720,
+								7392
+							]
+						},
+						{
+							"palId": "Serpent_Ground",
+							"price": 1205,
+							"level": [
+								40,
+								45
+							],
+							"priceAtLevel": [
+								9038,
+								9941
+							]
+						}
+					]
+				},
+				{
+					"id": "duneshelter_bounty",
+					"role": "bounty",
+					"npc": "PIDF Bounty Officer",
+					"portrait": "T_Police",
+					"currency": "bounty",
+					"stock": [
+						{
+							"itemId": "Money",
+							"name": "Gold Coin",
+							"price": 1,
+							"quantity": 2000,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Money"
+						},
+						{
+							"itemId": "TechnologyBook_G1",
+							"name": "Advanced Technical Manual",
+							"price": 5,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_TechnologyBook_G1"
+						},
+						{
+							"itemId": "PalGenderReverse",
+							"name": "Pal Reverser",
+							"price": 7,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Material_PalGenderReverse"
+						},
+						{
+							"itemId": "HeadEquip055",
+							"name": "Croajiro Cap",
+							"price": 5,
+							"quantity": 1,
+							"category": "Armor",
+							"icon": "T_itemicon_Armor_HeadEquip055"
+						},
+						{
+							"itemId": "HeadEquip050",
+							"name": "Herbil Headband",
+							"price": 5,
+							"quantity": 1,
+							"category": "Armor",
+							"icon": "T_itemicon_Armor_HeadEquip050"
+						},
+						{
+							"itemId": "HeadEquip054",
+							"name": "Turtacle Cap",
+							"price": 5,
+							"quantity": 1,
+							"category": "Armor",
+							"icon": "T_itemicon_Armor_HeadEquip054"
+						},
+						{
+							"itemId": "AffectionFruit_01",
+							"name": "Kinship Peach",
+							"price": 15,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_AffectionFruit_01"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_Noukin",
+							"name": "Implant: Musclehead",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_Deffence_up2",
+							"name": "Implant: Burly Body",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_CraftSpeed_up2",
+							"name": "Implant: Artisan",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_TrainerATK_UP_1",
+							"name": "Implant: Vanguard",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_TrainerDEF_UP_1",
+							"name": "Implant: Stronghold Strategist",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_TrainerWorkSpeed_UP_1",
+							"name": "Implant: Motivational Leader",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_PlayerSP_DecreaseRate_Passive",
+							"name": "Implant: Wellness Watcher",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "Fruit_hp_01",
+							"name": "Life Fruit",
+							"price": 25,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Fruit_hp_01"
+						},
+						{
+							"itemId": "Fruit_attack_01",
+							"name": "Power Fruit",
+							"price": 25,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Fruit_attack_01"
+						},
+						{
+							"itemId": "Fruit__defense_01",
+							"name": "Stout Fruit",
+							"price": 25,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Fruit__defense_01"
+						},
+						{
+							"itemId": "Rankup_Arbitrary",
+							"name": "Ripe Starfruit",
+							"price": 50,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Rankup_Arbitrary"
+						}
+					]
+				},
+				{
+					"id": "duneshelter_blackMarketeer",
+					"role": "black",
+					"npc": "Black Marketeer",
+					"portrait": "T_Male_DarkTrader01",
+					"currency": "gold",
+					"stock": [
+						{
+							"palId": "Gorilla_Ground",
+							"price": 1284,
+							"level": [
+								42,
+								48
+							]
+						},
+						{
+							"palId": "MummyPal",
+							"price": 2529,
+							"level": [
+								42,
+								48
+							]
+						},
+						{
+							"palId": "DarkScorpion",
+							"price": 2469,
+							"level": [
+								42,
+								48
+							]
+						},
+						{
+							"palId": "LazyDragon_Electric",
+							"price": 2685,
+							"level": [
+								42,
+								48
+							]
+						},
+						{
+							"palId": "ThunderBird",
+							"price": 1934,
+							"level": [
+								42,
+								48
+							]
+						},
+						{
+							"palId": "TropicalOstrich",
+							"price": 2529,
+							"level": [
+								42,
+								48
+							]
+						},
+						{
+							"palId": "Sekhmet",
+							"price": 2638,
+							"level": [
+								42,
+								48
+							]
+						},
+						{
+							"palId": "PinkLizard",
+							"price": 1056,
+							"level": [
+								42,
+								48
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "fishermansPoint",
+			"name": "Fisherman's Point",
+			"area": "Mount Obsidian coast",
+			"coords": [
+				-474,
+				-750
+			],
+			"merchants": [
+				{
+					"id": "fishermansPoint_items",
+					"role": "goods",
+					"npc": "Wandering Merchant",
+					"portrait": "T_SalesPerson",
+					"currency": "gold",
+					"stock": [
+						{
+							"itemId": "Wood_Fine",
+							"name": "Hardwood",
+							"price": 100,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Wood_Fine"
+						},
+						{
+							"itemId": "FishingBait_1",
+							"name": "Simple Bait",
+							"price": 160,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_FishingBait_1"
+						},
+						{
+							"itemId": "FishingBait_2",
+							"name": "High Quality Bait",
+							"price": 240,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_FishingBait_2"
+						},
+						{
+							"itemId": "SkillCard_Flamethrower",
+							"name": "Fire Skill Fruit: Ignis Breath",
+							"price": 3000,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_SkillCard_Flame"
+						},
+						{
+							"itemId": "SkillCard_FlareTornado",
+							"name": "Fire Skill Fruit: Flare Storm",
+							"price": 3000,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_SkillCard_Flame"
+						},
+						{
+							"itemId": "SkillCard_WaterBall",
+							"name": "Water Skill Fruit: Aqua Burst",
+							"price": 3000,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_SkillCard_Water"
+						},
+						{
+							"itemId": "Herbs",
+							"name": "Low Grade Medical Supplies",
+							"price": 780,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Herbs"
+						},
+						{
+							"itemId": "Medicines",
+							"name": "Medical Supplies",
+							"price": 1820,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Medicines"
+						},
+						{
+							"itemId": "LuxuryMedicines",
+							"name": "High Grade Medical Supplies",
+							"price": 3120,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_LuxuryMedicines"
+						},
+						{
+							"itemId": "Tomato",
+							"name": "Tomato",
+							"price": 80,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Tomato"
+						},
+						{
+							"itemId": "Lettuce",
+							"name": "Lettuce",
+							"price": 80,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Lettuce"
+						},
+						{
+							"itemId": "Leather",
+							"name": "Leather",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Leather"
+						},
+						{
+							"itemId": "Bone",
+							"name": "Bone",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Bone"
+						},
+						{
+							"itemId": "Horn",
+							"name": "Horn",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Horn"
+						},
+						{
+							"itemId": "FireOrgan",
+							"name": "Flame Organ",
+							"price": 300,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_FireOrgan"
+						},
+						{
+							"itemId": "PalOil",
+							"name": "High Quality Pal Oil",
+							"price": 300,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_PalOil"
+						},
+						{
+							"itemId": "TomatoSeeds",
+							"name": "Tomato Seeds",
+							"price": 30,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_TomatoSeeds"
+						},
+						{
+							"itemId": "LettuceSeeds",
+							"name": "Lettuce Seeds",
+							"price": 40,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_LettuceSeeds"
+						}
+					]
+				},
+				{
+					"id": "fishermansPoint_gear",
+					"role": "gear",
+					"npc": "Wandering Merchant",
+					"portrait": "T_SalesPerson_Green",
+					"currency": "gold",
+					"stock": [
+						{
+							"itemId": "Blueprint_Head001_1",
+							"name": "Monarch's Crown Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head002_1",
+							"name": "Golden Crown Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head006_1",
+							"name": "Helmet Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head010_1",
+							"name": "Graduation Cap Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_HeadEquip026_1",
+							"name": "Killamari Cap Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_HeadEquip031_1",
+							"name": "Swee Cap Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_HeadEquip032_1",
+							"name": "Dazzi Hat Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "FurArmorHeat",
+							"name": "Heat Resistant Pelt Armor",
+							"price": 7920,
+							"quantity": 1,
+							"category": "Armor",
+							"icon": "T_itemicon_Armor_FurArmorHeat"
+						},
+						{
+							"itemId": "Arrow_Fire",
+							"name": "Fire Arrow",
+							"price": 40,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_Arrow_Fire"
+						},
+						{
+							"itemId": "MakeshiftHandgun",
+							"name": "Makeshift Handgun",
+							"price": 13970,
+							"quantity": 1,
+							"category": "Weapon",
+							"icon": "T_itemicon_Weapon_MakeshiftHandgun"
+						},
+						{
+							"itemId": "RoughBullet",
+							"name": "Coarse Ammo",
+							"price": 40,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_RoughBullet"
+						},
+						{
+							"itemId": "HandgunBullet",
+							"name": "Handgun Ammo",
+							"price": 40,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_HandgunBullet"
+						},
+						{
+							"itemId": "RifleBullet",
+							"name": "Rifle Ammo",
+							"price": 280,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_RifleBullet"
+						},
+						{
+							"itemId": "ShotgunBullet",
+							"name": "Shotgun Shell",
+							"price": 330,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_ShotgunBullet"
+						},
+						{
+							"itemId": "AssaultRifleBullet",
+							"name": "Assault Rifle Ammo",
+							"price": 90,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_AssaultRifleBullet"
+						}
+					]
+				},
+				{
+					"id": "fishermansPoint_pals",
+					"role": "pals",
+					"npc": "Pal Merchant",
+					"portrait": "T_PalDealer",
+					"currency": "gold",
+					"stock": [
+						{
+							"palId": "LavaGirl",
+							"price": 436,
+							"level": [
+								30,
+								35
+							],
+							"priceAtLevel": [
+								2616,
+								2943
+							]
+						},
+						{
+							"palId": "LizardMan",
+							"price": 476,
+							"level": [
+								30,
+								35
+							],
+							"priceAtLevel": [
+								2856,
+								3213
+							]
+						},
+						{
+							"palId": "BluePlatypus_Fire",
+							"price": 463,
+							"level": [
+								30,
+								35
+							],
+							"priceAtLevel": [
+								2778,
+								3125
+							]
+						},
+						{
+							"palId": "Kelpie_Fire",
+							"price": 407,
+							"level": [
+								30,
+								35
+							],
+							"priceAtLevel": [
+								2442,
+								2747
+							]
+						},
+						{
+							"palId": "TentacleTurtle",
+							"price": 661,
+							"level": [
+								30,
+								35
+							],
+							"priceAtLevel": [
+								3966,
+								4462
+							]
+						},
+						{
+							"palId": "SharkKid_Fire",
+							"price": 850,
+							"level": [
+								30,
+								35
+							],
+							"priceAtLevel": [
+								5100,
+								5738
+							]
+						},
+						{
+							"palId": "FlameBuffalo",
+							"price": 1176,
+							"level": [
+								30,
+								35
+							],
+							"priceAtLevel": [
+								7056,
+								7938
+							]
+						},
+						{
+							"palId": "BirdDragon",
+							"price": 1464,
+							"level": [
+								30,
+								35
+							],
+							"priceAtLevel": [
+								8784,
+								9882
+							]
+						}
+					]
+				},
+				{
+					"id": "fishermansPoint_bounty",
+					"role": "bounty",
+					"npc": "PIDF Bounty Officer",
+					"portrait": "T_Police",
+					"currency": "bounty",
+					"stock": [
+						{
+							"itemId": "Money",
+							"name": "Gold Coin",
+							"price": 1,
+							"quantity": 2000,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Money"
+						},
+						{
+							"itemId": "TechnologyBook_G1",
+							"name": "Advanced Technical Manual",
+							"price": 5,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_TechnologyBook_G1"
+						},
+						{
+							"itemId": "PalGenderReverse",
+							"name": "Pal Reverser",
+							"price": 7,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Material_PalGenderReverse"
+						},
+						{
+							"itemId": "HeadEquip055",
+							"name": "Croajiro Cap",
+							"price": 5,
+							"quantity": 1,
+							"category": "Armor",
+							"icon": "T_itemicon_Armor_HeadEquip055"
+						},
+						{
+							"itemId": "HeadEquip050",
+							"name": "Herbil Headband",
+							"price": 5,
+							"quantity": 1,
+							"category": "Armor",
+							"icon": "T_itemicon_Armor_HeadEquip050"
+						},
+						{
+							"itemId": "HeadEquip054",
+							"name": "Turtacle Cap",
+							"price": 5,
+							"quantity": 1,
+							"category": "Armor",
+							"icon": "T_itemicon_Armor_HeadEquip054"
+						},
+						{
+							"itemId": "AffectionFruit_01",
+							"name": "Kinship Peach",
+							"price": 15,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_AffectionFruit_01"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_Noukin",
+							"name": "Implant: Musclehead",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_Deffence_up2",
+							"name": "Implant: Burly Body",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_CraftSpeed_up2",
+							"name": "Implant: Artisan",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_TrainerATK_UP_1",
+							"name": "Implant: Vanguard",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_TrainerDEF_UP_1",
+							"name": "Implant: Stronghold Strategist",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_TrainerWorkSpeed_UP_1",
+							"name": "Implant: Motivational Leader",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "PalPassiveSkillChange_PlayerSP_DecreaseRate_Passive",
+							"name": "Implant: Wellness Watcher",
+							"price": 15,
+							"quantity": 1,
+							"category": "Key Items",
+							"icon": "T_itemicon_Material_PalPassiveSkillChange"
+						},
+						{
+							"itemId": "Fruit_hp_01",
+							"name": "Life Fruit",
+							"price": 25,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Fruit_hp_01"
+						},
+						{
+							"itemId": "Fruit_attack_01",
+							"name": "Power Fruit",
+							"price": 25,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Fruit_attack_01"
+						},
+						{
+							"itemId": "Fruit__defense_01",
+							"name": "Stout Fruit",
+							"price": 25,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Fruit__defense_01"
+						},
+						{
+							"itemId": "Rankup_Arbitrary",
+							"name": "Ripe Starfruit",
+							"price": 50,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Rankup_Arbitrary"
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "seaBreezeArchipelago",
+			"name": "Sea Breeze Archipelago",
+			"area": "Merchant camp",
+			"coords": [
+				-188,
+				-601
+			],
+			"sameStockAs": "smallSettlement",
+			"merchants": [
+				{
+					"id": "seaBreezeArchipelago_items",
+					"role": "goods",
+					"npc": "Wandering Merchant",
+					"portrait": "T_SalesPerson",
+					"currency": "gold",
+					"stock": [
+						{
+							"itemId": "Blueprint_Head003_1",
+							"name": "Long-Eared Headband Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head004_1",
+							"name": "Witch Hat Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head011_1",
+							"name": "Farming Hat Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head012_1",
+							"name": "Bowler Hat Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head013_1",
+							"name": "Tocotoco Cap Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head015_1",
+							"name": "Gumoss Cap Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head016_1",
+							"name": "Penking Cap Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_HeadEquip028_1",
+							"name": "Ribbuny Headband Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Wood_Fine",
+							"name": "Hardwood",
+							"price": 100,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Wood_Fine"
+						},
+						{
+							"itemId": "PalSphere",
+							"name": "Pal Sphere",
+							"price": 80,
+							"quantity": 1,
+							"category": "Sphere",
+							"icon": "T_itemicon_PalSphere"
+						},
+						{
+							"itemId": "FishingBait_1",
+							"name": "Simple Bait",
+							"price": 160,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_FishingBait_1"
+						},
+						{
+							"itemId": "Arrow",
+							"name": "Arrow",
+							"price": 10,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_Arrow"
+						},
+						{
+							"itemId": "Herbs",
+							"name": "Low Grade Medical Supplies",
+							"price": 780,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Herbs"
+						},
+						{
+							"itemId": "Medicines",
+							"name": "Medical Supplies",
+							"price": 1820,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Medicines"
+						},
+						{
+							"itemId": "LuxuryMedicines",
+							"name": "High Grade Medical Supplies",
+							"price": 3120,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_LuxuryMedicines"
+						},
+						{
+							"itemId": "BerrySeeds",
+							"name": "Berry Seeds",
+							"price": 10,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_BerrySeeds"
+						},
+						{
+							"itemId": "WheatSeeds",
+							"name": "Wheat Seeds",
+							"price": 20,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_WheatSeeds"
+						},
+						{
+							"itemId": "Egg",
+							"name": "Egg",
+							"price": 200,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Egg"
+						},
+						{
+							"itemId": "Milk",
+							"name": "Milk",
+							"price": 200,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Milk"
+						},
+						{
+							"itemId": "Berries",
+							"name": "Red Berries",
+							"price": 50,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Berries"
+						},
+						{
+							"itemId": "Wheat",
+							"name": "Wheat",
+							"price": 70,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Wheat"
+						},
+						{
+							"itemId": "Meat_ChickenPal",
+							"name": "Chikipi Poultry",
+							"price": 100,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Meat_ChickenPal"
+						},
+						{
+							"itemId": "Meat_SheepBall",
+							"name": "Lamball Mutton",
+							"price": 120,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Meat_SheepBall"
+						},
+						{
+							"itemId": "Wool",
+							"name": "Wool",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Wool"
+						},
+						{
+							"itemId": "Leather",
+							"name": "Leather",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Leather"
+						},
+						{
+							"itemId": "Bone",
+							"name": "Bone",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Bone"
+						},
+						{
+							"itemId": "Horn",
+							"name": "Horn",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Horn"
+						},
+						{
+							"itemId": "ElectricOrgan",
+							"name": "Electric Organ",
+							"price": 300,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_ElectricOrgan"
+						},
+						{
+							"itemId": "Venom",
+							"name": "Venom Gland",
+							"price": 300,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Venom"
+						},
+						{
+							"itemId": "FireOrgan",
+							"name": "Flame Organ",
+							"price": 300,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_FireOrgan"
+						}
+					]
+				},
+				{
+					"id": "seaBreezeArchipelago_pals",
+					"role": "pals",
+					"npc": "Pal Merchant",
+					"portrait": "T_PalDealer",
+					"currency": "gold",
+					"stock": [
+						{
+							"palId": "ChickenPal",
+							"price": 313,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								939,
+								1174
+							]
+						},
+						{
+							"palId": "PinkCat",
+							"price": 436,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1308,
+								1635
+							]
+						},
+						{
+							"palId": "SheepBall",
+							"price": 421,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1263,
+								1579
+							]
+						},
+						{
+							"palId": "Kitsunebi",
+							"price": 394,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1182,
+								1478
+							]
+						},
+						{
+							"palId": "Penguin",
+							"price": 463,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1389,
+								1736
+							]
+						},
+						{
+							"palId": "Carbunclo",
+							"price": 480,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1440,
+								1800
+							]
+						},
+						{
+							"palId": "LeafMomonga",
+							"price": 541,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1623,
+								2029
+							]
+						},
+						{
+							"palId": "HawkBird",
+							"price": 1012,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								3036,
+								3795
+							]
+						},
+						{
+							"palId": "Garm",
+							"price": 611,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1833,
+								2291
+							]
+						},
+						{
+							"palId": "Deer",
+							"price": 791,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								2373,
+								2966
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "isleOfMurmurs",
+			"name": "Isle of Murmurs",
+			"area": "Merchant camp",
+			"coords": [
+				-397,
+				18
+			],
+			"sameStockAs": "smallSettlement",
+			"merchants": [
+				{
+					"id": "isleOfMurmurs_items",
+					"role": "goods",
+					"npc": "Wandering Merchant",
+					"portrait": "T_SalesPerson",
+					"currency": "gold",
+					"stock": [
+						{
+							"itemId": "Blueprint_Head003_1",
+							"name": "Long-Eared Headband Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head004_1",
+							"name": "Witch Hat Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head011_1",
+							"name": "Farming Hat Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head012_1",
+							"name": "Bowler Hat Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head013_1",
+							"name": "Tocotoco Cap Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head015_1",
+							"name": "Gumoss Cap Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head016_1",
+							"name": "Penking Cap Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_HeadEquip028_1",
+							"name": "Ribbuny Headband Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Wood_Fine",
+							"name": "Hardwood",
+							"price": 100,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Wood_Fine"
+						},
+						{
+							"itemId": "PalSphere",
+							"name": "Pal Sphere",
+							"price": 80,
+							"quantity": 1,
+							"category": "Sphere",
+							"icon": "T_itemicon_PalSphere"
+						},
+						{
+							"itemId": "FishingBait_1",
+							"name": "Simple Bait",
+							"price": 160,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_FishingBait_1"
+						},
+						{
+							"itemId": "Arrow",
+							"name": "Arrow",
+							"price": 10,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_Arrow"
+						},
+						{
+							"itemId": "Herbs",
+							"name": "Low Grade Medical Supplies",
+							"price": 780,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Herbs"
+						},
+						{
+							"itemId": "Medicines",
+							"name": "Medical Supplies",
+							"price": 1820,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Medicines"
+						},
+						{
+							"itemId": "LuxuryMedicines",
+							"name": "High Grade Medical Supplies",
+							"price": 3120,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_LuxuryMedicines"
+						},
+						{
+							"itemId": "BerrySeeds",
+							"name": "Berry Seeds",
+							"price": 10,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_BerrySeeds"
+						},
+						{
+							"itemId": "WheatSeeds",
+							"name": "Wheat Seeds",
+							"price": 20,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_WheatSeeds"
+						},
+						{
+							"itemId": "Egg",
+							"name": "Egg",
+							"price": 200,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Egg"
+						},
+						{
+							"itemId": "Milk",
+							"name": "Milk",
+							"price": 200,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Milk"
+						},
+						{
+							"itemId": "Berries",
+							"name": "Red Berries",
+							"price": 50,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Berries"
+						},
+						{
+							"itemId": "Wheat",
+							"name": "Wheat",
+							"price": 70,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Wheat"
+						},
+						{
+							"itemId": "Meat_ChickenPal",
+							"name": "Chikipi Poultry",
+							"price": 100,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Meat_ChickenPal"
+						},
+						{
+							"itemId": "Meat_SheepBall",
+							"name": "Lamball Mutton",
+							"price": 120,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Meat_SheepBall"
+						},
+						{
+							"itemId": "Wool",
+							"name": "Wool",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Wool"
+						},
+						{
+							"itemId": "Leather",
+							"name": "Leather",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Leather"
+						},
+						{
+							"itemId": "Bone",
+							"name": "Bone",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Bone"
+						},
+						{
+							"itemId": "Horn",
+							"name": "Horn",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Horn"
+						},
+						{
+							"itemId": "ElectricOrgan",
+							"name": "Electric Organ",
+							"price": 300,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_ElectricOrgan"
+						},
+						{
+							"itemId": "Venom",
+							"name": "Venom Gland",
+							"price": 300,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Venom"
+						},
+						{
+							"itemId": "FireOrgan",
+							"name": "Flame Organ",
+							"price": 300,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_FireOrgan"
+						}
+					]
+				},
+				{
+					"id": "isleOfMurmurs_pals",
+					"role": "pals",
+					"npc": "Pal Merchant",
+					"portrait": "T_PalDealer",
+					"currency": "gold",
+					"stock": [
+						{
+							"palId": "ChickenPal",
+							"price": 313,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								939,
+								1174
+							]
+						},
+						{
+							"palId": "PinkCat",
+							"price": 436,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1308,
+								1635
+							]
+						},
+						{
+							"palId": "SheepBall",
+							"price": 421,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1263,
+								1579
+							]
+						},
+						{
+							"palId": "Kitsunebi",
+							"price": 394,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1182,
+								1478
+							]
+						},
+						{
+							"palId": "Penguin",
+							"price": 463,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1389,
+								1736
+							]
+						},
+						{
+							"palId": "Carbunclo",
+							"price": 480,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1440,
+								1800
+							]
+						},
+						{
+							"palId": "LeafMomonga",
+							"price": 541,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1623,
+								2029
+							]
+						},
+						{
+							"palId": "HawkBird",
+							"price": 1012,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								3036,
+								3795
+							]
+						},
+						{
+							"palId": "Garm",
+							"price": 611,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1833,
+								2291
+							]
+						},
+						{
+							"palId": "Deer",
+							"price": 791,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								2373,
+								2966
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "marshIsland",
+			"name": "Marsh Island",
+			"area": "Merchant camp",
+			"coords": [
+				433,
+				-271
+			],
+			"sameStockAs": "smallSettlement",
+			"merchants": [
+				{
+					"id": "marshIsland_items",
+					"role": "goods",
+					"npc": "Wandering Merchant",
+					"portrait": "T_SalesPerson",
+					"currency": "gold",
+					"stock": [
+						{
+							"itemId": "Blueprint_Head003_1",
+							"name": "Long-Eared Headband Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head004_1",
+							"name": "Witch Hat Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head011_1",
+							"name": "Farming Hat Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head012_1",
+							"name": "Bowler Hat Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head013_1",
+							"name": "Tocotoco Cap Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head015_1",
+							"name": "Gumoss Cap Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_Head016_1",
+							"name": "Penking Cap Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Blueprint_HeadEquip028_1",
+							"name": "Ribbuny Headband Schematic 1",
+							"price": 500,
+							"quantity": 1,
+							"category": "Schematic",
+							"icon": "T_itemicon_Material_Blueprint"
+						},
+						{
+							"itemId": "Wood_Fine",
+							"name": "Hardwood",
+							"price": 100,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Wood_Fine"
+						},
+						{
+							"itemId": "PalSphere",
+							"name": "Pal Sphere",
+							"price": 80,
+							"quantity": 1,
+							"category": "Sphere",
+							"icon": "T_itemicon_PalSphere"
+						},
+						{
+							"itemId": "FishingBait_1",
+							"name": "Simple Bait",
+							"price": 160,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_FishingBait_1"
+						},
+						{
+							"itemId": "Arrow",
+							"name": "Arrow",
+							"price": 10,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_Arrow"
+						},
+						{
+							"itemId": "Herbs",
+							"name": "Low Grade Medical Supplies",
+							"price": 780,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Herbs"
+						},
+						{
+							"itemId": "Medicines",
+							"name": "Medical Supplies",
+							"price": 1820,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Medicines"
+						},
+						{
+							"itemId": "LuxuryMedicines",
+							"name": "High Grade Medical Supplies",
+							"price": 3120,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_LuxuryMedicines"
+						},
+						{
+							"itemId": "BerrySeeds",
+							"name": "Berry Seeds",
+							"price": 10,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_BerrySeeds"
+						},
+						{
+							"itemId": "WheatSeeds",
+							"name": "Wheat Seeds",
+							"price": 20,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_WheatSeeds"
+						},
+						{
+							"itemId": "Egg",
+							"name": "Egg",
+							"price": 200,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Egg"
+						},
+						{
+							"itemId": "Milk",
+							"name": "Milk",
+							"price": 200,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Milk"
+						},
+						{
+							"itemId": "Berries",
+							"name": "Red Berries",
+							"price": 50,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Berries"
+						},
+						{
+							"itemId": "Wheat",
+							"name": "Wheat",
+							"price": 70,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Wheat"
+						},
+						{
+							"itemId": "Meat_ChickenPal",
+							"name": "Chikipi Poultry",
+							"price": 100,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Meat_ChickenPal"
+						},
+						{
+							"itemId": "Meat_SheepBall",
+							"name": "Lamball Mutton",
+							"price": 120,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Meat_SheepBall"
+						},
+						{
+							"itemId": "Wool",
+							"name": "Wool",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Wool"
+						},
+						{
+							"itemId": "Leather",
+							"name": "Leather",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Leather"
+						},
+						{
+							"itemId": "Bone",
+							"name": "Bone",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Bone"
+						},
+						{
+							"itemId": "Horn",
+							"name": "Horn",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Horn"
+						},
+						{
+							"itemId": "ElectricOrgan",
+							"name": "Electric Organ",
+							"price": 300,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_ElectricOrgan"
+						},
+						{
+							"itemId": "Venom",
+							"name": "Venom Gland",
+							"price": 300,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Venom"
+						},
+						{
+							"itemId": "FireOrgan",
+							"name": "Flame Organ",
+							"price": 300,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_FireOrgan"
+						}
+					]
+				},
+				{
+					"id": "marshIsland_pals",
+					"role": "pals",
+					"npc": "Pal Merchant",
+					"portrait": "T_PalDealer",
+					"currency": "gold",
+					"stock": [
+						{
+							"palId": "ChickenPal",
+							"price": 313,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								939,
+								1174
+							]
+						},
+						{
+							"palId": "PinkCat",
+							"price": 436,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1308,
+								1635
+							]
+						},
+						{
+							"palId": "SheepBall",
+							"price": 421,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1263,
+								1579
+							]
+						},
+						{
+							"palId": "Kitsunebi",
+							"price": 394,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1182,
+								1478
+							]
+						},
+						{
+							"palId": "Penguin",
+							"price": 463,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1389,
+								1736
+							]
+						},
+						{
+							"palId": "Carbunclo",
+							"price": 480,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1440,
+								1800
+							]
+						},
+						{
+							"palId": "LeafMomonga",
+							"price": 541,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1623,
+								2029
+							]
+						},
+						{
+							"palId": "HawkBird",
+							"price": 1012,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								3036,
+								3795
+							]
+						},
+						{
+							"palId": "Garm",
+							"price": 611,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								1833,
+								2291
+							]
+						},
+						{
+							"palId": "Deer",
+							"price": 791,
+							"level": [
+								10,
+								15
+							],
+							"priceAtLevel": [
+								2373,
+								2966
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "wandering",
+			"name": "Wandering Merchant",
+			"area": "Visits your base",
+			"coords": null,
+			"merchants": [
+				{
+					"id": "wandering_items",
+					"role": "wander",
+					"npc": "Wandering Merchant",
+					"portrait": "T_SalesPerson_Green",
+					"currency": "gold",
+					"stock": [
+						{
+							"itemId": "Pal_crystal_S",
+							"name": "Paldium Fragment",
+							"price": 70,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Pal_crystal_S"
+						},
+						{
+							"itemId": "SkillCard_SelfDestruct",
+							"name": "Skill Fruit: Implode",
+							"price": 3000,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_SkillCard_Neutral"
+						},
+						{
+							"itemId": "SkillCard_AcidRain",
+							"name": "Water Skill Fruit: Acid Rain",
+							"price": 3000,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_SkillCard_Water"
+						},
+						{
+							"itemId": "SkillCard_LockonLaser",
+							"name": "Electric Skill Fruit: Lock-on Laser",
+							"price": 3000,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_SkillCard_Electric"
+						},
+						{
+							"itemId": "Egg",
+							"name": "Egg",
+							"price": 200,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Egg"
+						},
+						{
+							"itemId": "Milk",
+							"name": "Milk",
+							"price": 200,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Milk"
+						},
+						{
+							"itemId": "Berries",
+							"name": "Red Berries",
+							"price": 50,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Berries"
+						},
+						{
+							"itemId": "Wheat",
+							"name": "Wheat",
+							"price": 70,
+							"quantity": 1,
+							"category": "Ingredient",
+							"icon": "T_itemicon_Food_Wheat"
+						},
+						{
+							"itemId": "Herbs",
+							"name": "Low Grade Medical Supplies",
+							"price": 780,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Herbs"
+						},
+						{
+							"itemId": "Medicines",
+							"name": "Medical Supplies",
+							"price": 1820,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_Medicines"
+						},
+						{
+							"itemId": "LuxuryMedicines",
+							"name": "High Grade Medical Supplies",
+							"price": 3120,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Food_LuxuryMedicines"
+						},
+						{
+							"itemId": "Wool",
+							"name": "Wool",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Wool"
+						},
+						{
+							"itemId": "Leather",
+							"name": "Leather",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Leather"
+						},
+						{
+							"itemId": "Bone",
+							"name": "Bone",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Bone"
+						},
+						{
+							"itemId": "Horn",
+							"name": "Horn",
+							"price": 200,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_Horn"
+						},
+						{
+							"itemId": "PalFluid",
+							"name": "Aquatic Pal Fluids",
+							"price": 300,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_PalFluid"
+						},
+						{
+							"itemId": "PalOil",
+							"name": "High Quality Pal Oil",
+							"price": 300,
+							"quantity": 1,
+							"category": "Material",
+							"icon": "T_itemicon_Material_PalOil"
+						},
+						{
+							"itemId": "FishingBait_1",
+							"name": "Simple Bait",
+							"price": 160,
+							"quantity": 1,
+							"category": "Consumable",
+							"icon": "T_itemicon_Consume_FishingBait_1"
+						},
+						{
+							"itemId": "RoughBullet",
+							"name": "Coarse Ammo",
+							"price": 40,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_RoughBullet"
+						},
+						{
+							"itemId": "HandgunBullet",
+							"name": "Handgun Ammo",
+							"price": 40,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_HandgunBullet"
+						},
+						{
+							"itemId": "RifleBullet",
+							"name": "Rifle Ammo",
+							"price": 280,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_RifleBullet"
+						},
+						{
+							"itemId": "ShotgunBullet",
+							"name": "Shotgun Shell",
+							"price": 330,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_ShotgunBullet"
+						},
+						{
+							"itemId": "AssaultRifleBullet",
+							"name": "Assault Rifle Ammo",
+							"price": 90,
+							"quantity": 1,
+							"category": "Ammo",
+							"icon": "T_itemicon_Ammo_AssaultRifleBullet"
+						}
+					]
+				}
+			]
+		}
+	]
+}

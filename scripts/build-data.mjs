@@ -23,6 +23,9 @@ const pals = [...db.Pals].sort((a, b) =>
 )
 const index = new Map(pals.map((p, i) => [p.InternalName, i]))
 
+// Pals the game gives the same name as another pal
+const NAME_OVERRIDES = { PlantSlime_Flower: 'Gumoss (Flower)' }
+
 const WORK_KEYS = {
 	Kindling: 'kindling',
 	Watering: 'watering',
@@ -46,7 +49,7 @@ const outPals = pals.map((p) => {
 	const gender = db.BreedingGenderProbability[p.InternalName] ?? { MALE: 0.5, FEMALE: 0.5 }
 	return {
 		id: p.InternalName,
-		name: p.Name,
+		name: NAME_OVERRIDES[p.InternalName] ?? p.Name,
 		dex: p.Id.PalDexNo,
 		variant: p.Id.IsVariant,
 		rarity: p.Rarity,
