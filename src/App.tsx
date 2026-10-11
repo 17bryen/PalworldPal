@@ -12,6 +12,7 @@ import { MerchantsPage } from './components/MerchantsPage'
 import { MapPage } from './components/MapPage'
 import { NavigationContext } from './state/nav'
 import { GameLinkChip } from './components/GameLink'
+import { useOverlaySync } from './components/OverlaySettings'
 import { AlternativesProvider } from './components/Alternatives'
 
 function DataMenu() {
@@ -117,6 +118,7 @@ export function App() {
 	)
 	const [selectedWanted, setSelectedWanted] = useState<string | null>(null)
 	const { plan, progress, error } = usePlan(store.owned, store.wanted, store.settings, store.loaded)
+	useOverlaySync()
 
 	return (
 		<NavigationContext.Provider value={navigation}>

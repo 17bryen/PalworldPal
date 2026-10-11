@@ -31,14 +31,15 @@ import { useBridge } from '../state/bridge'
 import { theme } from '../theme'
 import { PalAvatar } from './bits'
 import { PalPicker } from './pickers'
+import { OverlaySettings } from './OverlaySettings'
 
-const asset = (file: string) => `${import.meta.env.BASE_URL}${file}`
+export const asset = (file: string) => `${import.meta.env.BASE_URL}${file}`
 
 // Leaflet's simple CRS: at zoom 0 the 512 px top tile spans 512 map units, so an 8192 image pixel
 // is 1/16 of a unit. Latitude runs up, so image rows are negated.
 const UNIT = MAP_SIZE / 512
-const toLatLng = (px: number, py: number): L.LatLngTuple => [-py / UNIT, px / UNIT]
-const BOUNDS: L.LatLngBoundsExpression = [
+export const toLatLng = (px: number, py: number): L.LatLngTuple => [-py / UNIT, px / UNIT]
+export const BOUNDS: L.LatLngBoundsExpression = [
 	[-512, 0],
 	[0, 512]
 ]
@@ -75,7 +76,7 @@ const IconMarker = L.CircleMarker.extend({
 	}
 }) as unknown as new (latlng: L.LatLngExpression, options: L.CircleMarkerOptions & { image?: HTMLImageElement }) => L.CircleMarker
 
-function LayerMarkers({ layer, map }: { layer: MapLayer; map: MapIndex }) {
+export function LayerMarkers({ layer, map }: { layer: MapLayer; map: MapIndex }) {
 	const leaflet = useMap()
 	useEffect(() => {
 		const image = layer.icon ? iconImages.get(layer.icon) : undefined
@@ -212,35 +213,73 @@ const PLAYER_ICON = L.divIcon({
 })
 
 /** You, live from the game; the arrow turns with your camera */
-function PlayerMarker({ map, follow }: { map: MapIndex; follow: boolean }) {
+export function PlayerMarker({ map, follow }: { map: MapIndex; follow: boolean }) {
 	const leaflet = useMap()
 	const { live, connected } = useBridge()
 	const marker = useRef<L.Marker | null>(null)
+	// Glide between updates: each new position starts from wherever the arrow is drawn now
+	const glide = useRef({ from: [0, 0, 0], to: [0, 0, 0], start: 0, duration: 1, lastAt: 0 })
+	const followRef = useRef(follow)
+	followRef.current = follow
 	const pos = live && connected ? worldToPixel(live.x, live.y) : null
-	const here = pos && pos.map === map ? toLatLng(pos.px, pos.py) : null
+	const target = pos && pos.map === map ? toLatLng(pos.px, pos.py) : null
+
+	const drawAt = (lat: number, lng: number, yaw: number) => {
+		if (!marker.current) return
+		marker.current.setLatLng([lat, lng])
+		const arrow = marker.current.getElement()?.querySelector<HTMLElement>('.pb-player')
+		// Unreal yaw 0 faces +X, which is up on the map; it grows clockwise
+		if (arrow) arrow.style.transform = `rotate(${yaw}deg)`
+		// A hidden map has no size; panning it then would corrupt the view
+		if (followRef.current && leaflet.getSize().x > 0) leaflet.panTo([lat, lng], { animate: false })
+	}
 
 	useEffect(() => {
-		if (!here) {
+		if (!target || !live) {
 			marker.current?.remove()
 			marker.current = null
 			return
 		}
+		const now = performance.now()
+		const g = glide.current
 		if (!marker.current) {
-			marker.current = L.marker(here, { icon: PLAYER_ICON, interactive: false, zIndexOffset: 1000, keyboard: false }).addTo(leaflet)
-		} else marker.current.setLatLng(here)
-		const arrow = marker.current.getElement()?.querySelector<HTMLElement>('.pb-player')
-		// Unreal yaw 0 faces +X, which is up on the map; it grows clockwise
-		if (arrow) arrow.style.transform = `rotate(${live!.yaw}deg)`
-		// A hidden map has no size; panning it then would corrupt the view
-		if (follow && leaflet.getSize().x > 0) leaflet.panTo(here, { animate: true, duration: 0.15, easeLinearity: 1 })
-	})
-	useEffect(
-		() => () => {
+			marker.current = L.marker(target, { icon: PLAYER_ICON, interactive: false, zIndexOffset: 1000, keyboard: false }).addTo(leaflet)
+			g.from = g.to = [target[0], target[1], live.yaw]
+			g.start = now
+			drawAt(target[0], target[1], live.yaw)
+		} else {
+			const t = Math.min(1, (now - g.start) / g.duration)
+			const current = g.from.map((v, i) => v + (g.to[i] - v) * t)
+			// Turn the short way round
+			const turn = ((((live.yaw - current[2]) % 360) + 540) % 360) - 180
+			g.from = current
+			g.to = [target[0], target[1], current[2] + turn]
+			g.start = now
+			// Spread the move over the time since the last update, so motion stays continuous
+			g.duration = Math.min(300, Math.max(60, now - g.lastAt))
+		}
+		g.lastAt = now
+	}, [live, target?.[0], target?.[1]])
+
+	useEffect(() => {
+		let frame = 0
+		const tick = () => {
+			const g = glide.current
+			if (marker.current) {
+				const t = Math.min(1, (performance.now() - g.start) / g.duration)
+				if (t < 1 || g.start + g.duration > performance.now() - 50) {
+					drawAt(g.from[0] + (g.to[0] - g.from[0]) * t, g.from[1] + (g.to[1] - g.from[1]) * t, g.from[2] + (g.to[2] - g.from[2]) * t)
+				}
+			}
+			frame = requestAnimationFrame(tick)
+		}
+		frame = requestAnimationFrame(tick)
+		return () => {
+			cancelAnimationFrame(frame)
 			marker.current?.remove()
 			marker.current = null
-		},
-		[]
-	)
+		}
+	}, [leaflet])
 	return null
 }
 
@@ -499,6 +538,8 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 						</Box>
 					)}
 				</Box>
+
+				<OverlaySettings />
 
 				<Box>
 					<Typography variant="overline" color="text.secondary">

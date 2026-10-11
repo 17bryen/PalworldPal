@@ -60,8 +60,11 @@ export function parseCaptures(text: string, at: number): CaptureData | null {
 let latestLive: LiveData | null = null
 let latestCaptures: CaptureData | null = null
 
-/** Polls the bridge files and forwards changes to the window. fs.watch is unreliable on Windows. */
-export function startBridge(getWindow: () => BrowserWindow | null) {
+/** Polls the bridge files and forwards changes to every window (app and overlay). fs.watch is unreliable on Windows. */
+export function startBridge() {
+	const send = (channel: string, data: unknown) => {
+		for (const win of BrowserWindow.getAllWindows()) win.webContents.send(channel, data)
+	}
 	mkdirSync(bridgeDir(), { recursive: true })
 	const watchFile = (name: string, everyMs: number, onChange: (text: string) => void) => {
 		let last = ''
@@ -82,17 +85,18 @@ export function startBridge(getWindow: () => BrowserWindow | null) {
 			}
 		}, everyMs)
 	}
-	watchFile('live.json', 150, (text) => {
+	// The mod writes about 10 times a second; reading often keeps the delay under a frame or two
+	watchFile('live.json', 50, (text) => {
 		const live = parseLive(text, Date.now())
 		if (!live) return
 		latestLive = live
-		getWindow()?.webContents.send('bridge:live', live)
+		send('bridge:live', live)
 	})
 	watchFile('captures.json', 1000, (text) => {
 		const captures = parseCaptures(text, Date.now())
 		if (!captures) return
 		latestCaptures = captures
-		getWindow()?.webContents.send('bridge:captures', captures)
+		send('bridge:captures', captures)
 	})
 	ipcMain.handle('bridge:latest', () => ({ live: latestLive, captures: latestCaptures }))
 }

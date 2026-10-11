@@ -102,7 +102,8 @@ function fakeBridge(): PalBridgeApi {
 export const bridgeApi: PalBridgeApi | undefined =
 	window.palBridge ?? (import.meta.env.DEV && location.search.includes('fakebridge') ? fakeBridge() : undefined)
 
-export function BridgeProvider({ children }: { children: ReactNode }) {
+/** `syncCatches` is off in the overlay window, which only reads */
+export function BridgeProvider({ children, syncCatches: canSync = true }: { children: ReactNode; syncCatches?: boolean }) {
 	const { syncCatches, replaceCatches, loaded } = useStore()
 	const [live, setLive] = useState<LiveData | null>(null)
 	const [captures, setCaptures] = useState<CaptureData | null>(null)
@@ -127,8 +128,8 @@ export function BridgeProvider({ children }: { children: ReactNode }) {
 
 	// The game's record is the source of truth for catches while syncing is on
 	useEffect(() => {
-		if (captures && syncCatches && loaded) replaceCatches(normalizeCaptures(captures.counts))
-	}, [captures, syncCatches, loaded, replaceCatches])
+		if (canSync && captures && syncCatches && loaded) replaceCatches(normalizeCaptures(captures.counts))
+	}, [canSync, captures, syncCatches, loaded, replaceCatches])
 
 	const connected = !!live && Math.max(now, Date.now()) - live.at < STALE_MS
 	return <BridgeContext.Provider value={{ available: !!bridgeApi, live, connected, captures }}>{children}</BridgeContext.Provider>

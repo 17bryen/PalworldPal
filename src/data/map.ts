@@ -55,6 +55,12 @@ export function worldToPixel(x: number, y: number): { map: MapIndex; px: number;
 	return { map, px: ((y - b.minY) / (b.maxY - b.minY)) * MAP_SIZE, py: ((b.maxX - x) / (b.maxX - b.minX)) * MAP_SIZE }
 }
 
+/** The world position (Unreal units, centimeters) of a pixel on a map image */
+export function pixelToWorld(map: MapIndex, px: number, py: number): { x: number; y: number } {
+	const b = WORLD_BOUNDS[map]
+	return { x: b.maxX - (py / MAP_SIZE) * (b.maxX - b.minX), y: b.minY + (px / MAP_SIZE) * (b.maxY - b.minY) }
+}
+
 /** In-game map coordinates (as the game shows them) for a pixel on a map image */
 export function pixelToIngame(map: MapIndex, px: number, py: number): [number, number] {
 	const c = MAPS[map].ingame

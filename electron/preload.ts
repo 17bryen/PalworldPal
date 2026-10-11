@@ -3,6 +3,11 @@ import { contextBridge, ipcRenderer } from 'electron'
 contextBridge.exposeInMainWorld('palStore', {
 	load: (): Promise<string | null> => ipcRenderer.invoke('store:load'),
 	save: (json: string): Promise<void> => ipcRenderer.invoke('store:save', json),
+	onChanged: (cb: (json: string) => void) => {
+		const listener = (_e: unknown, json: string) => cb(json)
+		ipcRenderer.on('store:changed', listener)
+		return () => ipcRenderer.removeListener('store:changed', listener)
+	},
 	saveNow: (json: string): void => void ipcRenderer.sendSync('store:saveNow', json)
 })
 
@@ -24,4 +29,14 @@ contextBridge.exposeInMainWorld('palBridge', {
 	openUe4ssDownloads: () => ipcRenderer.invoke('gamelink:openUe4ss'),
 	openUe4ssWorkshop: () => ipcRenderer.invoke('gamelink:openWorkshop'),
 	openBridgeFolder: () => ipcRenderer.invoke('gamelink:openBridgeFolder')
+})
+
+contextBridge.exposeInMainWorld('palOverlay', {
+	set: (visible: boolean): Promise<void> => ipcRenderer.invoke('overlay:set', visible),
+	hotkey: (): Promise<string | null> => ipcRenderer.invoke('overlay:hotkey'),
+	onToggled: (cb: (visible: boolean) => void) => {
+		const listener = (_e: unknown, visible: boolean) => cb(visible)
+		ipcRenderer.on('overlay:toggled', listener)
+		return () => ipcRenderer.removeListener('overlay:toggled', listener)
+	}
 })

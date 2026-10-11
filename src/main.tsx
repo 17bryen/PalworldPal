@@ -9,16 +9,38 @@ import { theme } from './theme'
 import { StoreProvider } from './state/store'
 import { BridgeProvider } from './state/bridge'
 import { App } from './App'
+import { OverlayApp } from './components/Overlay'
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-	<React.StrictMode>
-		<ThemeProvider theme={theme}>
-			<CssBaseline />
-			<StoreProvider>
-				<BridgeProvider>
-					<App />
-				</BridgeProvider>
-			</StoreProvider>
-		</ThemeProvider>
-	</React.StrictMode>
-)
+const root = ReactDOM.createRoot(document.getElementById('root')!)
+
+if (location.hash === '#overlay') {
+	// The overlay window: a see-through layer over the game that only reads the app's settings
+	document.documentElement.style.background = 'transparent'
+	document.body.style.background = 'transparent'
+	document.body.style.margin = '0'
+	document.body.style.overflow = 'hidden'
+	root.render(
+		<React.StrictMode>
+			<ThemeProvider theme={theme}>
+				<StoreProvider readOnly>
+					<BridgeProvider syncCatches={false}>
+						<OverlayApp />
+					</BridgeProvider>
+				</StoreProvider>
+			</ThemeProvider>
+		</React.StrictMode>
+	)
+} else {
+	root.render(
+		<React.StrictMode>
+			<ThemeProvider theme={theme}>
+				<CssBaseline />
+				<StoreProvider>
+					<BridgeProvider>
+						<App />
+					</BridgeProvider>
+				</StoreProvider>
+			</ThemeProvider>
+		</React.StrictMode>
+	)
+}

@@ -4,7 +4,12 @@ import type { CatchPref, OwnedPal, Pin, PlanSettings, WantedPal } from '../solve
 
 declare global {
 	interface Window {
-		palStore?: { load(): Promise<string | null>; save(json: string): Promise<void>; saveNow(json: string): void }
+		palStore?: {
+			load(): Promise<string | null>
+			save(json: string): Promise<void>
+			saveNow(json: string): void
+			onChanged(cb: (json: string) => void): () => void
+		}
 	}
 }
 
@@ -18,7 +23,29 @@ export interface AppState {
 	map: MapPrefs
 	/** Take Paldeck catches from the game while the bridge mod is running */
 	syncCatches: boolean
+	overlay: OverlayPrefs
 }
+
+export type OverlayCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+
+export interface OverlayPrefs {
+	/** Shown over the game (also toggled by the hotkey) */
+	enabled: boolean
+	compass: boolean
+	minimap: boolean
+	corner: OverlayCorner
+	/** Minimap diameter in pixels */
+	size: number
+	/** Minimap zoom, same scale as the Map tab */
+	zoom: number
+	/** Compass shows markers within this many meters, up to COMPASS_MAX_RANGE */
+	range: number
+}
+
+/** Beyond this the compass gets too crowded to read */
+export const COMPASS_MAX_RANGE = 200
+
+const defaultOverlay: OverlayPrefs = { enabled: false, compass: true, minimap: true, corner: 'top-right', size: 240, zoom: 4, range: COMPASS_MAX_RANGE }
 
 export interface MapPrefs {
 	/** Marker layers shown on the map */
@@ -40,7 +67,7 @@ export const defaultSettings: PlanSettings = {
 	pins: {}
 }
 
-const emptyState: AppState = { version: 1, owned: [], wanted: [], settings: defaultSettings, catches: {}, map: defaultMap, syncCatches: true }
+const emptyState: AppState = { version: 1, owned: [], wanted: [], settings: defaultSettings, catches: {}, map: defaultMap, syncCatches: true, overlay: defaultOverlay }
 const LOCAL_KEY = 'palbreeder'
 
 const newUid = () => crypto.randomUUID()
@@ -69,7 +96,8 @@ export function sanitize(raw: unknown): AppState {
 		},
 		catches: Object.fromEntries(Object.entries(s.catches ?? {}).filter(([id, n]) => known(id) && Number.isFinite(n) && n > 0)),
 		map: { ...defaultMap, ...s.map, layers: [...(s.map?.layers ?? defaultMap.layers)] },
-		syncCatches: s.syncCatches ?? true
+		syncCatches: s.syncCatches ?? true,
+		overlay: { ...defaultOverlay, ...s.overlay, range: Math.min(COMPASS_MAX_RANGE, s.overlay?.range ?? COMPASS_MAX_RANGE) }
 	}
 }
 
@@ -89,7 +117,8 @@ async function saveState(state: AppState): Promise<void> {
 	else localStorage.setItem(LOCAL_KEY, json)
 }
 
-function useStoreValue() {
+/** `readOnly` (the overlay window) follows the main window's saves and never writes */
+function useStoreValue(readOnly: boolean) {
 	const [state, setState] = useState<AppState>(emptyState)
 	const [loaded, setLoaded] = useState(false)
 	const saveTimer = useRef<ReturnType<typeof setTimeout>>()
@@ -99,10 +128,19 @@ function useStoreValue() {
 			setState(s)
 			setLoaded(true)
 		})
-	}, [])
+		if (readOnly && window.palStore) {
+			return window.palStore.onChanged((json) => {
+				try {
+					setState(sanitize(JSON.parse(json)))
+				} catch {
+					// A malformed broadcast; keep the last good state
+				}
+			})
+		}
+	}, [readOnly])
 
 	useEffect(() => {
-		if (!loaded) return
+		if (!loaded || readOnly) return
 		clearTimeout(saveTimer.current)
 		saveTimer.current = setTimeout(() => void saveState(state), 300)
 		// Closing the window inside the save delay still writes the latest lists
@@ -114,7 +152,7 @@ function useStoreValue() {
 		}
 		window.addEventListener('beforeunload', flush)
 		return () => window.removeEventListener('beforeunload', flush)
-	}, [state, loaded])
+	}, [state, loaded, readOnly])
 
 	const addOwned = useCallback((pal: Omit<OwnedPal, 'uid'>) => {
 		setState((s) => ({ ...s, owned: [...s.owned, { ...pal, uid: newUid() }] }))
@@ -189,6 +227,10 @@ function useStoreValue() {
 		setState((s) => ({ ...s, map: { ...s.map, ...patch } }))
 	}, [])
 
+	const updateOverlay = useCallback((patch: Partial<OverlayPrefs>) => {
+		setState((s) => ({ ...s, overlay: { ...s.overlay, ...patch } }))
+	}, [])
+
 	const replaceState = useCallback((next: AppState) => setState(next), [])
 
 	return useMemo(
@@ -212,6 +254,7 @@ function useStoreValue() {
 			updateMap,
 			replaceCatches,
 			setSyncCatches,
+			updateOverlay,
 			replaceState
 		}),
 		[
@@ -233,6 +276,7 @@ function useStoreValue() {
 			updateMap,
 			replaceCatches,
 			setSyncCatches,
+			updateOverlay,
 			replaceState
 		]
 	)
@@ -241,8 +285,8 @@ function useStoreValue() {
 type Store = ReturnType<typeof useStoreValue>
 const StoreContext = createContext<Store | null>(null)
 
-export function StoreProvider({ children }: { children: ReactNode }) {
-	const store = useStoreValue()
+export function StoreProvider({ children, readOnly = false }: { children: ReactNode; readOnly?: boolean }) {
+	const store = useStoreValue(readOnly)
 	return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>
 }
 
