@@ -23,6 +23,8 @@ export interface LiveData {
 	y: number
 	z: number
 	yaw: number
+	/** A menu, inventory, chest or the map is open (the game is showing its cursor) */
+	ui: boolean
 	mod: string
 	/** When the app last saw the file change, ms since epoch */
 	at: number
@@ -39,7 +41,7 @@ export function parseLive(text: string, at: number): LiveData | null {
 	try {
 		const d = JSON.parse(text)
 		if (typeof d.x !== 'number' || typeof d.y !== 'number') return null
-		return { x: d.x, y: d.y, z: d.z ?? 0, yaw: d.yaw ?? 0, mod: String(d.mod ?? ''), at }
+		return { x: d.x, y: d.y, z: d.z ?? 0, yaw: d.yaw ?? 0, ui: d.ui === true, mod: String(d.mod ?? ''), at }
 	} catch {
 		return null
 	}

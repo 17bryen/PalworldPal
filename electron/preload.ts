@@ -31,8 +31,19 @@ contextBridge.exposeInMainWorld('palBridge', {
 	openBridgeFolder: () => ipcRenderer.invoke('gamelink:openBridgeFolder')
 })
 
+const listen = (channel: string) => (cb: (data: any) => void) => {
+	const listener = (_e: unknown, data: unknown) => cb(data)
+	ipcRenderer.on(channel, listener)
+	return () => ipcRenderer.removeListener(channel, listener)
+}
+
 contextBridge.exposeInMainWorld('palOverlay', {
-	set: (visible: boolean): Promise<void> => ipcRenderer.invoke('overlay:set', visible),
+	set: (visible: boolean, display: number | null): Promise<void> => ipcRenderer.invoke('overlay:set', visible, display),
+	edit: (on: boolean): Promise<void> => ipcRenderer.invoke('overlay:edit', on),
+	sendLayout: (layout: unknown): Promise<void> => ipcRenderer.invoke('overlay:layout', layout),
+	displays: () => ipcRenderer.invoke('overlay:displays'),
+	onEditing: listen('overlay:editing'),
+	onLayout: listen('overlay:layout'),
 	hotkey: (): Promise<string | null> => ipcRenderer.invoke('overlay:hotkey'),
 	onToggled: (cb: (visible: boolean) => void) => {
 		const listener = (_e: unknown, visible: boolean) => cb(visible)

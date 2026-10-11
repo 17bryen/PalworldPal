@@ -31,7 +31,6 @@ import { useBridge } from '../state/bridge'
 import { theme } from '../theme'
 import { PalAvatar } from './bits'
 import { PalPicker } from './pickers'
-import { OverlaySettings } from './OverlaySettings'
 
 export const asset = (file: string) => `${import.meta.env.BASE_URL}${file}`
 
@@ -538,8 +537,6 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 						</Box>
 					)}
 				</Box>
-
-				<OverlaySettings />
 
 				<Box>
 					<Typography variant="overline" color="text.secondary">

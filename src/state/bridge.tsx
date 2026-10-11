@@ -8,6 +8,8 @@ export interface LiveData {
 	y: number
 	z: number
 	yaw: number
+	/** A menu, inventory, chest or the map is open */
+	ui: boolean
 	mod: string
 	at: number
 }
@@ -69,7 +71,7 @@ function fakeBridge(): PalBridgeApi {
 	let t = 0
 	setInterval(() => {
 		t += 0.15
-		const live = { x: -346618 + Math.sin(t / 6) * 30000, y: 191707 + Math.cos(t / 6) * 30000, z: 0, yaw: ((-t / 6) * 180) / Math.PI, mod: 'fake', at: Date.now() }
+		const live = { x: -346618 + Math.sin(t / 6) * 30000, y: 191707 + Math.cos(t / 6) * 30000, z: 0, yaw: ((-t / 6) * 180) / Math.PI, ui: false, mod: 'fake', at: Date.now() }
 		liveListeners.forEach((cb) => cb(live))
 	}, 150)
 	setTimeout(() => {

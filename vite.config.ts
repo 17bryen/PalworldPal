@@ -16,7 +16,11 @@ export default defineConfig(({ mode }) => ({
 			? []
 			: [
 					electron({
-						main: { entry: 'electron/main.ts' },
+						main: {
+							entry: 'electron/main.ts',
+							// koffi ships native binaries, so it's loaded from node_modules at runtime
+							vite: { build: { rollupOptions: { external: ['koffi'] } } }
+						},
 						preload: {
 							input: path.join(__dirname, 'electron/preload.ts'),
 							// The plugin emits CommonJS; a .cjs name keeps Electron from loading it as an ES module

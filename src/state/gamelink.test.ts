@@ -5,14 +5,17 @@ import { worldToPixel, pixelToIngame } from '../data/map'
 
 describe('bridge files', () => {
 	it('reads live.json and rejects partial writes', () => {
-		expect(parseLive('{"v":1,"mod":"1.0.0","seq":4,"x":-346618.0,"y":191707.0,"z":12.5,"yaw":-90.0}', 1)).toEqual({
+		expect(parseLive('{"v":1,"mod":"1.1.0","seq":4,"x":-346618.0,"y":191707.0,"z":12.5,"yaw":-90.0,"ui":true}', 1)).toEqual({
 			x: -346618,
 			y: 191707,
 			z: 12.5,
 			yaw: -90,
-			mod: '1.0.0',
+			ui: true,
+			mod: '1.1.0',
 			at: 1
 		})
+		// Files from the first mod version have no menu flag
+		expect(parseLive('{"v":1,"mod":"1.0.0","seq":1,"x":1,"y":2,"z":3,"yaw":4}', 1)?.ui).toBe(false)
 		expect(parseLive('{"v":1,"x":-3466', 1)).toBeNull()
 		expect(parseLive('', 1)).toBeNull()
 	})

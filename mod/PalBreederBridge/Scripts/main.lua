@@ -11,7 +11,7 @@
 --   * the timer-thread predicate is pure arithmetic and allocates nothing;
 --   * every UObject read happens on the game thread, inside pcall.
 
-local VERSION = "1.0.0"
+local VERSION = "1.1.0"
 local TICK_MS = 33            -- timer resolution, not the write rate
 local POSITION_EVERY = 0.1    -- seconds between position writes
 local CAPTURES_EVERY = 3.0    -- seconds between capture-count reads
@@ -62,6 +62,8 @@ local function rawIsLocal(pc) return pc:IsLocalPlayerController() end
 local function rawPawn(pc) return pc.Pawn end
 local function rawLocation(pawn) return pawn:K2_GetActorLocation() end
 local function rawYaw(pc) return pc:GetControlRotation().Yaw end
+-- Palworld shows the mouse cursor whenever a menu, inventory, chest or the map is open
+local function rawCursor(pc) return pc.bShowMouseCursor end
 local function rawPlayerState(pc) return pc.PlayerState end
 local function rawRecordData(ps) return ps.RecordData end
 local function rawCaptureItems(rd) return rd.PalCaptureCount.Items end
@@ -100,10 +102,11 @@ local function writePosition(pc)
     local loc = get(rawLocation, pawn)
     if loc == nil then return end
     local yaw = get(rawYaw, pc) or 0
+    local ui = get(rawCursor, pc) == true
     seq = seq + 1
     writeFile("live.json", string.format(
-        '{"v":1,"mod":"%s","seq":%d,"x":%.1f,"y":%.1f,"z":%.1f,"yaw":%.1f}',
-        VERSION, seq, loc.X, loc.Y, loc.Z, yaw))
+        '{"v":1,"mod":"%s","seq":%d,"x":%.1f,"y":%.1f,"z":%.1f,"yaw":%.1f,"ui":%s}',
+        VERSION, seq, loc.X, loc.Y, loc.Z, yaw, ui and "true" or "false"))
 end
 
 -- Capture counts live on the player state's record data as an array of { Key = pal id,

@@ -26,16 +26,29 @@ export interface AppState {
 	overlay: OverlayPrefs
 }
 
-export type OverlayCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+/** Where the compass and minimap sit, as fractions of the screen so it survives resolution changes */
+export interface OverlayLayout {
+	/** Compass center */
+	compassX: number
+	compassY: number
+	/** Compass width in pixels */
+	compassWidth: number
+	/** Minimap top-left; null puts it in the top-right corner */
+	minimapX: number | null
+	minimapY: number | null
+	/** Minimap diameter in pixels */
+	size: number
+}
 
-export interface OverlayPrefs {
+export const defaultLayout: OverlayLayout = { compassX: 0.5, compassY: 0.012, compassWidth: 720, minimapX: null, minimapY: null, size: 240 }
+
+export interface OverlayPrefs extends OverlayLayout {
 	/** Shown over the game (also toggled by the hotkey) */
 	enabled: boolean
 	compass: boolean
 	minimap: boolean
-	corner: OverlayCorner
-	/** Minimap diameter in pixels */
-	size: number
+	/** Display to cover; null for the primary display */
+	display: number | null
 	/** Minimap zoom, same scale as the Map tab */
 	zoom: number
 	/** Compass shows markers within this many meters; 0 means no limit */
@@ -46,7 +59,7 @@ export const COMPASS_DEFAULT_RANGE = 200
 /** Range choices in meters; 0 is unlimited (JSON can't store Infinity) */
 export const COMPASS_RANGES = [50, 100, 150, 200, 300, 500, 0]
 
-const defaultOverlay: OverlayPrefs = { enabled: false, compass: true, minimap: true, corner: 'top-right', size: 240, zoom: 4, range: COMPASS_DEFAULT_RANGE }
+const defaultOverlay: OverlayPrefs = { ...defaultLayout, enabled: false, compass: true, minimap: true, display: null, zoom: 4, range: COMPASS_DEFAULT_RANGE }
 
 export interface MapPrefs {
 	/** Marker layers shown on the map */
@@ -84,6 +97,8 @@ export function sanitize(raw: unknown): AppState {
 			return false
 		}
 	}
+	// Older saves placed the minimap by corner; it's now positioned freely
+	const { corner: _corner, ...savedOverlay } = (s.overlay ?? {}) as Partial<OverlayPrefs> & { corner?: string }
 	return {
 		version: 1,
 		owned: (s.owned ?? []).filter((o) => known(o.palId)).map((o) => ({ ...o, passives: o.passives ?? [] })),
@@ -100,8 +115,8 @@ export function sanitize(raw: unknown): AppState {
 		syncCatches: s.syncCatches ?? true,
 		overlay: {
 			...defaultOverlay,
-			...s.overlay,
-			range: COMPASS_RANGES.includes(s.overlay?.range as number) ? (s.overlay!.range as number) : COMPASS_DEFAULT_RANGE
+			...savedOverlay,
+			range: COMPASS_RANGES.includes(savedOverlay.range as number) ? (savedOverlay.range as number) : COMPASS_DEFAULT_RANGE
 		}
 	}
 }

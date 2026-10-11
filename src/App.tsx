@@ -12,7 +12,7 @@ import { MerchantsPage } from './components/MerchantsPage'
 import { MapPage } from './components/MapPage'
 import { NavigationContext } from './state/nav'
 import { GameLinkChip } from './components/GameLink'
-import { useOverlaySync } from './components/OverlaySettings'
+import { OverlayPage, useOverlaySync } from './components/OverlaySettings'
 import { AlternativesProvider } from './components/Alternatives'
 
 function DataMenu() {
@@ -77,8 +77,8 @@ function DataMenu() {
 	)
 }
 
-type Page = 'paldeck' | 'map' | 'breeding' | 'merchants'
-const PAGES: Page[] = ['paldeck', 'map', 'breeding', 'merchants']
+type Page = 'paldeck' | 'map' | 'breeding' | 'merchants' | 'overlay'
+const PAGES: Page[] = ['paldeck', 'map', 'breeding', 'merchants', 'overlay']
 const PAGE_KEY = 'palbreeder.page'
 
 /** The tab the app reopens on: the last one used, or the first */
@@ -152,6 +152,7 @@ export function App() {
 								<Tab value="map" label="Map" />
 								<Tab value="breeding" label="Breeding" />
 								<Tab value="merchants" label="Merchants" />
+								<Tab value="overlay" label="Overlay" />
 							</Tabs>
 							<Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
 								<GameLinkChip />
@@ -173,6 +174,9 @@ export function App() {
 						</Box>
 						<Box sx={{ display: page === 'merchants' ? 'block' : 'none', height: '100%' }}>
 							{visited.has('merchants') && <MerchantsPage />}
+						</Box>
+						<Box sx={{ display: page === 'overlay' ? 'block' : 'none', height: '100%' }}>
+							{visited.has('overlay') && <OverlayPage />}
 						</Box>
 					</Box>
 				</Box>
