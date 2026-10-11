@@ -55,8 +55,8 @@ export const isPalOffer = (o: Offer): o is PalOffer => 'palId' in o
 export const ROLE_INFO: Record<MerchantRole, { title: string; look: string; color: string; note?: string }> = {
 	goods: { title: 'General goods', look: 'red coat', color: '#e0705a' },
 	gear: { title: 'Gear', look: 'green coat', color: '#6fcf8a' },
-	pals: { title: 'Pals', look: 'blue coat', color: '#5cc8f0', note: 'Price rises with level.' },
-	bounty: { title: 'Bounty rewards', look: 'PIDF uniform', color: '#c8b08a', note: 'Paid in Successful Bounty Tokens.' },
+	pals: { title: 'Pals', look: 'blue coat', color: '#5cc8f0' },
+	bounty: { title: 'Bounty rewards', look: 'PIDF uniform', color: '#c8b08a' },
 	black: { title: 'Black market', look: 'hooded cloak', color: '#b58cf0', note: 'Offers a few of these at a time; the selection changes daily.' }
 }
 

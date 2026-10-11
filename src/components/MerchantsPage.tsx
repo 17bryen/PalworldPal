@@ -41,6 +41,10 @@ const CURRENCY_NAME = { gold: 'Gold Coin', bounty: 'Successful Bounty Token' }
 
 type SortKey = 'shop' | 'name' | 'priceAsc' | 'priceDesc'
 
+/** Stock rows have a fixed height so a card can cap at exactly this many before it scrolls */
+const ROW_HEIGHT = 50
+const VISIBLE_ROWS = 10
+
 const offerName = (o: Offer) => (isPalOffer(o) ? getPal(o.palId).name : o.name)
 const offerKey = (o: Offer) => (isPalOffer(o) ? `pal:${o.palId}` : `item:${o.itemId}`)
 /** What you actually pay, for sorting: the low end of a pal's level-scaled price */
@@ -108,7 +112,7 @@ const OfferRow = memo(function OfferRow({ offer, currency }: { offer: Offer; cur
 	if (isPalOffer(offer)) return <PalRow offer={offer} />
 	const item = offer as ItemOffer
 	return (
-		<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 1.5, py: 0.75, '&:hover': { bgcolor: 'action.hover' } }}>
+		<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 1.5, height: ROW_HEIGHT, '&:hover': { bgcolor: 'action.hover' } }}>
 			<ItemIcon icon={item.icon} />
 			<Box sx={{ flex: 1, minWidth: 0 }}>
 				<Typography variant="body2" fontWeight={600} noWrap>
@@ -132,7 +136,7 @@ function PalRow({ offer }: { offer: PalOffer }) {
 	const pal = getPal(offer.palId)
 	const [lo, hi] = offer.priceAtLevel ?? [offer.price, offer.price]
 	return (
-		<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 1.5, py: 0.75, '&:hover': { bgcolor: 'action.hover' } }}>
+		<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 1.5, height: ROW_HEIGHT, '&:hover': { bgcolor: 'action.hover' } }}>
 			<PalAvatar palId={offer.palId} size={36} />
 			<Box sx={{ flex: 1, minWidth: 0 }}>
 				<Typography variant="body2" fontWeight={600} noWrap>
@@ -180,7 +184,7 @@ function MerchantCard({ merchant, stock }: { merchant: Merchant; stock: Offer[] 
 					{info.note}
 				</Typography>
 			)}
-			<Box sx={{ py: 0.5 }}>
+			<Box sx={{ py: 0.5, maxHeight: ROW_HEIGHT * VISIBLE_ROWS + 8, overflowY: 'auto' }}>
 				{stock.map((o) => (
 					<OfferRow key={offerKey(o)} offer={o} currency={merchant.currency} />
 				))}
