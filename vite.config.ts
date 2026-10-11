@@ -5,6 +5,9 @@ import path from 'node:path'
 
 // `vite --mode web` serves the renderer alone, without an Electron window, for browser testing
 export default defineConfig(({ mode }) => ({
+	// A separate dependency cache so a browser-only server can run beside the app's without the two
+	// invalidating each other's optimized dependencies
+	cacheDir: mode === 'web' ? 'node_modules/.vite-web' : 'node_modules/.vite',
 	// Relative asset paths so icons resolve when Electron loads the built files from disk
 	base: './',
 	plugins: [

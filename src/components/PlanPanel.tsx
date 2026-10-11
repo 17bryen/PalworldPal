@@ -90,9 +90,22 @@ function GenderNeed({ node }: { node: PlanNode }) {
 	)
 }
 
-export function PalLine({ node, big, hideBadge, dim }: { node: PlanNode; big?: boolean; hideBadge?: boolean; dim?: boolean }) {
+/** Opens the other ways to get a bred pal; shows a pin once the player has chosen one */
+export function AlternativesButton({ node }: { node: PlanNode }) {
 	const openAlternatives = useAlternatives()
 	const pinned = useStore().settings.pins[pinKey(node.palId, node.passives)]
+	// Owned pals have nothing to swap; catches can switch to breeding
+	if (node.source.kind === 'owned' && !pinned) return null
+	return (
+		<Tooltip title={pinned ? 'Your choice; change or reset it' : 'Other ways to get this pal'}>
+			<IconButton size="small" onClick={() => openAlternatives(node)}>
+				{pinned ? <PushPinIcon fontSize="small" color="primary" /> : <SwapIcon fontSize="small" />}
+			</IconButton>
+		</Tooltip>
+	)
+}
+
+export function PalLine({ node, big, hideBadge, dim }: { node: PlanNode; big?: boolean; hideBadge?: boolean; dim?: boolean }) {
 	return (
 		<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, py: 0.5, opacity: dim ? 0.4 : 1 }}>
 			<PalAvatar palId={node.palId} size={big ? 36 : 28} />
@@ -113,13 +126,7 @@ export function PalLine({ node, big, hideBadge, dim }: { node: PlanNode; big?: b
 						</Tooltip>
 					)}
 					<SourceBadge node={node} />
-					{(node.source.kind === 'bred' || pinned) && (
-						<Tooltip title={pinned ? 'Your choice; change or reset it' : 'Other ways to get this pal'}>
-							<IconButton size="small" onClick={() => openAlternatives(node)}>
-								{pinned ? <PushPinIcon fontSize="small" color="primary" /> : <SwapIcon fontSize="small" />}
-							</IconButton>
-						</Tooltip>
-					)}
+					<AlternativesButton node={node} />
 				</Box>
 			)}
 		</Box>
@@ -173,6 +180,7 @@ function TargetCard({ result, selected, active }: { result: TargetResult; select
 					</Typography>
 				)}
 				{result.status === 'planned' && result.tree && !result.disabled ? <SourceBadge node={result.tree} /> : <StatusChip result={result} />}
+				{result.tree && <AlternativesButton node={result.tree} />}
 			</Box>
 			{result.reason && (
 				<Alert severity={result.status === 'unreachable' ? 'error' : 'warning'} sx={{ mt: 1, py: 0 }}>
