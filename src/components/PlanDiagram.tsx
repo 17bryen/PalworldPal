@@ -5,9 +5,9 @@ import dagre from '@dagrejs/dagre'
 import { Box, Typography } from '@mui/material'
 import { getPal } from '../data/gamedata'
 import type { Plan, PlanNode } from '../solver/types'
-import { GenderIcon, PalAvatar, PassiveList } from './bits'
+import { GenderIcon, PalAvatar } from './bits'
 import { useAlternatives } from './Alternatives'
-import { formatEggs, SourceBadge } from './PlanPanel'
+import { formatEggs, NodePassives, SourceBadge } from './PlanPanel'
 import { theme } from '../theme'
 
 const PAL_WIDTH = 200
@@ -66,7 +66,7 @@ const PalNode = memo(function PalNode({ data }: NodeProps<Node<PalNodeData>>) {
 						<SourceBadge node={node} />
 					</Box>
 				)}
-				<PassiveList passives={node.passives} implants={implants} />
+				<NodePassives node={node} implants={implants} />
 			</Box>
 			<Handle type="source" position={Position.Bottom} style={hidden} />
 		</Box>

@@ -46,12 +46,20 @@ export function yakumoName(uid: string, owned: { uid: string; stars?: number }[]
 	return `Yakumo${y?.stars ? ` (${y.stars} star${y.stars > 1 ? 's' : ''})` : ''}`
 }
 
+/** A plan pal's passives; one you own also shows the passives it has that weren't asked for, dimmed */
+export function NodePassives({ node, implants }: { node: PlanNode; implants?: string[] }) {
+	const ownedUid = node.source.kind === 'owned' ? node.source.ownedUid : null
+	const owned = useStore().owned.find((o) => o.uid === ownedUid)
+	const extra = owned ? owned.passives.filter((p) => !node.passives.includes(p)) : []
+	return <PassiveList passives={node.passives} implants={implants} extra={extra} />
+}
+
 /** "Owned", with where the pal is in the game on hover */
 function OwnedChip({ ownedUid }: { ownedUid: string }) {
 	const owned = useStore().owned.find((o) => o.uid === ownedUid)
 	const gamePals = useGamePals()
 	const where = owned?.game ? gamePals.find((g) => g.key === owned.game)?.where : undefined
-	const title = !owned?.game ? 'Added by hand' : where ? describeLocation(where) : 'Not seen in the game this session'
+	const title = !owned?.game ? 'Added by hand, so its spot in the game isn\'t known' : where ? describeLocation(where) : 'Not seen in the game this session'
 	return (
 		<Tooltip title={title}>
 			<Chip size="small" color="success" variant="outlined" label="Owned" />
@@ -124,7 +132,7 @@ export function PalLine({ node, big, hideBadge, dim }: { node: PlanNode; big?: b
 					</Typography>
 					<GenderNeed node={node} />
 				</Box>
-				<PassiveList passives={node.passives} />
+				<NodePassives node={node} />
 			</Box>
 			{!hideBadge && (
 				<Box sx={{ ml: 'auto', pl: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>

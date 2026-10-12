@@ -67,9 +67,12 @@ export function PassiveChip({ name, onDelete, implant }: { name: string; onDelet
 	)
 }
 
-/** `implants` show after the bred passives, marked as Surgery Table implants */
-export function PassiveList({ passives, other = 0, implants = [] }: { passives: string[]; other?: number; implants?: string[] }) {
-	if (!passives.length && !other && !implants.length) return null
+/**
+ * `implants` show after the bred passives, marked as Surgery Table implants; `extra` are passives
+ * the pal has that weren't asked for, shown dimmed
+ */
+export function PassiveList({ passives, other = 0, implants = [], extra = [] }: { passives: string[]; other?: number; implants?: string[]; extra?: string[] }) {
+	if (!passives.length && !other && !implants.length && !extra.length) return null
 	return (
 		<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
 			{passives.map((p) => (
@@ -77,6 +80,11 @@ export function PassiveList({ passives, other = 0, implants = [] }: { passives: 
 			))}
 			{implants.map((p) => (
 				<PassiveChip key={`implant:${p}`} name={p} implant />
+			))}
+			{extra.map((p) => (
+				<Box key={`extra:${p}`} sx={{ opacity: 0.45, display: 'flex' }}>
+					<PassiveChip name={p} />
+				</Box>
 			))}
 			{other > 0 && (
 				<Tooltip title="Passives you didn't ask for. Bred pals show the most they could carry.">
