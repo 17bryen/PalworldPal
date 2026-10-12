@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gameData, getPal, palIndex, pals } from './gamedata'
+import { gameData, getPal, palIndex, pals, type Gender } from './gamedata'
 import { breedingTarget, childrenOf, isSpecialResult, parentsOf } from './breeding'
 import { buildLadder } from './ladder'
 
@@ -32,8 +32,20 @@ describe('breeding lookups', () => {
 })
 
 describe('XP ladder', () => {
+	const mine: { palId: string; gender: Gender }[] = [
+		{ palId: 'SheepBall', gender: 'M' },
+		{ palId: 'PinkCat', gender: 'F' }
+	]
+
+	it('needs a male and a female, from My pals', () => {
+		const same = buildLadder([{ palId: 'SheepBall', gender: 'M' }, { palId: 'PinkCat', gender: 'M' }], {}, 5)
+		expect(same.steps).toEqual([])
+		const first = buildLadder(mine, {}, 5).steps.find((s) => s.a !== s.b)!
+		expect([first.aGender, first.bGender].sort()).toEqual(['F', 'M'])
+	})
+
 	it('breeds what two caught pals make, then builds on it', () => {
-		const ladder = buildLadder({ SheepBall: 5, PinkCat: 5 }, 5)
+		const ladder = buildLadder(mine, { SheepBall: 5, PinkCat: 5 }, 5)
 		const first = ladder.steps.filter((s) => s.round === 1)
 		const child = id(childrenOf(palIndex('SheepBall'), palIndex('PinkCat'))[0].child)
 		expect(first.map((s) => s.child)).toContain(child)
@@ -49,14 +61,14 @@ describe('XP ladder', () => {
 	})
 
 	it('tops up caught pals and skips finished ones', () => {
-		const ladder = buildLadder({ SheepBall: 5, PinkCat: 2 }, 5)
+		const ladder = buildLadder([...mine, { palId: 'PinkCat', gender: 'M' }], { SheepBall: 5, PinkCat: 2 }, 5)
 		const cattiva = ladder.steps.find((s) => s.child === 'PinkCat')
 		expect(cattiva?.eggs).toBe(3)
 		expect(ladder.steps.find((s) => s.child === 'SheepBall')).toBeUndefined()
 	})
 
 	it('leaves legendaries it cannot reach as stuck', () => {
-		const ladder = buildLadder({ SheepBall: 5, PinkCat: 5 }, 5)
+		const ladder = buildLadder(mine, { SheepBall: 5, PinkCat: 5 }, 5)
 		expect(ladder.stuck).toContain('JetDragon')
 		expect(ladder.eggs).toBe(ladder.steps.reduce((n, s) => n + s.eggs, 0))
 	})

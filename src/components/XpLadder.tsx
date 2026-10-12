@@ -61,10 +61,9 @@ function stuckReason(id: string): string {
 }
 
 export function XpLadder() {
-	const catches = useStore().catches
+	const { catches, owned } = useStore()
 	const [goal, setGoal] = useState(readGoal)
-	const ladder = useMemo(() => buildLadder(catches, goal), [catches, goal])
-	const caughtCount = Object.keys(catches).length
+	const ladder = useMemo(() => buildLadder(owned, catches, goal), [owned, catches, goal])
 
 	const changeGoal = (n: number) => {
 		setGoal(n)
@@ -87,16 +86,16 @@ export function XpLadder() {
 						))}
 					</TextField>
 				</Tooltip>
-				{caughtCount > 0 && (
+				{owned.length > 0 && (
 					<Typography variant="body2" color="text.secondary">
 						{ladder.steps.length} pal{ladder.steps.length === 1 ? '' : 's'} to hatch over {ladder.rounds} round{ladder.rounds === 1 ? '' : 's'}, {ladder.eggs} egg
 						{ladder.eggs === 1 ? '' : 's'}
 					</Typography>
 				)}
 			</Box>
-			{!caughtCount ? (
+			{!owned.length ? (
 				<Typography variant="body2" color="text.secondary" sx={{ p: 3, textAlign: 'center' }}>
-					Your ladder starts from the pals you've caught. Track catches in the Paldeck or sync them through Game link.
+					Your ladder starts from My pals. Add them in the Planner, or from the game through Game link.
 				</Typography>
 			) : (
 				<LazyScroll>
@@ -105,7 +104,7 @@ export function XpLadder() {
 							{(i === 0 || ladder.steps[i - 1].round !== s.round) && (
 								<Typography variant="overline" color="text.secondary" component="div" sx={{ px: 2, pt: 1.5 }}>
 									Round {s.round}
-									{s.round === 1 ? ': from pals you\'ve caught' : `: using round ${s.round - 1} hatches`}
+									{s.round === 1 ? ': from My pals' : `: using round ${s.round - 1} hatches`}
 								</Typography>
 							)}
 							<LazyItem estimate={53}>
@@ -116,7 +115,7 @@ export function XpLadder() {
 					{ladder.stuck.length > 0 && (
 						<Box sx={{ p: 2 }}>
 							<Typography variant="overline" color="text.secondary">
-								Can't hatch from your pals ({ladder.stuck.length})
+								Can't hatch from My pals ({ladder.stuck.length})
 							</Typography>
 							<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 0.5 }}>
 								{ladder.stuck.map((id) => (
