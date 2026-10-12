@@ -12,7 +12,7 @@
 --   * the timer-thread predicate is pure arithmetic and allocates nothing;
 --   * every UObject read happens on the game thread, inside pcall.
 
-local VERSION = "1.2.0"
+local VERSION = "1.3.0"
 local TICK_MS = 33            -- timer resolution, not the write rate
 local POSITION_EVERY = 0.05   -- seconds between position writes
 local CAPTURES_EVERY = 3.0    -- seconds between capture-count reads
@@ -142,6 +142,22 @@ local function writeCaptures(pc)
     end
 end
 
+-- Diagnostic probe (probe.lua): idle unless the app's bridge folder has a probe.on file
+local function loadProbe()
+    local ok, mod = pcall(require, "probe")
+    if ok then return mod end
+    -- Fall back to this script's own folder if UE4SS didn't put it on the search path
+    local here = debug.getinfo(1, "S").source:match("^@(.*[\\/])") or ""
+    return dofile(here .. "probe.lua")
+end
+local okProbe, probe = pcall(loadProbe)
+if okProbe and probe ~= nil then
+    probe.setup({ log = log, writeFile = writeFile, outDir = outDir, get = get, alive = alive, version = VERSION })
+else
+    log("probe not loaded: " .. tostring(probe))
+    probe = nil
+end
+
 -- Scheduling state, touched by both threads. Plain numbers and booleans only.
 local inFlight = false
 local sentAt = 0.0
@@ -173,6 +189,7 @@ local function job()
             lastCaptureRead = now
             pcall(writeCaptures, pc)
         end
+        if probe ~= nil then pcall(probe.tick, pc, now) end
     end
     -- Release the timer thread last; the gap keeps the next dispatch clear of this one's cleanup
     endedAt = os.clock()
