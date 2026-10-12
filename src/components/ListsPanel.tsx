@@ -23,7 +23,6 @@ import MaleIcon from '@mui/icons-material/Male'
 import FemaleIcon from '@mui/icons-material/Female'
 import StarIcon from '@mui/icons-material/Star'
 import AddIcon from '@mui/icons-material/Add'
-import CheckIcon from '@mui/icons-material/Check'
 import { getPal, YAKUMO_ID, type Gender } from '../data/gamedata'
 import { useGamePals } from '../state/bridge'
 import { planAdd, type GamePal } from '../state/gamepals'
@@ -220,7 +219,7 @@ function Row({
 	)
 }
 
-function GameRow({ pal, added, onAdd }: { pal: GamePal; added: boolean; onAdd: () => void }) {
+function GameRow({ pal, onAdd }: { pal: GamePal; onAdd: () => void }) {
 	return (
 		<Box
 			sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}
@@ -235,17 +234,11 @@ function GameRow({ pal, added, onAdd }: { pal: GamePal; added: boolean; onAdd: (
 				</Box>
 				<PassiveList passives={pal.passives} />
 			</Box>
-			{added ? (
-				<Tooltip title="In My Pals">
-					<CheckIcon fontSize="small" color="success" sx={{ m: 0.625 }} />
-				</Tooltip>
-			) : (
-				<Tooltip title="Add to My Pals">
-					<IconButton size="small" onClick={onAdd}>
-						<AddIcon fontSize="small" />
-					</IconButton>
-				</Tooltip>
-			)}
+			<Tooltip title="Add to My Pals">
+				<IconButton size="small" onClick={onAdd}>
+					<AddIcon fontSize="small" />
+				</IconButton>
+			</Tooltip>
 		</Box>
 	)
 }
@@ -298,16 +291,23 @@ export function ListsPanel({
 	const store = useStore()
 	const gamePals = useGamePals()
 	const [tab, setTab] = useState<'wanted' | 'owned'>('wanted')
-	const [view, setView] = useState<'list' | 'game'>('list')
+	const [source, setSource] = useState<'all' | 'hand' | 'synced'>('all')
 	const [draft, setDraft] = useState<Draft>(emptyDraft)
 	const [search, setSearch] = useState('')
 
 	const results = useMemo(() => new Map(plan?.targets.map((t) => [t.wantedUid, t])), [plan])
-	const owned = useMemo(() => filterAndSort(store.owned, search), [store.owned, search])
-	const shownGamePals = useMemo(() => filterAndSort(gamePals, search), [gamePals, search])
+	const handCount = useMemo(() => store.owned.filter((o) => !o.game).length, [store.owned])
+	const owned = useMemo(
+		() => filterAndSort(source === 'all' ? store.owned : store.owned.filter((o) => (source === 'hand' ? !o.game : !!o.game)), search),
+		[store.owned, search, source]
+	)
 	const addPlan = useMemo(() => planAdd(store.owned, gamePals), [store.owned, gamePals])
 	const pending = addPlan.links.size + addPlan.adds.length
-	const gameView = tab === 'owned' && view === 'game' && gamePals.length > 0
+	// Pals seen in the game this session that aren't in My Pals yet, listed under Game Synced
+	const notAdded = useMemo(
+		() => (source === 'synced' ? filterAndSort(gamePals.filter((g) => !addPlan.linked.has(g.key)), search) : []),
+		[source, gamePals, addPlan, search]
+	)
 
 	const switchTab = (next: 'wanted' | 'owned') => {
 		setTab(next)
@@ -335,22 +335,27 @@ export function ListsPanel({
 				<Tab value="wanted" label={`Target Pals (${store.wanted.length})`} />
 				<Tab value="owned" label={`My Pals (${store.owned.length})`} />
 			</Tabs>
-			{tab === 'owned' && gamePals.length > 0 && (
+			{tab === 'owned' && (
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider' }}>
-					<ToggleButtonGroup size="small" exclusive value={view} onChange={(_, v: 'list' | 'game' | null) => v && setView(v)}>
-						<ToggleButton value="list">My List</ToggleButton>
-						<Tooltip title="Your party and every Palbox page you've opened this session">
-							<ToggleButton value="game">In Game ({gamePals.length})</ToggleButton>
-						</Tooltip>
+					<ToggleButtonGroup size="small" exclusive value={source} onChange={(_, v: 'all' | 'hand' | 'synced' | null) => v && setSource(v)}>
+						<ToggleButton value="all">All</ToggleButton>
+						<ToggleButton value="hand">Hand Added ({handCount})</ToggleButton>
+						<ToggleButton value="synced">Game Synced ({store.owned.length - handCount})</ToggleButton>
 					</ToggleButtonGroup>
 					<Box sx={{ flex: 1 }} />
-					<Button size="small" variant="outlined" startIcon={<AddIcon />} disabled={!pending} onClick={() => store.addFromGame(gamePals)}>
-						Add All ({pending})
-					</Button>
+					{source === 'synced' && gamePals.length > 0 && (
+						<Tooltip title="Your party and every Palbox page you've opened this session">
+							<span>
+								<Button size="small" variant="outlined" startIcon={<AddIcon />} disabled={!pending} onClick={() => store.addFromGame(gamePals)}>
+									Add All ({pending})
+								</Button>
+							</span>
+						</Tooltip>
+					)}
 				</Box>
 			)}
-			{!gameView && <EntryForm withGender={tab === 'owned'} draft={draft} setDraft={setDraft} onSubmit={submit} />}
-			{tab === 'owned' && (gameView ? gamePals.length : store.owned.length) > 8 && (
+			{!(tab === 'owned' && source === 'synced') && <EntryForm withGender={tab === 'owned'} draft={draft} setDraft={setDraft} onSubmit={submit} />}
+			{tab === 'owned' && store.owned.length + notAdded.length > 8 && (
 				<Box sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider' }}>
 					<TextField
 						size="small"
@@ -387,7 +392,6 @@ export function ListsPanel({
 						/>
 					))}
 				{tab === 'owned' &&
-					!gameView &&
 					owned.map((o) => (
 						<LazyItem key={o.uid} estimate={rowEstimate(o.passives)}>
 							<Row
@@ -400,17 +404,30 @@ export function ListsPanel({
 							/>
 						</LazyItem>
 					))}
-				{gameView &&
-					shownGamePals.map((g) => (
+				{tab === 'owned' && notAdded.length > 0 && (
+					<Typography variant="overline" color="text.secondary" component="div" sx={{ px: 1.5, pt: 1.5 }}>
+						Seen in Game, Not Added ({notAdded.length})
+					</Typography>
+				)}
+				{tab === 'owned' &&
+					notAdded.map((g) => (
 						<LazyItem key={g.key} estimate={rowEstimate(g.passives)}>
-							<GameRow pal={g} added={addPlan.linked.has(g.key)} onAdd={() => store.addFromGame([g])} />
+							<GameRow pal={g} onAdd={() => store.addFromGame([g])} />
 						</LazyItem>
 					))}
 				{tab === 'wanted' && !store.wanted.length && (
 					<Empty text="Add the pals you want to breed. You can also star them in the Paldeck." />
 				)}
-				{tab === 'owned' && !gameView && !store.owned.length && (
-					<Empty text="Add the pals you have, with their gender and passives, so plans can start from them." />
+				{tab === 'owned' && !owned.length && !notAdded.length && (
+					<Empty
+						text={
+							source === 'hand'
+								? 'No pals added by hand.'
+								: source === 'synced'
+									? 'No pals from the game yet. With Game Link connected, open your Palbox in the game.'
+									: 'Add the pals you have, with their gender and passives, so plans can start from them.'
+						}
+					/>
 				)}
 			</LazyScroll>
 		</Paper>
