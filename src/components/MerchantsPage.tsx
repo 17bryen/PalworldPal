@@ -411,7 +411,7 @@ export function MerchantsPage() {
 				<List dense sx={{ borderRight: 1, borderColor: 'divider', overflowY: 'auto', py: 1 }}>
 					<ListItemButton selected={townId === 'all'} onClick={() => setTownId('all')} sx={{ mx: 1, borderRadius: 1.5 }}>
 						<Typography variant="body2" fontWeight={600}>
-							All towns
+							All merchants
 						</Typography>
 					</ListItemButton>
 					{towns.map((t) => (

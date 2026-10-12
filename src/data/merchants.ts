@@ -1,9 +1,10 @@
-// Stock of the merchants stationed in towns and camps. Read from paldb.cc's shop pages and NPC
-// placement (site data v1.0.5, 2026-09-15) and cross-checked against palworld.tools; all stock is
-// fixed except the Black Marketeer's. Update by hand after content patches.
+// Stock of the merchants stationed in towns and camps, plus the Wandering Merchant that visits
+// bases. Read from paldb.cc's shop pages and NPC placement (site data v1.0.5, 2026-09-15) and
+// cross-checked against palworld.tools; all stock is fixed except the Black Marketeer's. Update by
+// hand after content patches.
 import raw from './merchants.json'
 
-export type MerchantRole = 'goods' | 'gear' | 'pals' | 'bounty' | 'black'
+export type MerchantRole = 'goods' | 'gear' | 'pals' | 'bounty' | 'black' | 'wander'
 
 export interface ItemOffer {
 	itemId: string
@@ -57,7 +58,8 @@ export const ROLE_INFO: Record<MerchantRole, { title: string; look: string; colo
 	gear: { title: 'Gear', look: 'green coat', color: '#6fcf8a' },
 	pals: { title: 'Pals', look: 'blue coat', color: '#5cc8f0' },
 	bounty: { title: 'Bounty rewards', look: 'PIDF uniform', color: '#c8b08a' },
-	black: { title: 'Black market', look: 'hooded cloak', color: '#b58cf0', note: 'Offers a few of these at a time; the selection changes daily.' }
+	black: { title: 'Black market', look: 'hooded cloak', color: '#b58cf0', note: 'Offers a few of these at a time; the selection changes daily.' },
+	wander: { title: 'Roaming goods', look: 'green coat', color: '#c6d86a' }
 }
 
 export const ITEM_CATEGORIES = [...new Set(towns.flatMap((t) => t.merchants.flatMap((m) => m.stock.filter((o) => !isPalOffer(o)).map((o) => (o as ItemOffer).category))))].sort()
