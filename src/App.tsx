@@ -123,6 +123,7 @@ export function App() {
 	return (
 		<NavigationContext.Provider value={navigation}>
 			<AlternativesProvider>
+				<BackgroundTasks />
 				<Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
 					<AppBar
 						position="static"

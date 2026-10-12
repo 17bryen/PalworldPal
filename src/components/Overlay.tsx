@@ -4,7 +4,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Box, Button, Paper, Typography } from '@mui/material'
 import { layerPoints, mapLayers, pixelToWorld, worldToPixel, type MapIndex } from '../data/map'
-import { useBridge, type LiveData } from '../state/bridge'
+import { useBridge, useLive, type LiveData } from '../state/bridge'
 import type { Motion, Pose } from '../state/motion'
 import { defaultLayout, lootReadyAt, useStore, type OverlayLayout, type OverlayPrefs } from '../state/store'
 import { useMinuteTick } from '../state/loot'
@@ -301,7 +301,8 @@ function Movable({
 /** The whole overlay window: transparent everywhere except the compass and minimap */
 export function OverlayApp() {
 	const { overlay, map, loaded } = useStore()
-	const { live, connected, motion } = useBridge()
+	const { connected, motion } = useBridge()
+	const live = useLive()
 	const [editing, setEditing] = useState(false)
 	// Positions while dragging; saved through the app when the drag ends
 	const [draft, setDraft] = useState<OverlayLayout | null>(null)

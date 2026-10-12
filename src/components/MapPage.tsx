@@ -27,7 +27,7 @@ import { CATEGORY_NAMES, CATEGORY_ORDER, HABITAT, layerPoints, MAP_SIZE, mapLaye
 import { CATCH_TARGET } from '../data/paldeck'
 import { REGIONS, regionName, spawnRegions } from '../data/regions'
 import { useStore } from '../state/store'
-import { useBridge } from '../state/bridge'
+import { useBridge, useLiveValue } from '../state/bridge'
 import { theme } from '../theme'
 import { PalAvatar } from './bits'
 import { PalPicker } from './pickers'
@@ -399,8 +399,9 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 	const [palId, setPalId] = useState<string | null>(null)
 	const [fitNonce, setFitNonce] = useState(0)
 	const [follow, setFollow] = useState(false)
-	const { live, connected } = useBridge()
-	const playerMap = live && connected ? worldToPixel(live.x, live.y).map : null
+	const { connected } = useBridge()
+	const liveMap = useLiveValue((live) => (live ? worldToPixel(live.x, live.y).map : null))
+	const playerMap = connected ? liveMap : null
 
 	// While following, show whichever map you're on
 	useEffect(() => {

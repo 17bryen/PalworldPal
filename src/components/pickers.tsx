@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Autocomplete, Box, TextField, Typography } from '@mui/material'
 import { gameData, getPal, pals, type PalInfo, type PassiveInfo } from '../data/gamedata'
 import { PalAvatar, PassiveChip, passiveColor } from './bits'
@@ -52,6 +53,11 @@ export function PassivePicker({
 	onChange: (passives: string[]) => void
 	label?: string
 }) {
+	// A new array on every render would clear whatever is being typed, so it only changes with `value`
+	const selected = useMemo(
+		() => value.map((name) => gameData.passives.find((p) => p.name === name) ?? { name, ids: [], rank: 0, description: '', copyable: false }),
+		[value]
+	)
 	return (
 		<Autocomplete<PassiveInfo, true>
 			multiple

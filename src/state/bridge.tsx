@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { normalizeCaptures } from './captures'
 import { normalizeGamePals, type GamePal, type RawGamePal } from './gamepals'
 import { Motion } from './motion'
@@ -71,12 +71,30 @@ interface Bridge {
 	available: boolean
 	/** Smoothed player motion for per-frame drawing */
 	motion: Motion
-	live: LiveData | null
 	connected: boolean
 	captures: CaptureData | null
 }
 
-const BridgeContext = createContext<Bridge>({ available: false, motion: new Motion(), live: null, connected: false, captures: null })
+/**
+ * The latest position update. It changes about 20 times a second, so it stays out of React
+ * context: components read it with useLive / useLiveValue, or subscribe directly, and nothing
+ * else re-renders when it changes.
+ */
+export class LiveStore {
+	live: LiveData | null = null
+	private listeners = new Set<() => void>()
+	set(live: LiveData) {
+		this.live = live
+		this.listeners.forEach((cb) => cb())
+	}
+	subscribe = (cb: () => void) => {
+		this.listeners.add(cb)
+		return () => void this.listeners.delete(cb)
+	}
+}
+
+const BridgeContext = createContext<Bridge>({ available: false, motion: new Motion(), connected: false, captures: null })
+const LiveContext = createContext(new LiveStore())
 /** Kept apart from the bridge's position updates, which arrive many times a second */
 const GamePalsContext = createContext<GamePal[]>([])
 
@@ -149,11 +167,11 @@ export const bridgeApi: PalBridgeApi | undefined =
 /** `syncCatches` is off in the overlay window, which only reads */
 export function BridgeProvider({ children, syncCatches: canSync = true }: { children: ReactNode; syncCatches?: boolean }) {
 	const { syncCatches, replaceCatches, loaded } = useStore()
-	const [live, setLive] = useState<LiveData | null>(null)
+	const [liveStore] = useState(() => new LiveStore())
+	const [connected, setConnected] = useState(false)
 	const [motion] = useState(() => new Motion())
 	const [captures, setCaptures] = useState<CaptureData | null>(null)
 	const [gamePals, setGamePals] = useState<GamePal[]>([])
-	const [now, setNow] = useState(Date.now())
 
 	// Your pals seen this session. The Palbox only loads the pages you open, so pals stay listed
 	// after their page unloads.
@@ -172,18 +190,21 @@ export function BridgeProvider({ children, syncCatches: canSync = true }: { chil
 
 	useEffect(() => {
 		if (!bridgeApi) return
+		const isFresh = () => !!liveStore.live && Date.now() - liveStore.live.at < STALE_MS
 		bridgeApi.latest().then((d) => {
-			if (d.live) setLive(d.live)
+			if (d.live) liveStore.set(d.live)
 			if (d.captures) setCaptures(d.captures)
+			setConnected(isFresh())
 		})
 		// Timestamp each update as it arrives, before React gets involved
 		const offLive = bridgeApi.onLive((d) => {
 			motion.push(d)
-			setLive(d)
+			liveStore.set(d)
+			setConnected(true)
 		})
 		const offCaptures = bridgeApi.onCaptures(setCaptures)
 		// Re-check staleness while no updates arrive
-		const timer = setInterval(() => setNow(Date.now()), 1000)
+		const timer = setInterval(() => setConnected(isFresh()), 1000)
 		return () => {
 			offLive()
 			offCaptures()
@@ -196,13 +217,28 @@ export function BridgeProvider({ children, syncCatches: canSync = true }: { chil
 		if (canSync && captures && syncCatches && loaded) replaceCatches(normalizeCaptures(captures.counts))
 	}, [canSync, captures, syncCatches, loaded, replaceCatches])
 
-	const connected = !!live && Math.max(now, Date.now()) - live.at < STALE_MS
+	const bridge = useMemo(() => ({ available: !!bridgeApi, motion, connected, captures }), [motion, connected, captures])
 	return (
-		<BridgeContext.Provider value={{ available: !!bridgeApi, motion, live, connected, captures }}>
-			<GamePalsContext.Provider value={gamePals}>{children}</GamePalsContext.Provider>
+		<BridgeContext.Provider value={bridge}>
+			<LiveContext.Provider value={liveStore}>
+				<GamePalsContext.Provider value={gamePals}>{children}</GamePalsContext.Provider>
+			</LiveContext.Provider>
 		</BridgeContext.Provider>
 	)
 }
 
 export const useBridge = () => useContext(BridgeContext)
+export const useLiveStore = () => useContext(LiveContext)
+
+/** The latest position update; re-renders on every one, so keep its users small */
+export function useLive(): LiveData | null {
+	const store = useContext(LiveContext)
+	return useSyncExternalStore(store.subscribe, () => store.live)
+}
+
+/** Something derived from the latest position; re-renders only when it changes (return a primitive) */
+export function useLiveValue<T extends string | number | boolean | null>(select: (live: LiveData | null) => T): T {
+	const store = useContext(LiveContext)
+	return useSyncExternalStore(store.subscribe, () => select(store.live))
+}
 export const useGamePals = () => useContext(GamePalsContext)
