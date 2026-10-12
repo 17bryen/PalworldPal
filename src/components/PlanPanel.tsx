@@ -24,6 +24,8 @@ import PushPinIcon from '@mui/icons-material/PushPinOutlined'
 import { getPal } from '../data/gamedata'
 import { worldTree } from '../data/regions'
 import { useStore } from '../state/store'
+import { useGamePals } from '../state/bridge'
+import { describeLocation } from '../state/gamepals'
 import { pinKey, type Plan, type PlanNode, type SolveProgress, type TargetResult } from '../solver/types'
 import { GenderIcon, PalAvatar, PassiveList } from './bits'
 import { StatusChip } from './ListsPanel'
@@ -37,11 +39,24 @@ export function formatMinutes(m: number): string {
 	return `~${(m / 60).toFixed(m < 600 ? 1 : 0)} h`
 }
 
-export const formatEggs = (eggs: number) => `~${eggs < 10 ? eggs.toFixed(1).replace(/\.0$/, '') : Math.round(eggs)} egg${eggs > 1.05 ? 's' : ''}`
+export const formatEggs = (eggs: number) => `~${eggs < 10 ? eggs.toFixed(1).replace(/\.0$/, '') : Math.round(eggs)} Egg${eggs > 1.05 ? 's' : ''}`
 
 export function yakumoName(uid: string, owned: { uid: string; stars?: number }[]): string {
 	const y = owned.find((o) => o.uid === uid)
 	return `Yakumo${y?.stars ? ` (${y.stars} star${y.stars > 1 ? 's' : ''})` : ''}`
+}
+
+/** "Owned", with where the pal is in the game on hover */
+function OwnedChip({ ownedUid }: { ownedUid: string }) {
+	const owned = useStore().owned.find((o) => o.uid === ownedUid)
+	const gamePals = useGamePals()
+	const where = owned?.game ? gamePals.find((g) => g.key === owned.game)?.where : undefined
+	const title = !owned?.game ? 'Added by hand' : where ? describeLocation(where) : 'Not seen in the game this session'
+	return (
+		<Tooltip title={title}>
+			<Chip size="small" color="success" variant="outlined" label="Owned" />
+		</Tooltip>
+	)
 }
 
 /** What to do for this pal: breed it in a step, catch it, or use one you own */
@@ -58,12 +73,12 @@ export function SourceBadge({ node }: { node: PlanNode }) {
 				/>
 			)
 		case 'owned':
-			return <Chip size="small" color="success" variant="outlined" label="Owned" />
+			return <OwnedChip ownedUid={src.ownedUid} />
 		case 'catch':
 			if (src.yakumo)
 				return (
 					<Tooltip title={`Catch with ${yakumoName(src.yakumo.ownedUid, owned)} summoned until one has these passives`}>
-						<Chip size="small" color="secondary" variant="outlined" label={`Yakumo catch, ~${Math.round(src.yakumo.catches)} tries`} />
+						<Chip size="small" color="secondary" variant="outlined" label={`Yakumo Catch, ~${Math.round(src.yakumo.catches)} Tries`} />
 					</Tooltip>
 				)
 			return <Chip size="small" color="secondary" variant="outlined" label={`Catch, ${formatMinutes(src.minutes)}`} />
@@ -115,7 +130,7 @@ export function PalLine({ node, big, hideBadge, dim }: { node: PlanNode; big?: b
 				<Box sx={{ ml: 'auto', pl: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
 					{node.matchGenders && (
 						<Tooltip title="Both parents are bred: keep hatching one until their genders differ">
-							<Chip size="small" variant="outlined" label="Match genders" />
+							<Chip size="small" variant="outlined" label="Match Genders" />
 						</Tooltip>
 					)}
 					<SourceBadge node={node} />
@@ -221,7 +236,7 @@ function StepsView({ plan }: { plan: Plan }) {
 							</Typography>
 							{node.matchGenders && (
 								<Tooltip title="Both parents are bred: keep hatching one until their genders differ">
-									<Chip size="small" variant="outlined" label="Match genders" sx={{ ml: 'auto' }} />
+									<Chip size="small" variant="outlined" label="Match Genders" sx={{ ml: 'auto' }} />
 								</Tooltip>
 							)}
 						</Box>
@@ -249,7 +264,7 @@ function CatchView({ plan }: { plan: Plan }) {
 					<TableCell>Pal</TableCell>
 					<TableCell>How</TableCell>
 					<TableCell>Effort</TableCell>
-					<TableCell>Wild level</TableCell>
+					<TableCell>Wild Level</TableCell>
 					<TableCell>For</TableCell>
 				</TableRow>
 			</TableHead>
@@ -372,10 +387,10 @@ export function PlanPanel({
 			)}
 			<Box sx={{ display: 'flex', alignItems: 'center', px: 1, borderBottom: 1, borderColor: 'divider' }}>
 				<Tabs value={tab} onChange={(_, v) => setTab(v)}>
-					<Tab value="targets" label="By pal" />
+					<Tab value="targets" label="By Pal" />
 					<Tab value="diagram" label="Tree" />
 					<Tab value="steps" label={`Steps${plan?.steps.length ? ` (${plan.steps.length})` : ''}`} />
-					<Tab value="catches" label={`Catch list${plan?.catches.length ? ` (${plan.catches.length})` : ''}`} />
+					<Tab value="catches" label={`Catch List${plan?.catches.length ? ` (${plan.catches.length})` : ''}`} />
 				</Tabs>
 				{summary && (
 					<Typography variant="caption" color="text.secondary" sx={{ ml: 'auto', pr: 1 }} noWrap>

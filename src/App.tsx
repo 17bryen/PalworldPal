@@ -46,14 +46,14 @@ function DataMenu() {
 				</IconButton>
 			</Tooltip>
 			<Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}>
-				<MenuItem onClick={exportLists}>Export lists...</MenuItem>
+				<MenuItem onClick={exportLists}>Export Lists...</MenuItem>
 				<MenuItem
 					onClick={() => {
 						setAnchor(null)
 						fileInput.current?.click()
 					}}
 				>
-					Import lists...
+					Import Lists...
 				</MenuItem>
 				<MenuItem disabled>
 					<Typography variant="caption">Game data: {gameData.source}</Typography>

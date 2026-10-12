@@ -52,19 +52,19 @@ function SurgerySection() {
 	return (
 		<Section title="Pal Surgery Table">
 			<Tooltip title="Target passives you can implant are added after breeding instead of bred for" placement="right">
-				<FormControlLabel control={<Switch size="small" checked={surgery.enabled} onChange={(e) => set({ enabled: e.target.checked })} />} label="Implant passives" />
+				<FormControlLabel control={<Switch size="small" checked={surgery.enabled} onChange={(e) => set({ enabled: e.target.checked })} />} label="Implant Passives" />
 			</Tooltip>
 			{surgery.enabled && (
 				<>
 					<Box sx={{ display: 'flex', gap: 2 }}>
 						<FormControlLabel
 							control={<Checkbox size="small" checked={surgery.silver} onChange={(e) => set({ silver: e.target.checked })} />}
-							label="Silver (10,000 gold)"
+							label="Silver (10,000 Gold)"
 						/>
 						<Tooltip title="Includes every vendor implant" placement="top">
 							<FormControlLabel
 								control={<Checkbox size="small" checked={surgery.gold} onChange={(e) => set({ gold: e.target.checked })} />}
-								label="Gold (50,000 gold)"
+								label="Gold (50,000 Gold)"
 							/>
 						</Tooltip>
 					</Box>
@@ -81,7 +81,7 @@ function SurgerySection() {
 						onChange={(_, p) => p && set({ extra: [...surgery.extra, p.name] })}
 						autoHighlight
 						blurOnSelect
-						renderInput={(params) => <TextField {...params} label="Add implants you've unlocked or found" />}
+						renderInput={(params) => <TextField {...params} label="Add Implants You've Unlocked or Found" />}
 						sx={{ width: '100%' }}
 					/>
 				</>
@@ -98,13 +98,13 @@ export function PlannerSettingsButton() {
 	const offRegions = settings.disabledRegions.length
 	return (
 		<>
-			<Tooltip title="Planner settings">
+			<Tooltip title="Planner Settings">
 				<IconButton onClick={() => setOpen(true)}>
 					<SettingsIcon />
 				</IconButton>
 			</Tooltip>
 			<Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
-				<DialogTitle>Planner settings</DialogTitle>
+				<DialogTitle>Planner Settings</DialogTitle>
 				<DialogContent dividers>
 					<Section title="Breeding">
 						<Box sx={{ display: 'flex', gap: 2 }}>
@@ -112,7 +112,7 @@ export function PlannerSettingsButton() {
 								<TextField
 									select
 									size="small"
-									label="Max generations"
+									label="Max Generations"
 									value={settings.maxGenerations}
 									onChange={(e) => updateSettings({ maxGenerations: Number(e.target.value) })}
 									sx={{ width: 150 }}
@@ -128,7 +128,7 @@ export function PlannerSettingsButton() {
 								<TextField
 									size="small"
 									type="number"
-									label="Minutes per egg"
+									label="Minutes per Egg"
 									value={settings.minutesPerEgg}
 									onChange={(e) => updateSettings({ minutesPerEgg: Math.max(1, Number(e.target.value) || 1) })}
 									sx={{ width: 150 }}
@@ -138,13 +138,13 @@ export function PlannerSettingsButton() {
 						<Tooltip title="Bred pals carry no passives besides the ones you asked for, when that's possible" placement="right">
 							<FormControlLabel
 								control={<Switch size="small" checked={settings.onlyWantedPassives} onChange={(e) => updateSettings({ onlyWantedPassives: e.target.checked })} />}
-								label="Only target passives"
+								label="Only Target Passives"
 							/>
 						</Tooltip>
 						{pinCount > 0 && (
 							<Tooltip title="Pairs you chose for specific pals. Clear them to let the planner choose again." placement="right">
 								<Button size="small" variant="outlined" startIcon={<PushPinIcon />} onClick={() => updateSettings({ pins: {} })}>
-									Clear {pinCount} chosen
+									Clear {pinCount} Chosen
 								</Button>
 							</Tooltip>
 						)}
@@ -153,7 +153,7 @@ export function PlannerSettingsButton() {
 					<Section title="Catching">
 						<FormControlLabel
 							control={<Switch size="small" checked={settings.allowCatching} onChange={(e) => updateSettings({ allowCatching: e.target.checked })} />}
-							label="Suggest catches"
+							label="Suggest Catches"
 						/>
 						<Tooltip title="Legendary target pals can still be caught directly" placement="right">
 							<FormControlLabel
@@ -165,12 +165,12 @@ export function PlannerSettingsButton() {
 										onChange={(e) => updateSettings({ allowLegendaryCatches: e.target.checked })}
 									/>
 								}
-								label="Legendary catches"
+								label="Legendary Catches"
 							/>
 						</Tooltip>
 						<Badge color="warning" badgeContent={offRegions} invisible={!offRegions}>
 							<Button size="small" variant="outlined" startIcon={<MapIcon />} onClick={() => setMapOpen(true)}>
-								Map access
+								Map Access
 							</Button>
 						</Badge>
 					</Section>

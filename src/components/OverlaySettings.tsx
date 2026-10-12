@@ -151,7 +151,7 @@ export function OverlayPage() {
 							Waiting for the game link.
 						</Alert>
 					)}
-					<Row label="Show over the game">
+					<Row label="Show Over the Game">
 						<Switch checked={overlay.enabled} onChange={(e) => updateOverlay({ enabled: e.target.checked })} />
 					</Row>
 					{hotkey && (
@@ -185,10 +185,10 @@ export function OverlayPage() {
 							<Row label="Background">
 								<Switch checked={overlay.compassBar} onChange={(e) => updateOverlay({ compassBar: e.target.checked })} />
 							</Row>
-							<Row label="Tick marks and center line">
+							<Row label="Tick Marks and Center Line">
 								<Switch checked={overlay.compassTicks} onChange={(e) => updateOverlay({ compassTicks: e.target.checked })} />
 							</Row>
-							<Row label="Direction letters">
+							<Row label="Direction Letters">
 								<Switch checked={overlay.compassLetters} onChange={(e) => updateOverlay({ compassLetters: e.target.checked })} />
 							</Row>
 							{!overlay.compassBar && !overlay.compassTicks && !overlay.compassLetters && (
@@ -199,7 +199,7 @@ export function OverlayPage() {
 						</>
 					)}
 					{overlay.compass && (
-						<Row label="Compass range">
+						<Row label="Compass Range">
 							<TextField select size="small" value={overlay.range} onChange={(e) => updateOverlay({ range: Number(e.target.value) })} sx={selectSx}>
 								{COMPASS_RANGES.map((m) => (
 									<MenuItem key={m} value={m}>
@@ -213,7 +213,7 @@ export function OverlayPage() {
 						<Switch checked={overlay.minimap} onChange={(e) => updateOverlay({ minimap: e.target.checked })} />
 					</Row>
 					{overlay.minimap && (
-						<Row label="Minimap zoom">
+						<Row label="Minimap Zoom">
 							<TextField select size="small" value={overlay.zoom} onChange={(e) => updateOverlay({ zoom: Number(e.target.value) })} sx={selectSx}>
 								<MenuItem value={5}>Close</MenuItem>
 								<MenuItem value={4}>Medium</MenuItem>
@@ -232,9 +232,9 @@ export function OverlayPage() {
 					<LayoutPreview display={display} />
 					<Box sx={{ display: 'flex', gap: 1, mt: 1.5 }}>
 						<Button variant="contained" startIcon={<EditIcon />} onClick={() => window.palOverlay?.edit(!editing)}>
-							{editing ? 'Finish editing' : 'Edit layout'}
+							{editing ? 'Finish Editing' : 'Edit Layout'}
 						</Button>
-						<Button onClick={() => updateOverlay({ ...defaultLayout })}>Reset layout</Button>
+						<Button onClick={() => updateOverlay({ ...defaultLayout })}>Reset Layout</Button>
 					</Box>
 					<Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 1 }}>
 						Opens the overlay on screen so you can drag the compass and minimap into place and resize them by their corners. Press Done or Esc when

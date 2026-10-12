@@ -179,10 +179,16 @@ export function BridgeProvider({ children, syncCatches: canSync = true }: { chil
 		if (!bridgeApi?.onPals || !canSync) return
 		const merge = (d: GamePalsData) =>
 			setGamePals((prev) => {
-				const fresh = normalizeGamePals(d.pals)
-				const known = new Set(prev.map((p) => p.key))
-				const added = fresh.filter((p) => !known.has(p.key))
-				return added.length ? [...prev, ...added] : prev
+				const fresh = new Map(normalizeGamePals(d.pals).map((p) => [p.key, p]))
+				let changed = false
+				const kept = prev.map((p) => {
+					const now = fresh.get(p.key)
+					fresh.delete(p.key)
+					if (!now || (now.where?.box === p.where?.box && now.where?.slot === p.where?.slot)) return p
+					changed = true
+					return now
+				})
+				return changed || fresh.size ? [...kept, ...fresh.values()] : prev
 			})
 		bridgeApi.latest().then((d) => d.pals && merge(d.pals))
 		return bridgeApi.onPals(merge)

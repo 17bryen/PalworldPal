@@ -273,14 +273,14 @@ class TargetSolver {
 	 * states to search, so passes keep a few states per pal first and use the best plan found so
 	 * far to skip anything that can't beat it.
 	 */
-	/** `room`: passives the result may carry, leaving slots free for implants */
-	best(target: number, wanted: string[], strict: boolean, quick = false, room = MAX_PASSIVES): State | null {
-		if (!wanted.length) return pickBest(this.solve(target, wanted), strict, room)
+	/** `overwrite`: unwanted passives the result may carry because Surgery Table implants replace them */
+	best(target: number, wanted: string[], strict: boolean, quick = false, overwrite = 0): State | null {
+		if (!wanted.length) return pickBest(this.solve(target, wanted), strict, overwrite)
 		let best: State | null = null
 		for (const cap of quick ? [CAPS[0]] : CAPS) {
-			const ideal = best && popcount(best.mask) === wanted.length && !(strict && best.other > 0) && fits(best, room)
+			const ideal = best && popcount(best.mask) === wanted.length && !(strict && best.other > overwrite)
 			const found = this.solve(target, wanted, cap, ideal ? best!.cost : Infinity)
-			best = pickBest(best ? [...found, best] : found, strict, room)
+			best = pickBest(best ? [...found, best] : found, strict, overwrite)
 		}
 		return best
 	}
@@ -472,13 +472,11 @@ class TargetSolver {
 }
 
 /** Most wanted passives first, then clean (when required), then cheapest, then shallowest */
-const fits = (s: State, room: number) => popcount(s.mask) + s.other <= room
-
-function pickBest(states: State[], strict: boolean, room = MAX_PASSIVES): State | null {
+function pickBest(states: State[], strict: boolean, overwrite = 0): State | null {
 	let best: State | null = null
 	let bestKey: number[] = []
 	for (const s of states) {
-		const key = [-popcount(s.mask), fits(s, room) ? 0 : 1, strict && s.other > 0 ? 1 : 0, s.cost, s.gen]
+		const key = [-popcount(s.mask), strict && s.other > overwrite ? 1 : 0, s.cost, s.gen]
 		if (!best || lexLess(key, bestKey)) {
 			best = s
 			bestKey = key
@@ -588,7 +586,7 @@ export function solvePlan(owned: OwnedPal[], wanted: WantedPal[], settings: Plan
 		const all = [...new Set(w.passives)].slice(0, MAX_PASSIVES)
 		return { w, pal: palIndex(w.palId), passives: all.filter((p) => !surgery.has(p)), implants: all.filter((p) => surgery.has(p)) }
 	})
-	const strict = (t: (typeof targets)[number]) => settings.onlyWantedPassives && t.passives.length > 0
+	const strict = (t: (typeof targets)[number]) => settings.onlyWantedPassives && t.passives.length + t.implants.length > 0
 	const rounds = targets.length > 1 ? 2 : 1
 	const total = targets.length * rounds
 	let done = 0
@@ -599,7 +597,8 @@ export function solvePlan(owned: OwnedPal[], wanted: WantedPal[], settings: Plan
 	const solvers = new Map<string, TargetSolver>()
 	const plan = (t: (typeof targets)[number], instances: Instance[], quick: boolean) => {
 		const solver = new TargetSolver({ settings, instances, yakumos })
-		const s = solver.best(t.pal, t.passives, strict(t), quick, MAX_PASSIVES - t.implants.length)
+		// An implant can overwrite an unwanted passive, so that many extras don't need breeding out
+		const s = solver.best(t.pal, t.passives, strict(t), quick, t.implants.length)
 		best.set(t.w.uid, s)
 		solvers.set(t.w.uid, solver)
 		if (s) trees.set(t.w.uid, buildTree(s, t.passives, null, 1))
@@ -699,11 +698,9 @@ export function solvePlan(owned: OwnedPal[], wanted: WantedPal[], settings: Plan
 			implants: t.implants,
 			reason: missing.length
 				? missingReason(missing, owned)
-				: !fits(s, MAX_PASSIVES - t.implants.length)
-					? 'May not have a free slot for every implant.'
-					: strict(t) && s.other > 0
-						? 'May carry other passives; a clean one needs too many eggs.'
-						: undefined,
+				: strict(t) && s.other > t.implants.length
+					? 'May carry other passives; a clean one needs too many eggs.'
+					: undefined,
 			minutes: treeMinutes(tree, settings.minutesPerEgg),
 			generations: treeDepth(tree)
 		}

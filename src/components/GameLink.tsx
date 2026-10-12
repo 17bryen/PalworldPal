@@ -59,7 +59,7 @@ function GameLinkDialog({ onClose }: { onClose: () => void }) {
 	if (!bridgeApi) {
 		return (
 			<Dialog open onClose={onClose} maxWidth="sm" fullWidth>
-				<DialogTitle>Game link</DialogTitle>
+				<DialogTitle>Game Link</DialogTitle>
 				<DialogContent>
 					<Typography variant="body2">The game link works in the desktop app.</Typography>
 				</DialogContent>
@@ -76,7 +76,7 @@ function GameLinkDialog({ onClose }: { onClose: () => void }) {
 
 	return (
 		<Dialog open onClose={onClose} maxWidth="sm" fullWidth>
-			<DialogTitle>Game link</DialogTitle>
+			<DialogTitle>Game Link</DialogTitle>
 			<DialogContent dividers>
 				<Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
 					A small client-side mod shares your position and Paldeck catches with this app. It works on servers that don't have it.
@@ -130,10 +130,10 @@ function GameLinkDialog({ onClose }: { onClose: () => void }) {
 										</Button>
 									)}
 									<Button size="small" onClick={() => bridgeApi!.openUe4ssDownloads()}>
-										Manual download
+										Manual Download
 									</Button>
 									<Button size="small" disabled={busy} onClick={() => run(() => bridgeApi!.status())}>
-										Check again
+										Check Again
 									</Button>
 								</Box>
 							)}
@@ -177,12 +177,12 @@ function GameLinkDialog({ onClose }: { onClose: () => void }) {
 				<FormControlLabel
 					sx={{ mt: 1 }}
 					control={<Switch checked={syncCatches} onChange={(e) => setSyncCatches(e.target.checked)} />}
-					label="Update Paldeck catches from the game"
+					label="Update Paldeck Catches From the Game"
 				/>
 			</DialogContent>
 			<DialogActions>
 				<Button onClick={() => bridgeApi!.openBridgeFolder()} sx={{ mr: 'auto' }}>
-					Open data folder
+					Open Data Folder
 				</Button>
 				<Button onClick={onClose}>Done</Button>
 			</DialogActions>
@@ -200,7 +200,7 @@ export function GameLinkChip() {
 				size="small"
 				variant="outlined"
 				onClick={() => setOpen(true)}
-				label="Game link"
+				label="Game Link"
 				icon={
 					<Box
 						component="span"

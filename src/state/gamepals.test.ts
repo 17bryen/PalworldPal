@@ -3,7 +3,7 @@ import { parsePals } from '../../electron/gamelink'
 import { pals as allPals } from '../data/gamedata'
 import { solvePlan } from '../solver/solver'
 import type { OwnedPal, PlanSettings } from '../solver/types'
-import { normalizeGamePals, planAdd } from './gamepals'
+import { describeLocation, normalizeGamePals, planAdd } from './gamepals'
 
 describe('game pals', () => {
 	it('reads pals.json and drops malformed entries', () => {
@@ -22,6 +22,17 @@ describe('game pals', () => {
 			['KingBahamut', 'M', ['Flame Emperor', 'Vanguard']],
 			['SheepBall', 'F', ['Remarkable Craftsmanship']]
 		])
+	})
+
+	it('says where each pal is: party slot, or Palbox page and slot', () => {
+		const [party, box, old] = normalizeGamePals([
+			{ c: 'PinkCat', g: 2, p: [], iv: [1, 2, 3], in: 'party', s: 3 },
+			{ c: 'Anubis', g: 1, p: [], iv: [4, 5, 6], in: 'box', s: 73 },
+			{ c: 'SheepBall', g: 1, p: [], iv: [7, 8, 9] }
+		])
+		expect(describeLocation(party.where!)).toBe('Party 4')
+		expect(describeLocation(box.where!)).toBe('Palbox 3:14')
+		expect(old.where).toBeUndefined()
 	})
 
 	it('keeps keys stable and tells identical twins apart', () => {

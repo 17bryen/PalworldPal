@@ -54,12 +54,12 @@ export const isPalOffer = (o: Offer): o is PalOffer => 'palId' in o
 
 /** `look` is how to spot the merchant in town, written to follow the NPC's name */
 export const ROLE_INFO: Record<MerchantRole, { title: string; look: string; color: string; note?: string }> = {
-	goods: { title: 'General goods', look: 'red coat', color: '#e0705a' },
+	goods: { title: 'General Goods', look: 'red coat', color: '#e0705a' },
 	gear: { title: 'Gear', look: 'green coat', color: '#6fcf8a' },
 	pals: { title: 'Pals', look: 'blue coat', color: '#5cc8f0' },
-	bounty: { title: 'Bounty rewards', look: 'PIDF uniform', color: '#c8b08a' },
-	black: { title: 'Black market', look: 'hooded cloak', color: '#b58cf0', note: 'Offers a few of these at a time; the selection changes daily.' },
-	wander: { title: 'Roaming goods', look: 'green coat', color: '#c6d86a' }
+	bounty: { title: 'Bounty Rewards', look: 'PIDF uniform', color: '#c8b08a' },
+	black: { title: 'Black Market', look: 'hooded cloak', color: '#b58cf0', note: 'Offers a few of these at a time; the selection changes daily.' },
+	wander: { title: 'Roaming Goods', look: 'green coat', color: '#c6d86a' }
 }
 
 export const ITEM_CATEGORIES = [...new Set(towns.flatMap((t) => t.merchants.flatMap((m) => m.stock.filter((o) => !isPalOffer(o)).map((o) => (o as ItemOffer).category))))].sort()

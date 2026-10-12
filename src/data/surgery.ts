@@ -40,7 +40,7 @@ export function implantable(s: SurgerySettings | undefined): Set<string> {
 }
 
 export const SURGERY_GROUPS: Record<Exclude<NonNullable<PassiveInfo['surgery']>['kind'], 'table'>, string> = {
-	implant: 'Vendor implants',
-	consumable: 'Single-use implants',
-	worldTree: 'World Tree implants'
+	implant: 'Vendor Implants',
+	consumable: 'Single-Use Implants',
+	worldTree: 'World Tree Implants'
 }

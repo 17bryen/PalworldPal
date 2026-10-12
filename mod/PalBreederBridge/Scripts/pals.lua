@@ -9,6 +9,10 @@
 -- only happen while a menu is open (the Palbox is one), plus once shortly after joining. Each
 -- scan is followed by a read pass done a few pals per game-thread job. Writes pals.json when the
 -- list changes.
+--
+-- Each pal also says where it is: "in" is party or box, "s" the slot index. The party container
+-- belongs to your PlayerController and the Palbox to your PlayerState; which container is which is
+-- worked out with one more scan, only when a pal turns up in a container not seen before.
 
 local M = {}
 
@@ -43,6 +47,35 @@ local function readSave(param) return param.SaveParameter end
 local function readSpecies(sp) return sp.CharacterID:ToString() end
 local function readOwnerId(sp) return sp.OwnerPlayerUId end
 local function readContainer(sp) return sp.SlotID.ContainerId.ID end
+local function readSlot(sp) return sp.SlotID.SlotIndex end
+local function readContainerId(c) return c.ID.ID end
+local function fullName(o) return o:GetFullName() end
+
+-- Container id -> "party" or "box", and whether a pal sat in one we couldn't place
+local containerKind = {}
+local unknownContainer = true
+
+-- "Class /Path.To:Object" -> "/Path.To:Object"
+local function objectPath(o)
+    local name = get(fullName, o)
+    return name and name:match("^%S+%s+(.+)$") or nil
+end
+
+local function resolveContainers(pc, ps)
+    unknownContainer = false
+    local pcPath, psPath = objectPath(pc), objectPath(ps)
+    local found = get(FindAllOf, "PalIndividualCharacterContainer")
+    if type(found) ~= "table" or pcPath == nil or psPath == nil then return end
+    for i = 1, #found do
+        local c = found[i]
+        local name = alive(c) and get(fullName, c) or nil
+        local id = name and guid(get(readContainerId, c)) or nil
+        if id ~= nil then
+            if name:find(pcPath .. ".", 1, true) then containerKind[id] = "party"
+            elseif name:find(psPath .. ".", 1, true) then containerKind[id] = "box" end
+        end
+    end
+end
 local function readGender(sp) return sp.Gender end
 local function readTalents(sp) return sp.Talent_HP, sp.Talent_Shot, sp.Talent_Defense end
 local function readPassives(sp)
@@ -71,8 +104,14 @@ local function readPal(param, me)
     if not ok then hp, shot, def = 0, 0, 0 end
     local passives = get(readPassives, sp) or {}
     for i = 1, #passives do passives[i] = quote(passives[i]) end
-    return string.format('{"c":%s,"g":%d,"p":[%s],"iv":[%d,%d,%d]}', quote(species), math.tointeger(gender) or 0,
-        table.concat(passives, ","), math.tointeger(hp) or 0, math.tointeger(shot) or 0, math.tointeger(def) or 0)
+    local kind = containerKind[container]
+    if kind == nil then
+        unknownContainer = true
+        kind = "?"
+    end
+    local slot = math.tointeger(get(readSlot, sp)) or -1
+    return string.format('{"c":%s,"g":%d,"p":[%s],"iv":[%d,%d,%d],"in":"%s","s":%d}', quote(species), math.tointeger(gender) or 0,
+        table.concat(passives, ","), math.tointeger(hp) or 0, math.tointeger(shot) or 0, math.tointeger(def) or 0, kind, slot)
 end
 
 -- Scheduling (game thread only)
@@ -139,12 +178,14 @@ function M.tick(pc, now, ui)
     local ps = get(function(x) return x.PlayerState end, pc)
     me = alive(ps) and guid(get(readOwner, ps)) or nil
     if me == nil or me == NO_ID then return end
+    if unknownContainer then resolveContainers(pc, ps) end
     scan(now)
 end
 
 -- A new world or character: start over
 function M.reset()
     joinedAt, lastScan, wasUi, closedAt = nil, -1000.0, false, nil
+    containerKind, unknownContainer = {}, true
     scanned, entries, me = nil, nil, nil
 end
 

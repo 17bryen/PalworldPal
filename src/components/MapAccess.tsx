@@ -35,7 +35,7 @@ export function MapAccessDialog({ onClose }: { onClose: () => void }) {
 
 	return (
 		<Dialog open onClose={onClose} maxWidth="xs" fullWidth>
-			<DialogTitle>Map access</DialogTitle>
+			<DialogTitle>Map Access</DialogTitle>
 			<DialogContent dividers sx={{ p: 0 }}>
 				<Typography variant="body2" color="text.secondary" sx={{ px: 2, py: 1.5 }}>
 					Plans only suggest catching pals that spawn in a region you have checked.
@@ -48,7 +48,7 @@ export function MapAccessDialog({ onClose }: { onClose: () => void }) {
 				</List>
 			</DialogContent>
 			<DialogActions>
-				{off.size > 0 && <Button onClick={() => updateSettings({ disabledRegions: [] })}>Turn all on</Button>}
+				{off.size > 0 && <Button onClick={() => updateSettings({ disabledRegions: [] })}>Turn All On</Button>}
 				<Button onClick={onClose}>Done</Button>
 			</DialogActions>
 		</Dialog>

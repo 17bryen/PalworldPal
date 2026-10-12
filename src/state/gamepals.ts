@@ -8,6 +8,19 @@ export interface RawGamePal {
 	g: number
 	p: string[]
 	iv: number[]
+	/** Mod 1.5+: party or box, and the slot index */
+	in?: string
+	s?: number
+}
+
+/** Where a pal sits, e.g. "Party 4" or "Palbox 3:14" (page 3, slot 14) */
+export type PalLocation = { box: 'party' | 'palbox'; slot: number }
+
+const PALBOX_PAGE = 30
+
+export function describeLocation(where: PalLocation): string {
+	if (where.box === 'party') return `Party ${where.slot + 1}`
+	return `Palbox ${Math.floor(where.slot / PALBOX_PAGE) + 1}:${(where.slot % PALBOX_PAGE) + 1}`
 }
 
 /** A pal from your party or Palbox, in this app's terms */
@@ -18,6 +31,7 @@ export interface GamePal {
 	gender: Gender
 	/** In slot order */
 	passives: string[]
+	where?: PalLocation
 }
 
 /** Your pals from the mod's list, skipping humans and anything this app doesn't know */
@@ -34,7 +48,9 @@ export function normalizeGamePals(raw: RawGamePal[]): GamePal[] {
 		const base = [palId, gender, [...passives].sort().join(','), ivs.join('/'), /^boss_/i.test(r.c) ? 'alpha' : ''].join('|')
 		const n = (seen.get(base) ?? 0) + 1
 		seen.set(base, n)
-		out.push({ key: n > 1 ? `${base}#${n}` : base, palId, gender, passives })
+		const where: PalLocation | undefined =
+			typeof r.s === 'number' && r.s >= 0 && (r.in === 'party' || r.in === 'box') ? { box: r.in === 'party' ? 'party' : 'palbox', slot: r.s } : undefined
+		out.push({ key: n > 1 ? `${base}#${n}` : base, palId, gender, passives, where })
 	}
 	return out
 }

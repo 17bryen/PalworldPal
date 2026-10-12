@@ -151,7 +151,7 @@ const PalRow = memo(function PalRow({
 						<Chip
 							size="small"
 							variant="outlined"
-							label="Self-bred"
+							label="Self-Bred"
 							title="Can only be bred from itself or legendary pals"
 							sx={{ ml: 'auto', color: rarityColor(20), borderColor: `${rarityColor(20)}66` }}
 						/>
@@ -209,7 +209,7 @@ const PalRow = memo(function PalRow({
 				)}
 			</TableCell>
 			<TableCell padding="checkbox">
-				<IconButton size="small" disableRipple title={wanted ? 'Remove from target pals' : 'Add to target pals'} onClick={() => onToggleWanted(pal.id, wanted)}>
+				<IconButton size="small" disableRipple title={wanted ? 'Remove from Target Pals' : 'Add to Target Pals'} onClick={() => onToggleWanted(pal.id, wanted)}>
 					{wanted ? <StarIcon fontSize="small" sx={{ color: rarityColor(20) }} /> : <StarBorderIcon fontSize="small" />}
 				</IconButton>
 			</TableCell>
@@ -335,7 +335,7 @@ export function PaldeckPage() {
 					))}
 				</TextField>
 				{work !== 'any' && (
-					<TextField select size="small" label="Min level" value={minLevel} onChange={(e) => setMinLevel(Number(e.target.value))} sx={{ width: 95 }}>
+					<TextField select size="small" label="Min Level" value={minLevel} onChange={(e) => setMinLevel(Number(e.target.value))} sx={{ width: 95 }}>
 						{[1, 2, 3, 4, 5].map((n) => (
 							<MenuItem key={n} value={n}>
 								{n}
@@ -352,22 +352,22 @@ export function PaldeckPage() {
 					))}
 				</TextField>
 				{region !== 'any' && (
-					<FormControlLabel control={<Checkbox size="small" checked={onlyThere} onChange={(e) => setOnlyThere(e.target.checked)} />} label="Only there" />
+					<FormControlLabel control={<Checkbox size="small" checked={onlyThere} onChange={(e) => setOnlyThere(e.target.checked)} />} label="Only There" />
 				)}
 				<Tooltip title="Based on the regions turned on in Map access" placement="top">
-					<TextField select size="small" label="Map access" value={access} onChange={(e) => setAccess(e.target.value as AccessFilter)} sx={{ width: 150 }}>
+					<TextField select size="small" label="Map Access" value={access} onChange={(e) => setAccess(e.target.value as AccessFilter)} sx={{ width: 150 }}>
 						<MenuItem value="any">Any</MenuItem>
-						<MenuItem value="reachable">Can catch</MenuItem>
-						<MenuItem value="unreachable">Can't catch</MenuItem>
+						<MenuItem value="reachable">Can Catch</MenuItem>
+						<MenuItem value="unreachable">Can't Catch</MenuItem>
 					</TextField>
 				</Tooltip>
 				<TextField select size="small" label="Breeding" value={breed} onChange={(e) => setBreed(e.target.value as BreedFilter)} sx={{ width: 210 }}>
 					<MenuItem value="any">Any</MenuItem>
-					<MenuItem value="legendaryLine">Only from itself or legendaries</MenuItem>
+					<MenuItem value="legendaryLine">Only From Itself or Legendaries</MenuItem>
 				</TextField>
 				<TextField select size="small" label="Caught" value={caughtFilter} onChange={(e) => setCaughtFilter(e.target.value as CaughtFilter)} sx={{ width: 130 }}>
 					<MenuItem value="any">Any</MenuItem>
-					<MenuItem value="need">Still need</MenuItem>
+					<MenuItem value="need">Still Need</MenuItem>
 					<MenuItem value="done">Done</MenuItem>
 				</TextField>
 				<TextField select size="small" label="Legendary" value={legend} onChange={(e) => setLegend(e.target.value as LegendFilter)} sx={{ width: 120 }}>
@@ -386,18 +386,18 @@ export function PaldeckPage() {
 									setChecked(new Set())
 								}}
 							>
-								Add {checked.size} to wanted
+								Add {checked.size} to Target Pals
 							</Button>
 						</>
 					) : (
 						<Box sx={{ width: 250, whiteSpace: 'nowrap' }} title={`${completed} of ${pals.length} pals caught ${CATCH_TARGET} times`}>
 							<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
 								<Typography variant="caption" fontWeight={700}>
-									{completed} / {pals.length} done
+									{completed} / {pals.length} Done
 								</Typography>
 								{fromGame && (
 									<Tooltip title={`Catches come from the game, last read ${new Date(captures!.at).toLocaleTimeString()}. Turn this off in Game link.`}>
-										<Chip size="small" color="success" variant="outlined" label="From game" sx={{ height: 18, fontSize: 11 }} />
+										<Chip size="small" color="success" variant="outlined" label="From Game" sx={{ height: 18, fontSize: 11 }} />
 									</Tooltip>
 								)}
 								<Typography variant="caption" color="text.secondary">
@@ -432,7 +432,7 @@ export function PaldeckPage() {
 									direction={sortDesc ? 'desc' : 'asc'}
 									onClick={() => sortBy(sortKey === 'dex' ? 'name' : 'dex')}
 								>
-									{sortKey === 'name' ? 'Pal (by name)' : 'Pal (by number)'}
+									{sortKey === 'name' ? 'Pal (by Name)' : 'Pal (by Number)'}
 								</TableSortLabel>
 							</TableCell>
 							<TableCell>Caught</TableCell>
@@ -456,7 +456,7 @@ export function PaldeckPage() {
 									</Tooltip>
 								</TableCell>
 							))}
-							<TableCell>Found in</TableCell>
+							<TableCell>Found In</TableCell>
 							<TableCell>
 								<Tooltip title="How easy this pal is for you to find. Plans favor easy catches and never suggest Never.">
 									<span>Catching</span>

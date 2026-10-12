@@ -104,7 +104,7 @@ function EntryForm({
 				<PassivePicker
 					value={draft.passives}
 					onChange={(passives) => setDraft({ ...draft, passives })}
-					label={withGender ? (draft.palId === YAKUMO_ID ? 'Passives, in slot order' : 'Passives') : 'Target passives'}
+					label={withGender ? (draft.palId === YAKUMO_ID ? 'Passives, in Slot Order' : 'Passives') : 'Target Passives'}
 				/>
 			</Box>
 			<Box sx={{ display: 'flex', gap: 1 }}>
@@ -236,11 +236,11 @@ function GameRow({ pal, added, onAdd }: { pal: GamePal; added: boolean; onAdd: (
 				<PassiveList passives={pal.passives} />
 			</Box>
 			{added ? (
-				<Tooltip title="In My pals">
+				<Tooltip title="In My Pals">
 					<CheckIcon fontSize="small" color="success" sx={{ m: 0.625 }} />
 				</Tooltip>
 			) : (
-				<Tooltip title="Add to My pals">
+				<Tooltip title="Add to My Pals">
 					<IconButton size="small" onClick={onAdd}>
 						<AddIcon fontSize="small" />
 					</IconButton>
@@ -263,24 +263,24 @@ export function StatusChip({ result }: { result?: TargetResult }) {
 	if (result.status === 'unreachable')
 		return (
 			<Tooltip title={result.reason ?? ''}>
-				<Chip size="small" color="error" variant="outlined" label="Can't reach" />
+				<Chip size="small" color="error" variant="outlined" label="Can't Reach" />
 			</Tooltip>
 		)
 	const missing = result.missingPassives.length
-	if (result.status === 'have' && !missing) return <Chip size="small" color="success" variant="outlined" label="Have it" />
+	if (result.status === 'have' && !missing) return <Chip size="small" color="success" variant="outlined" label="Have It" />
 	const steps = countSteps(result.tree)
 	const label =
 		result.status === 'have'
 			? 'Owned'
 			: steps
-				? `${steps} step${steps > 1 ? 's' : ''}`
+				? `${steps} Step${steps > 1 ? 's' : ''}`
 				: result.tree?.source.kind === 'catch'
-					? 'Catch it'
+					? 'Catch It'
 					: 'Planned'
 	if (missing)
 		return (
 			<Tooltip title={result.reason ?? ''}>
-				<Chip size="small" color="warning" variant="outlined" label={`${label}, ${missing} missing`} />
+				<Chip size="small" color="warning" variant="outlined" label={`${label}, ${missing} Missing`} />
 			</Tooltip>
 		)
 	return <Chip size="small" color="primary" variant="outlined" label={label} />
@@ -332,20 +332,20 @@ export function ListsPanel({
 	return (
 		<Paper variant="outlined" sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' }}>
 			<Tabs value={tab} onChange={(_, v) => switchTab(v)} sx={{ borderBottom: 1, borderColor: 'divider', px: 1 }}>
-				<Tab value="wanted" label={`Target pals (${store.wanted.length})`} />
-				<Tab value="owned" label={`My pals (${store.owned.length})`} />
+				<Tab value="wanted" label={`Target Pals (${store.wanted.length})`} />
+				<Tab value="owned" label={`My Pals (${store.owned.length})`} />
 			</Tabs>
 			{tab === 'owned' && gamePals.length > 0 && (
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider' }}>
 					<ToggleButtonGroup size="small" exclusive value={view} onChange={(_, v: 'list' | 'game' | null) => v && setView(v)}>
-						<ToggleButton value="list">My list</ToggleButton>
+						<ToggleButton value="list">My List</ToggleButton>
 						<Tooltip title="Your party and every Palbox page you've opened this session">
-							<ToggleButton value="game">In game ({gamePals.length})</ToggleButton>
+							<ToggleButton value="game">In Game ({gamePals.length})</ToggleButton>
 						</Tooltip>
 					</ToggleButtonGroup>
 					<Box sx={{ flex: 1 }} />
 					<Button size="small" variant="outlined" startIcon={<AddIcon />} disabled={!pending} onClick={() => store.addFromGame(gamePals)}>
-						Add all ({pending})
+						Add All ({pending})
 					</Button>
 				</Box>
 			)}

@@ -68,6 +68,9 @@ export interface RawGamePal {
 	g: number
 	p: string[]
 	iv: number[]
+	/** Mod 1.5+: party or box, and the slot index */
+	in?: string
+	s?: number
 }
 
 export interface GamePalsData {

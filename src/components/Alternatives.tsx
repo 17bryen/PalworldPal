@@ -91,7 +91,7 @@ function AlternativesDialog({ node, onClose }: { node: PlanNode; onClose: () => 
 			<DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
 				<PalAvatar palId={node.palId} size={36} />
 				<Box>
-					<Typography variant="h6">Ways to get {getPal(node.palId).name}</Typography>
+					<Typography variant="h6">Ways to Get {getPal(node.palId).name}</Typography>
 					<PassiveList passives={node.passives} />
 				</Box>
 			</DialogTitle>
@@ -122,7 +122,7 @@ function AlternativesDialog({ node, onClose }: { node: PlanNode; onClose: () => 
 							}}
 							sx={{ whiteSpace: 'nowrap' }}
 						>
-							Catch it
+							Catch It
 						</Button>
 					)}
 				</Box>
@@ -148,7 +148,7 @@ function AlternativesDialog({ node, onClose }: { node: PlanNode; onClose: () => 
 							onClose()
 						}}
 					>
-						Let the planner choose
+						Let the Planner Choose
 					</Button>
 				)}
 				<Button onClick={onClose}>Close</Button>

@@ -334,7 +334,7 @@ function LayerList({ map }: { map: MapIndex }) {
 				/>
 				{on.size > 0 && (
 					<Button size="small" onClick={() => updateMap({ layers: [] })} sx={{ whiteSpace: 'nowrap' }}>
-						Hide all
+						Hide All
 					</Button>
 				)}
 			</Box>
@@ -456,7 +456,7 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 						<Box sx={{ flex: 1 }}>
 							<PalPicker
 								value={palId}
-								label="Show where a pal lives"
+								label="Show Where a Pal Lives"
 								onChange={(id) => {
 									setPalId(id)
 									setFitNonce((n) => n + 1)
@@ -488,7 +488,7 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 					)}
 					<Box sx={{ display: 'flex', alignItems: 'center', mt: 1.5 }}>
 						<Typography variant="body2" sx={{ flex: 1 }}>
-							Shade where uncaught pals live
+							Shade Where Uncaught Pals Live
 						</Typography>
 						<Switch size="small" checked={prefs.uncaught} onChange={(e) => updateMap({ uncaught: e.target.checked })} />
 					</Box>
@@ -551,7 +551,7 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 						onClick={() => setFollow((f) => !f)}
 						sx={{ position: 'absolute', top: 12, right: 12, zIndex: 1000, bgcolor: follow ? undefined : 'rgba(20,22,28,0.85)' }}
 					>
-						{follow ? 'Following you' : 'Follow me'}
+						{follow ? 'Following You' : 'Follow Me'}
 					</Button>
 				)}
 				{palId && (

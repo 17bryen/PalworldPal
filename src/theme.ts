@@ -15,7 +15,10 @@ export const theme = createTheme({
 	typography: {
 		fontFamily: 'Roboto, system-ui, sans-serif',
 		h6: { fontWeight: 600 },
-		subtitle2: { fontWeight: 600 }
+		subtitle2: { fontWeight: 600 },
+		// Labels are written in Title Case; nothing is shouted in capitals
+		overline: { textTransform: 'none', letterSpacing: 0.2, fontWeight: 600, fontSize: '0.75rem' },
+		button: { textTransform: 'none' }
 	},
 	components: {
 		MuiCssBaseline: {
@@ -38,6 +41,7 @@ export const theme = createTheme({
 		MuiPaper: { styleOverrides: { root: { backgroundImage: 'none' } } },
 		MuiButton: { defaultProps: { disableElevation: true }, styleOverrides: { root: { textTransform: 'none' } } },
 		MuiTab: { styleOverrides: { root: { textTransform: 'none', minHeight: 44 } } },
+		MuiToggleButton: { styleOverrides: { root: { textTransform: 'none' } } },
 		MuiTabs: { styleOverrides: { root: { minHeight: 44 } } },
 		MuiChip: { styleOverrides: { root: { fontWeight: 500 } } },
 		MuiTooltip: { defaultProps: { enterDelay: 400 } },

@@ -182,6 +182,21 @@ describe('Surgery Table', () => {
 		expect(t.missingPassives).toEqual([])
 	})
 
+	it('lets implants overwrite unwanted passives instead of breeding them out', () => {
+		const owned = [
+			own('Umihebi_Fire', 'F', ['Remarkable Craftsmanship', 'Serious', 'Brave']),
+			own('GhostDragon_Fire', 'M', ['Remarkable Craftsmanship', 'Nimble', 'Hard Skin']),
+			own('HadesBird', 'F', ['Impatient', 'Insomnia']),
+			own('IceHorse', 'M', ['Remarkable Craftsmanship', 'Dainty Eater'])
+		]
+		const target = want('DomeArmorDragon', ['Remarkable Craftsmanship', 'Work Slave', 'Insomnia', 'Serious'])
+		const [t] = solvePlan(owned, [target], { ...surgery(true), maxGenerations: 4 }).targets
+		expect(t.implants).toEqual(['Work Slave', 'Insomnia', 'Serious'])
+		// No step that breeds an Aegidron just to clean another Aegidron
+		expect(t.tree!.parents!.some((p) => p.palId === 'DomeArmorDragon')).toBe(false)
+		expect(t.reason).toBeUndefined()
+	})
+
 	it('breeds for passives outside the budget', () => {
 		const owned = [own('PinkCat', 'M', ['Lucky'])]
 		const [t] = solvePlan(owned, [want('PinkCat', ['Lucky', 'Philanthropist'])], surgery(false)).targets

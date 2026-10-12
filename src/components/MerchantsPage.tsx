@@ -100,7 +100,7 @@ function WantedStar({ palId }: { palId: string }) {
 	return (
 		<IconButton
 			size="small"
-			title={isWanted ? 'Remove from target pals' : 'Add to target pals'}
+			title={isWanted ? 'Remove from Target Pals' : 'Add to Target Pals'}
 			onClick={() => (isWanted ? removeWantedPal(palId) : addWantedMany([palId]))}
 		>
 			{isWanted ? <StarIcon fontSize="small" sx={{ color: rarityColor(20) }} /> : <StarBorderIcon fontSize="small" />}
@@ -177,7 +177,7 @@ function MerchantCard({ merchant, stock }: { merchant: Merchant; stock: Offer[] 
 						{merchant.npc}, {info.look}
 					</Typography>
 				</Box>
-				<Chip size="small" variant="outlined" label={`${stock.length} ${merchant.role === 'pals' || merchant.role === 'black' ? 'pals' : 'items'}`} />
+				<Chip size="small" variant="outlined" label={`${stock.length} ${merchant.role === 'pals' || merchant.role === 'black' ? 'Pals' : 'Items'}`} />
 			</Box>
 			{info.note && (
 				<Typography variant="caption" color="text.secondary" component="div" sx={{ px: 1.5, pt: 1 }}>
@@ -401,17 +401,17 @@ export function MerchantsPage() {
 					))}
 				</TextField>
 				<TextField select size="small" label="Sort" value={sort} onChange={(e) => setSort(e.target.value as SortKey)} sx={{ width: 170 }}>
-					<MenuItem value="shop">Shop order</MenuItem>
+					<MenuItem value="shop">Shop Order</MenuItem>
 					<MenuItem value="name">Name</MenuItem>
-					<MenuItem value="priceAsc">Price, low to high</MenuItem>
-					<MenuItem value="priceDesc">Price, high to low</MenuItem>
+					<MenuItem value="priceAsc">Price, Low to High</MenuItem>
+					<MenuItem value="priceDesc">Price, High to Low</MenuItem>
 				</TextField>
 			</Box>
 			<Box sx={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '240px 1fr' }}>
 				<List dense sx={{ borderRight: 1, borderColor: 'divider', overflowY: 'auto', py: 1 }}>
 					<ListItemButton selected={townId === 'all'} onClick={() => setTownId('all')} sx={{ mx: 1, borderRadius: 1.5 }}>
 						<Typography variant="body2" fontWeight={600}>
-							All merchants
+							All Merchants
 						</Typography>
 					</ListItemButton>
 					{towns.map((t) => (

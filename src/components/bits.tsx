@@ -80,7 +80,7 @@ export function PassiveList({ passives, other = 0, implants = [] }: { passives: 
 			))}
 			{other > 0 && (
 				<Tooltip title="Passives you didn't ask for. Bred pals show the most they could carry.">
-					<Chip size="small" label={`+${other} other`} variant="outlined" sx={{ color: 'text.secondary' }} />
+					<Chip size="small" label={`+${other} Other`} variant="outlined" sx={{ color: 'text.secondary' }} />
 				</Tooltip>
 			)}
 		</Box>

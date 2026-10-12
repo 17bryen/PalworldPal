@@ -48,7 +48,7 @@ function StepRow({ step }: { step: LadderStep }) {
 			<ArrowIcon fontSize="small" sx={{ color: 'text.secondary' }} />
 			<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
 				<Parent palId={step.child} />
-				{step.caught > 0 && <Chip size="small" variant="outlined" label={`${step.caught} caught`} />}
+				{step.caught > 0 && <Chip size="small" variant="outlined" label={`${step.caught} Caught`} />}
 				<Chip size="small" color="primary" label={`Hatch ${step.eggs}`} />
 			</Box>
 		</Box>
@@ -78,7 +78,7 @@ export function XpLadder() {
 		<Paper variant="outlined" sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
 			<Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2, p: 2, borderBottom: 1, borderColor: 'divider' }}>
 				<Tooltip title="Every hatch counts as a catch. Stop hatching a pal once it has this many." placement="top">
-					<TextField select size="small" label="Catches per pal" value={goal} onChange={(e) => changeGoal(Number(e.target.value))} sx={{ width: 150 }}>
+					<TextField select size="small" label="Catches per Pal" value={goal} onChange={(e) => changeGoal(Number(e.target.value))} sx={{ width: 150 }}>
 						{Array.from({ length: CATCH_TARGET }, (_, i) => i + 1).map((n) => (
 							<MenuItem key={n} value={n}>
 								{n}
@@ -104,7 +104,7 @@ export function XpLadder() {
 							{(i === 0 || ladder.steps[i - 1].round !== s.round) && (
 								<Typography variant="overline" color="text.secondary" component="div" sx={{ px: 2, pt: 1.5 }}>
 									Round {s.round}
-									{s.round === 1 ? ': from My pals' : `: using round ${s.round - 1} hatches`}
+									{s.round === 1 ? ': From My Pals' : `: Using Round ${s.round - 1} Hatches`}
 								</Typography>
 							)}
 							<LazyItem estimate={53}>
@@ -115,7 +115,7 @@ export function XpLadder() {
 					{ladder.stuck.length > 0 && (
 						<Box sx={{ p: 2 }}>
 							<Typography variant="overline" color="text.secondary">
-								Can't hatch from My pals ({ladder.stuck.length})
+								Can't Hatch From My Pals ({ladder.stuck.length})
 							</Typography>
 							<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 0.5 }}>
 								{ladder.stuck.map((id) => (

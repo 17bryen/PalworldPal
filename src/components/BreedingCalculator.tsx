@@ -210,15 +210,15 @@ function PalGrid({ selected, onPick }: { selected: (string | null)[]; onPick: (i
 				/>
 				<TextField select size="small" value={sort} onChange={(e) => setSort(e.target.value as SortKey)} sx={{ width: 170 }}>
 					<MenuItem value="name">Name</MenuItem>
-					<MenuItem value="dex">Paldeck number</MenuItem>
-					<MenuItem value="power">Breeding number</MenuItem>
+					<MenuItem value="dex">Paldeck Number</MenuItem>
+					<MenuItem value="power">Breeding Number</MenuItem>
 				</TextField>
 				<Tooltip title={descending ? 'Descending' : 'Ascending'}>
 					<IconButton size="small" onClick={() => setDescending((d) => !d)}>
 						{descending ? <ArrowDownIcon fontSize="small" /> : <ArrowUpIcon fontSize="small" />}
 					</IconButton>
 				</Tooltip>
-				<FormControlLabel control={<Checkbox size="small" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} />} label="Only My pals" />
+				<FormControlLabel control={<Checkbox size="small" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} />} label="Only My Pals" />
 			</Box>
 			<Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', pr: 0.5 }}>
 				<Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(108px, 1fr))', gap: 1 }}>
@@ -276,7 +276,7 @@ function BreedTwo({ onFindCombos }: { onFindCombos: (id: string) => void }) {
 				<Slot
 					label={<SlotLabel text="Father" gender="M" />}
 					palId={a}
-					placeholder="Pick a pal below"
+					placeholder="Pick a Pal Below"
 					active={active === 0}
 					onClick={() => setActive(0)}
 					onClear={() => clear(0)}
@@ -289,7 +289,7 @@ function BreedTwo({ onFindCombos }: { onFindCombos: (id: string) => void }) {
 				<Slot
 					label={<SlotLabel text="Mother" gender="F" />}
 					palId={b}
-					placeholder="Pick a pal below"
+					placeholder="Pick a Pal Below"
 					active={active === 1}
 					onClick={() => setActive(1)}
 					onClear={() => clear(1)}
@@ -391,7 +391,7 @@ function Combinations({ palId, setPalId }: { palId: string | null; setPalId: (id
 		<Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(420px, 1fr) minmax(460px, 1.1fr)', gap: 2, minHeight: 0, flex: 1, pt: 3 }}>
 			<Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 				<Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-					<Slot label={<SlotLabel text="Pal" />} palId={palId} placeholder="Pick a pal below" active={!palId} />
+					<Slot label={<SlotLabel text="Pal" />} palId={palId} placeholder="Pick a Pal Below" active={!palId} />
 				</Box>
 				<PalGrid selected={[palId]} onPick={setPalId} />
 			</Box>
@@ -413,11 +413,11 @@ function Combinations({ palId, setPalId }: { palId: string | null; setPalId: (id
 							}
 						}}
 					/>
-					<FormControlLabel control={<Checkbox size="small" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} />} label="Only My pals" sx={{ mr: 0 }} />
+					<FormControlLabel control={<Checkbox size="small" checked={onlyMine} onChange={(e) => setOnlyMine(e.target.checked)} />} label="Only My Pals" sx={{ mr: 0 }} />
 				</Box>
 				<Tabs value={tab} onChange={(_, v) => setTab(v)} variant="fullWidth" sx={{ borderBottom: 1, borderColor: 'divider' }}>
-					<Tab value="child" label={`Its parents${palId ? ` (${asChild.length})` : ''}`} />
-					<Tab value="parent" label={`What it hatches${palId ? ` (${asParent.length})` : ''}`} />
+					<Tab value="child" label={`Its Parents${palId ? ` (${asChild.length})` : ''}`} />
+					<Tab value="parent" label={`What It Hatches${palId ? ` (${asParent.length})` : ''}`} />
 				</Tabs>
 				{!palId ? (
 					<Typography variant="body2" color="text.secondary" sx={{ p: 3, textAlign: 'center' }}>
@@ -463,8 +463,8 @@ export function BreedingCalculator() {
 	return (
 		<Paper variant="outlined" sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, p: 2 }}>
 			<ToggleButtonGroup size="small" exclusive value={mode} onChange={(_, v: 'two' | 'combos' | null) => v && setMode(v)} sx={{ alignSelf: 'flex-start' }}>
-				<ToggleButton value="two">Two parents</ToggleButton>
-				<ToggleButton value="combos">One pal</ToggleButton>
+				<ToggleButton value="two">By Parent</ToggleButton>
+				<ToggleButton value="combos">By Child</ToggleButton>
 			</ToggleButtonGroup>
 			{/* Both stay mounted so switching keeps what was picked */}
 			<Box sx={{ display: mode === 'two' ? 'flex' : 'none', flexDirection: 'column', flex: 1, minHeight: 0 }}>
