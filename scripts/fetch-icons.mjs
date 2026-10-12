@@ -33,7 +33,7 @@ const WORK_FILES = {
 
 async function download(url, dest) {
 	if (existsSync(dest)) return 'kept'
-	const res = await fetch(url, { headers: { 'User-Agent': 'PalBreeder icon fetch' } })
+	const res = await fetch(url, { headers: { 'User-Agent': 'PalworldPal icon fetch' } })
 	if (!res.ok) return `HTTP ${res.status}`
 	writeFileSync(dest, Buffer.from(await res.arrayBuffer()))
 	return 'fetched'

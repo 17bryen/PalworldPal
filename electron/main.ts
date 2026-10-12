@@ -8,7 +8,13 @@ import { closeOverlay, registerOverlay } from './overlay'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
+// The app was renamed from PalBreeder. Its data, and the companion mod's files, stay in the original
+// folder, which Electron would otherwise move to one named after the product.
+// PALWORLDPAL_USER_DATA points a test run elsewhere, so it can't touch real lists.
+app.setPath('userData', process.env.PALWORLDPAL_USER_DATA || path.join(app.getPath('appData'), 'palbreeder'))
 const storePath = () => path.join(app.getPath('userData'), 'palbreeder.json')
+/** Window and taskbar icon; the packaged .exe also embeds it */
+const appIcon = path.join(__dirname, app.isPackaged ? '../dist/icon.png' : '../public/icon.png')
 
 ipcMain.handle('store:load', async () => {
 	try {
@@ -59,7 +65,8 @@ function createWindow() {
 		height: 900,
 		minWidth: 1100,
 		minHeight: 700,
-		title: 'PalBreeder',
+		title: 'PalworldPal',
+		icon: appIcon,
 		backgroundColor: '#14161c',
 		autoHideMenuBar: true,
 		// The app's own top bar is the title bar; Windows draws its window buttons over the right end

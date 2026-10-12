@@ -1,4 +1,4 @@
-# PalBreeder
+# PalworldPal
 
 A Palworld breeding planner for a whole wanted list. Enter the pals you have (with gender and
 passives) and the pals you want (with target passives), and it plans the breeding steps to get

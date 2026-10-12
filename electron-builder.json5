@@ -1,0 +1,23 @@
+// Packages PalworldPal as a single portable .exe (nothing to install). Run `npm run package`.
+{
+	appId: 'com.brianrogers.palworldpal',
+	productName: 'PalworldPal',
+	directories: {
+		output: 'release/${version}',
+		buildResources: 'build'
+	},
+	// `vite build --mode package` writes here, away from the dev build in dist/ and dist-electron/
+	files: ['pkg/**', 'package.json'],
+	extraMetadata: { main: 'pkg/dist-electron/main.js' },
+	// The companion mod ships beside the app so Game link can install it
+	extraResources: [{ from: 'mod', to: 'mod' }],
+	// koffi's native library has to sit outside the archive for Windows to load it
+	asarUnpack: ['node_modules/koffi/**'],
+	win: {
+		target: [{ target: 'portable', arch: ['x64'] }],
+		icon: 'build/icon.ico'
+	},
+	portable: {
+		artifactName: '${productName}-${version}-portable.${ext}'
+	}
+}

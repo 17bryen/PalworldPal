@@ -1,4 +1,5 @@
-// Game link: reads what the PalBreeder Bridge mod writes, and installs that mod into Palworld.
+// Game link: reads what the companion mod writes, and installs that mod into Palworld. The mod's
+// folder keeps the app's original name, PalBreederBridge, so existing installs stay valid.
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { execFile } from 'node:child_process'
 import { existsSync, mkdirSync } from 'node:fs'

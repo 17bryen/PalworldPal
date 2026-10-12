@@ -26,7 +26,7 @@ function DataMenu() {
 		const blob = new Blob([JSON.stringify(store.state, null, 2)], { type: 'application/json' })
 		const a = document.createElement('a')
 		a.href = URL.createObjectURL(blob)
-		a.download = 'palbreeder-lists.json'
+		a.download = 'palworldpal-lists.json'
 		a.click()
 		URL.revokeObjectURL(a.href)
 	}
@@ -36,7 +36,7 @@ function DataMenu() {
 			store.replaceState(sanitize(JSON.parse(await file.text())))
 			setMessage('Lists imported.')
 		} catch {
-			setMessage('That file isn\'t a PalBreeder export.')
+			setMessage('That file isn\'t a PalworldPal export.')
 		}
 	}
 
@@ -142,7 +142,7 @@ export function App() {
 						<Toolbar variant="dense" sx={{ gap: 2, minHeight: 48 }}>
 							<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
 								<EggIcon color="primary" />
-								<Typography variant="h6">PalBreeder</Typography>
+								<Typography variant="h6">PalworldPal</Typography>
 							</Box>
 							<Tabs
 								value={page}

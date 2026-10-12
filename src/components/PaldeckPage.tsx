@@ -390,8 +390,8 @@ export function PaldeckPage() {
 							</Button>
 						</>
 					) : (
-						<Box sx={{ width: 170 }} title={`${completed} of ${pals.length} pals caught ${CATCH_TARGET} times`}>
-							<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+						<Box sx={{ width: 250, whiteSpace: 'nowrap' }} title={`${completed} of ${pals.length} pals caught ${CATCH_TARGET} times`}>
+							<Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1 }}>
 								<Typography variant="caption" fontWeight={700}>
 									{completed} / {pals.length} done
 								</Typography>

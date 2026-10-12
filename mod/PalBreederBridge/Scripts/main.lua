@@ -1,4 +1,5 @@
--- PalBreeder Bridge: tells the PalBreeder app where you are and what you've caught.
+-- PalworldPal companion mod: tells the app where you are and what you've caught. (Its folder keeps
+-- the app's original name, PalBreederBridge, so existing installs stay valid.)
 --
 -- Client-side only. It reads the local player's position, facing and Paldeck capture counts and
 -- writes them as small JSON files to %APPDATA%\palbreeder\bridge\, which the app reads. It changes

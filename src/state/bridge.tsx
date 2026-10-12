@@ -3,7 +3,7 @@ import { normalizeCaptures } from './captures'
 import { Motion } from './motion'
 import { useStore } from './store'
 
-/** What the PalBreeder Bridge mod reports, relayed by the main process */
+/** What the companion mod reports, relayed by the main process */
 export interface LiveData {
 	x: number
 	y: number
@@ -103,6 +103,21 @@ function fakeBridge(): PalBridgeApi {
 		openUe4ssDownloads: async () => {},
 		openUe4ssWorkshop: async () => {},
 		openBridgeFolder: async () => {}
+	}
+}
+
+// The simulator also stands in for the overlay controls, so the Overlay tab can be tried in a browser
+if (import.meta.env.DEV && location.search.includes('fakebridge') && !window.palOverlay) {
+	const off = () => () => {}
+	window.palOverlay = {
+		set: async () => {},
+		edit: async () => {},
+		sendLayout: async () => {},
+		displays: async () => [{ id: 1, label: 'Fake', primary: true, width: 5120, height: 1440 }],
+		hotkey: async () => 'Ctrl+Shift+O',
+		onToggled: off,
+		onEditing: off,
+		onLayout: off
 	}
 }
 

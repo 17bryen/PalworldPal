@@ -137,7 +137,7 @@ function GameLinkDialog({ onClose }: { onClose: () => void }) {
 								</Box>
 							)}
 						</Step>
-						<Step done={modCurrent} title="PalBreeder Bridge mod">
+						<Step done={modCurrent} title="Companion mod">
 							<Typography variant="body2" color="text.secondary">
 								{status.modVersion
 									? modCurrent

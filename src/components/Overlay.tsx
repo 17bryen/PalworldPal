@@ -10,7 +10,7 @@ import { defaultLayout, lootReadyAt, useStore, type OverlayLayout, type OverlayP
 import { useMinuteTick } from '../state/loot'
 import { asset, BOUNDS, LayerMarkers, PlayerMarker, toLatLng } from './MapPage'
 
-const COMPASS_HEIGHT = 84
+export const COMPASS_HEIGHT = 84
 /** The dark strip with the headings; markers hang below its top edge */
 const COMPASS_BAR = 42
 const COMPASS_ICON = 39
@@ -20,12 +20,12 @@ const COMPASS_MAX_MARKERS = 16
 /** Only the nearest few get a distance label, so labels don't pile up */
 const COMPASS_LABELS = 5
 const CARDINALS: Record<number, string> = { 0: 'N', 45: 'NE', 90: 'E', 135: 'SE', 180: 'S', 225: 'SW', 270: 'W', 315: 'NW' }
-const MINIMAP_MARGIN = 24
+export const MINIMAP_MARGIN = 24
 const COMPASS_WIDTH_RANGE: [number, number] = [300, 1800]
 const MINIMAP_SIZE_RANGE: [number, number] = [120, 520]
 
 /** Shown while editing the layout without the game connected */
-const PREVIEW_LIVE: LiveData = { x: -346618, y: 191707, z: 0, yaw: 0, ui: false, mod: 'preview', at: 0 }
+export const PREVIEW_LIVE: LiveData = { x: -346618, y: 191707, z: 0, yaw: 0, ui: false, mod: 'preview', at: 0 }
 
 const wrap180 = (deg: number) => ((((deg + 180) % 360) + 360) % 360) - 180
 const clamp = (v: number, [lo, hi]: [number, number]) => Math.min(hi, Math.max(lo, v))
@@ -64,7 +64,7 @@ function useWorldPoints(layerIds: string[], map: MapIndex) {
 	}, [layerIds, map])
 }
 
-function Compass({ pose, layerIds, range, width, prefs }: { pose: Pose; layerIds: string[]; range: number; width: number; prefs: OverlayPrefs }) {
+export function Compass({ pose, layerIds, range, width, prefs }: { pose: Pose; layerIds: string[]; range: number; width: number; prefs: OverlayPrefs }) {
 	const map = worldToPixel(pose.x, pose.y).map
 	const all = useWorldPoints(layerIds, map)
 	const { loot } = useStore()

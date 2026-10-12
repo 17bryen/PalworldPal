@@ -1,33 +1,42 @@
 {
 	"name": "palbreeder",
+	"productName": "PalworldPal",
 	"private": true,
 	"version": "0.1.0",
 	"type": "module",
-	"description": "A Palworld breeding planner for a whole wanted list.",
+	"description": "A Palworld companion: breeding planner, Paldeck, map, merchants and an in-game overlay.",
 	"author": "Brian Rogers",
 	"scripts": {
 		"dev": "vite",
 		"dev:web": "vite --mode web",
 		"build": "tsc && vite build",
+		"package": "tsc && vite build --mode package && electron-builder --win portable",
 		"data": "node scripts/build-data.mjs",
 		"icons": "node scripts/fetch-icons.mjs",
 		"test": "vitest run",
 		"preview": "vite preview"
 	},
 	"dependencies": {
+		"koffi": "^2.16.3"
+	},
+	"devDependencies": {
+		"@dagrejs/dagre": "^1.1.8",
 		"@emotion/react": "^11.14.0",
 		"@emotion/styled": "^11.14.1",
 		"@fontsource/roboto": "^5.2.8",
 		"@mui/icons-material": "^7.3.4",
 		"@mui/material": "^7.3.4",
-		"react": "^18.2.0",
-		"react-dom": "^18.2.0"
-	},
-	"devDependencies": {
+		"@types/leaflet": "^1.9.12",
 		"@types/react": "^18.2.64",
 		"@types/react-dom": "^18.2.21",
 		"@vitejs/plugin-react": "^4.2.1",
+		"@xyflow/react": "^12.12.0",
 		"electron": "^30.0.1",
+		"electron-builder": "^24.13.3",
+		"leaflet": "^1.9.4",
+		"react": "^18.2.0",
+		"react-dom": "^18.2.0",
+		"react-leaflet": "^4.2.1",
 		"typescript": "^5.2.2",
 		"vite": "^5.1.6",
 		"vite-plugin-electron": "^0.28.6",
