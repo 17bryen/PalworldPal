@@ -10,6 +10,8 @@ export interface OwnedPal {
 	passives: string[]
 	/** Condensation stars, 0-4; only used for Yakumo */
 	stars?: number
+	/** Key of the game pal it came from or was matched to (GamePal.key) */
+	game?: string
 }
 
 export interface WantedPal {

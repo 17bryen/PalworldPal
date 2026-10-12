@@ -62,8 +62,43 @@ export function parseCaptures(text: string, at: number): CaptureData | null {
 	}
 }
 
+/** One of your pals as the mod reports it: game ids for species and passives, gender 1 male, 2 female */
+export interface RawGamePal {
+	c: string
+	g: number
+	p: string[]
+	iv: number[]
+}
+
+export interface GamePalsData {
+	pals: RawGamePal[]
+	mod: string
+	at: number
+}
+
+/** Parses the mod's pals.json, dropping entries that don't have the expected shape */
+export function parsePals(text: string, at: number): GamePalsData | null {
+	try {
+		const d = JSON.parse(text)
+		if (!Array.isArray(d.pals)) return null
+		const pals = (d.pals as unknown[]).filter(
+			(e): e is RawGamePal =>
+				!!e &&
+				typeof (e as RawGamePal).c === 'string' &&
+				typeof (e as RawGamePal).g === 'number' &&
+				Array.isArray((e as RawGamePal).p) &&
+				(e as RawGamePal).p.every((n) => typeof n === 'string') &&
+				Array.isArray((e as RawGamePal).iv)
+		)
+		return { pals, mod: String(d.mod ?? ''), at }
+	} catch {
+		return null
+	}
+}
+
 let latestLive: LiveData | null = null
 let latestCaptures: CaptureData | null = null
+let latestPals: GamePalsData | null = null
 
 /** Polls the bridge files and forwards changes to every window (app and overlay). fs.watch is unreliable on Windows. */
 export function startBridge() {
@@ -103,7 +138,13 @@ export function startBridge() {
 		latestCaptures = captures
 		send('bridge:captures', captures)
 	})
-	ipcMain.handle('bridge:latest', () => ({ live: latestLive, captures: latestCaptures }))
+	watchFile('pals.json', 1000, (text) => {
+		const pals = parsePals(text, Date.now())
+		if (!pals) return
+		latestPals = pals
+		send('bridge:pals', pals)
+	})
+	ipcMain.handle('bridge:latest', () => ({ live: latestLive, captures: latestCaptures, pals: latestPals }))
 }
 
 // ---- Finding Palworld and installing the mod ----

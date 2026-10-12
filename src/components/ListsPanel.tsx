@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
 	Box,
 	Button,
@@ -22,7 +22,11 @@ import SearchIcon from '@mui/icons-material/Search'
 import MaleIcon from '@mui/icons-material/Male'
 import FemaleIcon from '@mui/icons-material/Female'
 import StarIcon from '@mui/icons-material/Star'
+import AddIcon from '@mui/icons-material/Add'
+import CheckIcon from '@mui/icons-material/Check'
 import { getPal, YAKUMO_ID, type Gender } from '../data/gamedata'
+import { useGamePals } from '../state/bridge'
+import { planAdd, type GamePal } from '../state/gamepals'
 import { useStore } from '../state/store'
 import type { Plan, PlanNode, TargetResult } from '../solver/types'
 import { GenderIcon, PalAvatar, PassiveList } from './bits'
@@ -215,6 +219,90 @@ function Row({
 	)
 }
 
+function GameRow({ pal, added, onAdd }: { pal: GamePal; added: boolean; onAdd: () => void }) {
+	return (
+		<Box
+			sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}
+		>
+			<PalAvatar palId={pal.palId} />
+			<Box sx={{ flex: 1, minWidth: 0 }}>
+				<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: pal.passives.length ? 0.5 : 0 }}>
+					<Typography variant="body2" fontWeight={600} noWrap>
+						{getPal(pal.palId).name}
+					</Typography>
+					<GenderIcon gender={pal.gender} size={16} />
+				</Box>
+				<PassiveList passives={pal.passives} />
+			</Box>
+			{added ? (
+				<Tooltip title="In My pals">
+					<CheckIcon fontSize="small" color="success" sx={{ m: 0.625 }} />
+				</Tooltip>
+			) : (
+				<Tooltip title="Add to My pals">
+					<IconButton size="small" onClick={onAdd}>
+						<AddIcon fontSize="small" />
+					</IconButton>
+				</Tooltip>
+			)}
+		</Box>
+	)
+}
+
+// Long lists (a full Palbox is over 900 pals) only mount the rows near the visible part
+type Watch = (el: Element, onChange: (near: boolean) => void) => () => void
+const LazyContext = createContext<Watch | null>(null)
+
+function LazyScroll({ children }: { children: ReactNode }) {
+	const root = useRef<HTMLDivElement>(null)
+	const [watch, setWatch] = useState<Watch | null>(null)
+	useEffect(() => {
+		const callbacks = new WeakMap<Element, (near: boolean) => void>()
+		const observer = new IntersectionObserver((entries) => entries.forEach((e) => callbacks.get(e.target)?.(e.isIntersecting)), {
+			root: root.current,
+			rootMargin: '800px 0px'
+		})
+		setWatch(() => (el: Element, onChange: (near: boolean) => void) => {
+			callbacks.set(el, onChange)
+			observer.observe(el)
+			return () => {
+				observer.unobserve(el)
+				callbacks.delete(el)
+			}
+		})
+		return () => observer.disconnect()
+	}, [])
+	return (
+		<Box ref={root} sx={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+			<LazyContext.Provider value={watch}>{children}</LazyContext.Provider>
+		</Box>
+	)
+}
+
+/** Holds a row's space while it's far from view; `estimate` is its height before it first shows */
+function LazyItem({ estimate, children }: { estimate: number; children: ReactNode }) {
+	const ref = useRef<HTMLDivElement>(null)
+	const watch = useContext(LazyContext)
+	const [near, setNear] = useState(false)
+	const height = useRef(estimate)
+	useEffect(() => {
+		const el = ref.current
+		if (!el || !watch) return
+		return watch(el, (on) => {
+			// A hidden page measures 0; keep the last real height
+			if (!on && el.offsetHeight) height.current = el.offsetHeight
+			setNear(on)
+		})
+	}, [watch])
+	return (
+		<div ref={ref} style={near ? undefined : { height: height.current }}>
+			{near && children}
+		</div>
+	)
+}
+
+const rowEstimate = (passives: string[]) => (passives.length ? 65 : 49)
+
 export function countSteps(node: PlanNode | undefined): number {
 	if (!node?.parents) return 0
 	return 1 + countSteps(node.parents[0]) + countSteps(node.parents[1])
@@ -259,18 +347,18 @@ export function ListsPanel({
 	onSelectWanted: (uid: string) => void
 }) {
 	const store = useStore()
+	const gamePals = useGamePals()
 	const [tab, setTab] = useState<'wanted' | 'owned'>('wanted')
+	const [view, setView] = useState<'list' | 'game'>('list')
 	const [draft, setDraft] = useState<Draft>(emptyDraft)
 	const [search, setSearch] = useState('')
-	const listRef = useRef<HTMLDivElement>(null)
 
 	const results = useMemo(() => new Map(plan?.targets.map((t) => [t.wantedUid, t])), [plan])
-	const owned = useMemo(() => {
-		const q = search.trim().toLowerCase()
-		return [...store.owned]
-			.filter((o) => !q || getPal(o.palId).name.toLowerCase().includes(q) || o.passives.some((p) => p.toLowerCase().includes(q)))
-			.sort((a, b) => getPal(a.palId).name.localeCompare(getPal(b.palId).name))
-	}, [store.owned, search])
+	const owned = useMemo(() => filterAndSort(store.owned, search), [store.owned, search])
+	const shownGamePals = useMemo(() => filterAndSort(gamePals, search), [gamePals, search])
+	const addPlan = useMemo(() => planAdd(store.owned, gamePals), [store.owned, gamePals])
+	const pending = addPlan.links.size + addPlan.adds.length
+	const gameView = tab === 'owned' && view === 'game' && gamePals.length > 0
 
 	const switchTab = (next: 'wanted' | 'owned') => {
 		setTab(next)
@@ -298,8 +386,22 @@ export function ListsPanel({
 				<Tab value="wanted" label={`Wanted (${store.wanted.length})`} />
 				<Tab value="owned" label={`My pals (${store.owned.length})`} />
 			</Tabs>
-			<EntryForm withGender={tab === 'owned'} draft={draft} setDraft={setDraft} onSubmit={submit} />
-			{tab === 'owned' && store.owned.length > 8 && (
+			{tab === 'owned' && gamePals.length > 0 && (
+				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider' }}>
+					<ToggleButtonGroup size="small" exclusive value={view} onChange={(_, v: 'list' | 'game' | null) => v && setView(v)}>
+						<ToggleButton value="list">My list</ToggleButton>
+						<Tooltip title="Your party and every Palbox page you've opened this session">
+							<ToggleButton value="game">In game ({gamePals.length})</ToggleButton>
+						</Tooltip>
+					</ToggleButtonGroup>
+					<Box sx={{ flex: 1 }} />
+					<Button size="small" variant="outlined" startIcon={<AddIcon />} disabled={!pending} onClick={() => store.addFromGame(gamePals)}>
+						Add all ({pending})
+					</Button>
+				</Box>
+			)}
+			{!gameView && <EntryForm withGender={tab === 'owned'} draft={draft} setDraft={setDraft} onSubmit={submit} />}
+			{tab === 'owned' && (gameView ? gamePals.length : store.owned.length) > 8 && (
 				<Box sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider' }}>
 					<TextField
 						size="small"
@@ -319,7 +421,7 @@ export function ListsPanel({
 					/>
 				</Box>
 			)}
-			<Box ref={listRef} sx={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+			<LazyScroll>
 				{tab === 'wanted' &&
 					store.wanted.map((w) => (
 						<Row
@@ -336,26 +438,42 @@ export function ListsPanel({
 						/>
 					))}
 				{tab === 'owned' &&
+					!gameView &&
 					owned.map((o) => (
-						<Row
-							key={o.uid}
-							palId={o.palId}
-							gender={o.gender}
-							passives={o.passives}
-							stars={o.stars}
-							onEdit={() => setDraft({ uid: o.uid, palId: o.palId, gender: o.gender, passives: o.passives, stars: o.stars ?? 0 })}
-							onDelete={() => store.removeOwned(o.uid)}
-						/>
+						<LazyItem key={o.uid} estimate={rowEstimate(o.passives)}>
+							<Row
+								palId={o.palId}
+								gender={o.gender}
+								passives={o.passives}
+								stars={o.stars}
+								onEdit={() => setDraft({ uid: o.uid, palId: o.palId, gender: o.gender, passives: o.passives, stars: o.stars ?? 0 })}
+								onDelete={() => store.removeOwned(o.uid)}
+							/>
+						</LazyItem>
+					))}
+				{gameView &&
+					shownGamePals.map((g) => (
+						<LazyItem key={g.key} estimate={rowEstimate(g.passives)}>
+							<GameRow pal={g} added={addPlan.linked.has(g.key)} onAdd={() => store.addFromGame([g])} />
+						</LazyItem>
 					))}
 				{tab === 'wanted' && !store.wanted.length && (
 					<Empty text="Add the pals you want to breed. You can also star them in the Paldeck." />
 				)}
-				{tab === 'owned' && !store.owned.length && (
+				{tab === 'owned' && !gameView && !store.owned.length && (
 					<Empty text="Add the pals you have, with their gender and passives, so plans can start from them." />
 				)}
-			</Box>
+			</LazyScroll>
 		</Paper>
 	)
+}
+
+/** Pals whose name or a passive contains the search, by name */
+function filterAndSort<T extends { palId: string; passives: string[] }>(list: T[], search: string): T[] {
+	const q = search.trim().toLowerCase()
+	return list
+		.filter((o) => !q || getPal(o.palId).name.toLowerCase().includes(q) || o.passives.some((p) => p.toLowerCase().includes(q)))
+		.sort((a, b) => getPal(a.palId).name.localeCompare(getPal(b.palId).name))
 }
 
 function Empty({ text }: { text: string }) {

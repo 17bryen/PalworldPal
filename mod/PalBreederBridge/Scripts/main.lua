@@ -1,9 +1,10 @@
 -- PalworldPal companion mod: tells the app where you are and what you've caught. (Its folder keeps
 -- the app's original name, PalBreederBridge, so existing installs stay valid.)
 --
--- Client-side only. It reads the local player's position, facing and Paldeck capture counts and
--- writes them as small JSON files to %APPDATA%\palbreeder\bridge\, which the app reads. It changes
--- nothing in the game and sends nothing over the network, so it works on servers without the mod.
+-- Client-side only. It reads the local player's position, facing, Paldeck capture counts and own
+-- pals (pals.lua) and writes them as small JSON files to %APPDATA%\palbreeder\bridge\, which the
+-- app reads. It changes nothing in the game and sends nothing over the network, so it works on
+-- servers without the mod.
 --
 -- THREADING. UE4SS's Lua state is shared and unlocked between its timer thread and the game
 -- thread. Following PalMiniMap's hard-won rules (github.com/jeankassio/PalMiniMap):
@@ -12,7 +13,7 @@
 --   * the timer-thread predicate is pure arithmetic and allocates nothing;
 --   * every UObject read happens on the game thread, inside pcall.
 
-local VERSION = "1.3.0"
+local VERSION = "1.4.0"
 local TICK_MS = 33            -- timer resolution, not the write rate
 local POSITION_EVERY = 0.05   -- seconds between position writes
 local CAPTURES_EVERY = 3.0    -- seconds between capture-count reads
@@ -142,20 +143,20 @@ local function writeCaptures(pc)
     end
 end
 
--- Diagnostic probe (probe.lua): idle unless the app's bridge folder has a probe.on file
-local function loadProbe()
-    local ok, mod = pcall(require, "probe")
+-- Pal sync (pals.lua). Loaded by name, or from this script's folder if UE4SS didn't put it on
+-- the search path.
+local function loadScript(name)
+    local ok, mod = pcall(require, name)
     if ok then return mod end
-    -- Fall back to this script's own folder if UE4SS didn't put it on the search path
     local here = debug.getinfo(1, "S").source:match("^@(.*[\\/])") or ""
-    return dofile(here .. "probe.lua")
+    return dofile(here .. name .. ".lua")
 end
-local okProbe, probe = pcall(loadProbe)
-if okProbe and probe ~= nil then
-    probe.setup({ log = log, writeFile = writeFile, outDir = outDir, get = get, alive = alive, version = VERSION })
+local okPals, pals = pcall(loadScript, "pals")
+if okPals and pals ~= nil then
+    pals.setup({ log = log, writeFile = writeFile, get = get, alive = alive, version = VERSION })
 else
-    log("probe not loaded: " .. tostring(probe))
-    probe = nil
+    log("pal sync not loaded: " .. tostring(pals))
+    pals = nil
 end
 
 -- Scheduling state, touched by both threads. Plain numbers and booleans only.
@@ -164,6 +165,7 @@ local sentAt = 0.0
 local endedAt = 0.0
 local lastPosition = 0.0
 local lastCaptureRead = -1000.0
+local palsPC = nil
 
 -- Runs on the TIMER thread. Pure arithmetic; returning true claims the dispatch.
 local function due()
@@ -189,7 +191,14 @@ local function job()
             lastCaptureRead = now
             pcall(writeCaptures, pc)
         end
-        if probe ~= nil then pcall(probe.tick, pc, now) end
+        if pals ~= nil then
+            -- A different controller means a new world or character
+            if pc ~= palsPC then
+                palsPC = pc
+                pcall(pals.reset)
+            end
+            pcall(pals.tick, pc, now, get(rawCursor, pc) == true)
+        end
     end
     -- Release the timer thread last; the gap keeps the next dispatch clear of this one's cleanup
     endedAt = os.clock()

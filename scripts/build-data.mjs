@@ -92,12 +92,17 @@ for (const e of breeding.Breeding) {
 const missing = children.filter((c) => c === -2).length
 if (missing > 0) throw new Error(`${missing} pair results are missing from breeding.json`)
 
-// Standard passives keyed by display name; a few names map to more than one internal id
+// Standard passives keyed by display name; a few names map to more than one internal id, and
+// `ids` keeps them all so pals read from the game can be matched
 const passives = new Map()
 for (const s of db.PassiveSkills) {
-	if (!s.IsStandardPassiveSkill || passives.has(s.Name)) continue
+	if (!s.IsStandardPassiveSkill) continue
+	if (passives.has(s.Name)) {
+		passives.get(s.Name).ids.push(s.InternalName)
+		continue
+	}
 	// `copyable`: can roll on wild pals, which is also what Yakumo's partner skill can copy
-	passives.set(s.Name, { name: s.Name, rank: s.Rank, description: s.Description ?? '', copyable: s.RandomInheritanceAllowed })
+	passives.set(s.Name, { name: s.Name, ids: [s.InternalName], rank: s.Rank, description: s.Description ?? '', copyable: s.RandomInheritanceAllowed })
 }
 
 const weights = (w) => Object.fromEntries(Object.entries(w).map(([k, v]) => [Number(k), v]))

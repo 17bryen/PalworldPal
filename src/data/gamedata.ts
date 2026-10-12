@@ -35,6 +35,8 @@ export interface PalInfo {
 
 export interface PassiveInfo {
 	name: string
+	/** The game's internal ids for it */
+	ids: string[]
 	rank: number
 	description: string
 	/** Can roll on wild pals, so Yakumo's partner skill can copy it */
@@ -87,6 +89,13 @@ export function getPal(id: string): PalInfo {
 
 export function getPassive(name: string): PassiveInfo | undefined {
 	return passiveByName.get(name)
+}
+
+const passiveByGameId = new Map(gameData.passives.flatMap((p) => p.ids.map((id) => [id.toLowerCase(), p] as const)))
+
+/** A passive by the game's internal id, which the game doesn't always spell with the same case */
+export function passiveFromGameId(id: string): PassiveInfo | undefined {
+	return passiveByGameId.get(id.toLowerCase())
 }
 
 /** Child of a pairing, or -1 when no child results for those genders */

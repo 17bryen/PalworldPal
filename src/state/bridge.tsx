@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { normalizeCaptures } from './captures'
+import { normalizeGamePals, type GamePal, type RawGamePal } from './gamepals'
 import { Motion } from './motion'
 import { useStore } from './store'
 
@@ -23,6 +24,12 @@ export interface CaptureData {
 	at: number
 }
 
+export interface GamePalsData {
+	pals: RawGamePal[]
+	mod: string
+	at: number
+}
+
 export interface GameLinkStatus {
 	gamePath: string | null
 	ue4ss: boolean
@@ -37,9 +44,11 @@ export interface GameLinkStatus {
 }
 
 interface PalBridgeApi {
-	latest(): Promise<{ live: LiveData | null; captures: CaptureData | null }>
+	latest(): Promise<{ live: LiveData | null; captures: CaptureData | null; pals?: GamePalsData | null }>
 	onLive(cb: (data: LiveData) => void): () => void
 	onCaptures(cb: (data: CaptureData) => void): () => void
+	/** Mod 1.4+ */
+	onPals?(cb: (data: GamePalsData) => void): () => void
 	status(): Promise<GameLinkStatus>
 	install(): Promise<GameLinkStatus>
 	chooseGameFolder(): Promise<GameLinkStatus>
@@ -68,6 +77,8 @@ interface Bridge {
 }
 
 const BridgeContext = createContext<Bridge>({ available: false, motion: new Motion(), live: null, connected: false, captures: null })
+/** Kept apart from the bridge's position updates, which arrive many times a second */
+const GamePalsContext = createContext<GamePal[]>([])
 
 /** Dev-only stand-in for the game: walks a loop near Small Settlement (open with ?fakebridge) */
 function fakeBridge(): PalBridgeApi {
@@ -79,9 +90,19 @@ function fakeBridge(): PalBridgeApi {
 		const live = { x: -346618 + Math.sin(t / 6) * 30000, y: 191707 + Math.cos(t / 6) * 30000, z: 0, yaw: ((-t / 6) * 180) / Math.PI, ui: false, mod: 'fake', at: Date.now() }
 		liveListeners.forEach((cb) => cb(live))
 	}, 150)
+	const palListeners = new Set<(d: GamePalsData) => void>()
 	setTimeout(() => {
 		const captures = { counts: { SheepBall: 5, PinkCat: 3, BOSS_ChickenPal: 1, ChickenPal: 2 }, mod: 'fake', at: Date.now() }
 		captureListeners.forEach((cb) => cb(captures))
+		const species = ['SheepBall', 'PinkCat', 'BOSS_KingBahamut', 'Anubis', 'GuardianDog', 'Male_DarkTrader01', 'ChickenPal']
+		const passives = ['CraftSpeed_up3', 'PAL_CorporateSlave', 'Nocturnal', 'MoveSpeed_up_2', 'Rare', 'ElementBoost_Fire_2_PAL']
+		const fake = Array.from({ length: 300 }, (_, i) => ({
+			c: species[i % species.length],
+			g: (i % 3) % 2 ? 2 : 1,
+			p: passives.filter((_, j) => (i + j) % 4 === 0),
+			iv: [i % 101, (i * 7) % 101, (i * 13) % 101]
+		}))
+		palListeners.forEach((cb) => cb({ pals: fake, mod: 'fake', at: Date.now() }))
 	}, 1500)
 	const status: GameLinkStatus = {
 		gamePath: 'C:\\Fake\\Palworld',
@@ -97,6 +118,7 @@ function fakeBridge(): PalBridgeApi {
 		latest: async () => ({ live: null, captures: null }),
 		onLive: (cb) => (liveListeners.add(cb), () => void liveListeners.delete(cb)),
 		onCaptures: (cb) => (captureListeners.add(cb), () => void captureListeners.delete(cb)),
+		onPals: (cb) => (palListeners.add(cb), () => void palListeners.delete(cb)),
 		status: async () => status,
 		install: async () => status,
 		chooseGameFolder: async () => status,
@@ -130,7 +152,23 @@ export function BridgeProvider({ children, syncCatches: canSync = true }: { chil
 	const [live, setLive] = useState<LiveData | null>(null)
 	const [motion] = useState(() => new Motion())
 	const [captures, setCaptures] = useState<CaptureData | null>(null)
+	const [gamePals, setGamePals] = useState<GamePal[]>([])
 	const [now, setNow] = useState(Date.now())
+
+	// Your pals seen this session. The Palbox only loads the pages you open, so pals stay listed
+	// after their page unloads.
+	useEffect(() => {
+		if (!bridgeApi?.onPals || !canSync) return
+		const merge = (d: GamePalsData) =>
+			setGamePals((prev) => {
+				const fresh = normalizeGamePals(d.pals)
+				const known = new Set(prev.map((p) => p.key))
+				const added = fresh.filter((p) => !known.has(p.key))
+				return added.length ? [...prev, ...added] : prev
+			})
+		bridgeApi.latest().then((d) => d.pals && merge(d.pals))
+		return bridgeApi.onPals(merge)
+	}, [canSync])
 
 	useEffect(() => {
 		if (!bridgeApi) return
@@ -159,7 +197,12 @@ export function BridgeProvider({ children, syncCatches: canSync = true }: { chil
 	}, [canSync, captures, syncCatches, loaded, replaceCatches])
 
 	const connected = !!live && Math.max(now, Date.now()) - live.at < STALE_MS
-	return <BridgeContext.Provider value={{ available: !!bridgeApi, motion, live, connected, captures }}>{children}</BridgeContext.Provider>
+	return (
+		<BridgeContext.Provider value={{ available: !!bridgeApi, motion, live, connected, captures }}>
+			<GamePalsContext.Provider value={gamePals}>{children}</GamePalsContext.Provider>
+		</BridgeContext.Provider>
+	)
 }
 
 export const useBridge = () => useContext(BridgeContext)
+export const useGamePals = () => useContext(GamePalsContext)

@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { getPal } from '../data/gamedata'
 import { LOOT_DEFAULT_MINUTES } from '../data/map'
 import type { CatchPref, OwnedPal, Pin, PlanSettings, WantedPal } from '../solver/types'
+import { planAdd, type GamePal } from './gamepals'
 
 declare global {
 	interface Window {
@@ -219,6 +220,20 @@ function useStoreValue(readOnly: boolean) {
 	const updateOwned = useCallback((pal: OwnedPal) => {
 		setState((s) => ({ ...s, owned: s.owned.map((o) => (o.uid === pal.uid ? pal : o)) }))
 	}, [])
+	/** Adds game pals to My pals, linking ones already typed in by hand instead of doubling them */
+	const addFromGame = useCallback((gamePals: GamePal[]) => {
+		setState((s) => {
+			const { links, adds } = planAdd(s.owned, gamePals)
+			if (!links.size && !adds.length) return s
+			return {
+				...s,
+				owned: [
+					...s.owned.map((o) => (links.has(o.uid) ? { ...o, game: links.get(o.uid) } : o)),
+					...adds.map((g) => ({ uid: newUid(), palId: g.palId, gender: g.gender, passives: g.passives, game: g.key }))
+				]
+			}
+		})
+	}, [])
 	const removeOwned = useCallback((uid: string) => {
 		setState((s) => ({ ...s, owned: s.owned.filter((o) => o.uid !== uid) }))
 	}, [])
@@ -310,6 +325,7 @@ function useStoreValue(readOnly: boolean) {
 			loaded,
 			state,
 			addOwned,
+			addFromGame,
 			updateOwned,
 			removeOwned,
 			addWanted,
@@ -334,6 +350,7 @@ function useStoreValue(readOnly: boolean) {
 			state,
 			loaded,
 			addOwned,
+			addFromGame,
 			updateOwned,
 			removeOwned,
 			addWanted,
