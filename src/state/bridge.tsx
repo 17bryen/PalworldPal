@@ -118,7 +118,9 @@ function fakeBridge(): PalBridgeApi {
 			c: species[i % species.length],
 			g: (i % 3) % 2 ? 2 : 1,
 			p: passives.filter((_, j) => (i + j) % 4 === 0),
-			iv: [i % 101, (i * 7) % 101, (i * 13) % 101]
+			iv: [i % 101, (i * 7) % 101, (i * 13) % 101],
+			in: i < 5 ? 'party' : 'box',
+			s: i < 5 ? i : i - 5
 		}))
 		palListeners.forEach((cb) => cb({ pals: fake, mod: 'fake', at: Date.now() }))
 	}, 1500)
