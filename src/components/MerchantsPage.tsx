@@ -100,7 +100,7 @@ function WantedStar({ palId }: { palId: string }) {
 	return (
 		<IconButton
 			size="small"
-			title={isWanted ? 'Remove from wanted' : 'Add to wanted'}
+			title={isWanted ? 'Remove from target pals' : 'Add to target pals'}
 			onClick={() => (isWanted ? removeWantedPal(palId) : addWantedMany([palId]))}
 		>
 			{isWanted ? <StarIcon fontSize="small" sx={{ color: rarityColor(20) }} /> : <StarBorderIcon fontSize="small" />}

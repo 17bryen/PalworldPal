@@ -20,6 +20,8 @@ interface PalNodeData extends Record<string, unknown> {
 	dim: boolean
 	faded: boolean
 	wanted: boolean
+	/** Surgery Table implants, on a wanted pal */
+	implants: string[]
 }
 
 interface StepNodeData extends Record<string, unknown> {
@@ -31,7 +33,7 @@ interface StepNodeData extends Record<string, unknown> {
 const hidden = { opacity: 0, pointerEvents: 'none' as const }
 
 const PalNode = memo(function PalNode({ data }: NodeProps<Node<PalNodeData>>) {
-	const { node, dim, faded, wanted } = data
+	const { node, dim, faded, wanted, implants } = data
 	return (
 		<Box
 			sx={{
@@ -64,7 +66,7 @@ const PalNode = memo(function PalNode({ data }: NodeProps<Node<PalNodeData>>) {
 						<SourceBadge node={node} />
 					</Box>
 				)}
-				<PassiveList passives={node.passives} />
+				<PassiveList passives={node.passives} implants={implants} />
 			</Box>
 			<Handle type="source" position={Position.Bottom} style={hidden} />
 		</Box>
@@ -118,7 +120,7 @@ export default function PlanDiagram({ plan, active }: { plan: Plan; active: Set<
 		// has to cross the whole tree to reach them.
 		const pals = new Map<string, PlanNode>()
 		const steps = new Map<string, PlanNode>()
-		const wanted = new Set<string>()
+		const wanted = new Map<string, string[]>()
 		const up = new Map<string, string[]>()
 		const down = new Map<string, string[]>()
 		const edges: { source: string; target: string; child: string }[] = []
@@ -150,7 +152,7 @@ export default function PlanDiagram({ plan, active }: { plan: Plan; active: Set<
 		for (const t of plan.targets) {
 			if (!t.tree) continue
 			visit(t.tree)
-			wanted.add(t.tree.key)
+			wanted.set(t.tree.key, [...new Set([...(wanted.get(t.tree.key) ?? []), ...t.implants])])
 		}
 
 		const g = new dagre.graphlib.Graph()
@@ -201,7 +203,7 @@ export default function PlanDiagram({ plan, active }: { plan: Plan; active: Set<
 				id,
 				type: 'pal',
 				position: { x: pos.x - PAL_WIDTH / 2, y: pos.y - PAL_HEIGHT / 2 },
-				data: { node, dim: !active.has(node.key), faded: faded(id), wanted: wanted.has(id) } satisfies PalNodeData,
+				data: { node, dim: !active.has(node.key), faded: faded(id), wanted: wanted.has(id), implants: wanted.get(id) ?? [] } satisfies PalNodeData,
 				draggable: false,
 				connectable: false
 			})

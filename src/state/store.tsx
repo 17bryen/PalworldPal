@@ -3,6 +3,7 @@ import { getPal } from '../data/gamedata'
 import { LOOT_DEFAULT_MINUTES } from '../data/map'
 import type { CatchPref, OwnedPal, Pin, PlanSettings, WantedPal } from '../solver/types'
 import { planAdd, type GamePal } from './gamepals'
+import { defaultSurgery } from '../data/surgery'
 
 declare global {
 	interface Window {
@@ -104,7 +105,8 @@ export const defaultSettings: PlanSettings = {
 	minutesPerEgg: 10,
 	catchPrefs: {},
 	disabledRegions: [],
-	pins: {}
+	pins: {},
+	surgery: defaultSurgery
 }
 
 const emptyState: AppState = { version: 1, owned: [], wanted: [], settings: defaultSettings, catches: {}, map: defaultMap, syncCatches: true, overlay: defaultOverlay, loot: defaultLoot }
@@ -134,7 +136,8 @@ export function sanitize(raw: unknown): AppState {
 			...s.settings,
 			catchPrefs: { ...s.settings?.catchPrefs },
 			disabledRegions: [...(s.settings?.disabledRegions ?? [])],
-			pins: { ...s.settings?.pins }
+			pins: { ...s.settings?.pins },
+			surgery: { ...defaultSurgery, ...s.settings?.surgery, extra: [...(s.settings?.surgery?.extra ?? [])] }
 		},
 		catches: Object.fromEntries(Object.entries(s.catches ?? {}).filter(([id, n]) => known(id) && Number.isFinite(n) && n > 0)),
 		map: { ...defaultMap, ...s.map, layers: [...(s.map?.layers ?? defaultMap.layers)] },

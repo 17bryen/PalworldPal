@@ -58,6 +58,8 @@ const outPals = pals.map((p) => {
 		minWildLevel: p.MinWildLevel,
 		maxWildLevel: p.MaxWildLevel,
 		catchMinutes: catchMinutes(p),
+		// The game's hidden breeding number: two parents average theirs and the closest pal hatches
+		breedingPower: p.BreedingPower,
 		maleChance: gender.MALE,
 		work: Object.fromEntries(
 			Object.entries(WORK_KEYS).map(([key, name]) => [name, p.WorkSuitability?.[key] ?? 0])
@@ -92,6 +94,14 @@ for (const e of breeding.Breeding) {
 const missing = children.filter((c) => c === -2).length
 if (missing > 0) throw new Error(`${missing} pair results are missing from breeding.json`)
 
+// How a passive gets onto a pal at the Pal Surgery Table: on the table from the start (10,000 or
+// 50,000 gold), after buying its implant (50,000 gold plus the implant), or from a single-use implant
+function surgeryKind(s) {
+	if (!s.SurgeryRequiredItem) return { kind: 'table', cost: s.SurgeryCost }
+	if (s.SurgeryCost > 0) return { kind: 'implant', cost: s.SurgeryCost }
+	return { kind: s.SurgeryRequiredItem.includes('WorldTree') ? 'worldTree' : 'consumable', cost: 0 }
+}
+
 // Standard passives keyed by display name; a few names map to more than one internal id, and
 // `ids` keeps them all so pals read from the game can be matched
 const passives = new Map()
@@ -102,7 +112,14 @@ for (const s of db.PassiveSkills) {
 		continue
 	}
 	// `copyable`: can roll on wild pals, which is also what Yakumo's partner skill can copy
-	passives.set(s.Name, { name: s.Name, ids: [s.InternalName], rank: s.Rank, description: s.Description ?? '', copyable: s.RandomInheritanceAllowed })
+	passives.set(s.Name, {
+		name: s.Name,
+		ids: [s.InternalName],
+		rank: s.Rank,
+		description: s.Description ?? '',
+		copyable: s.RandomInheritanceAllowed,
+		...(s.SupportsSurgery ? { surgery: surgeryKind(s) } : {})
+	})
 }
 
 const weights = (w) => Object.fromEntries(Object.entries(w).map(([k, v]) => [Number(k), v]))

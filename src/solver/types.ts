@@ -1,4 +1,5 @@
 import type { Gender } from '../data/gamedata'
+import type { SurgerySettings } from '../data/surgery'
 
 export type { Gender }
 
@@ -38,6 +39,8 @@ export interface PlanSettings {
 	/** Map regions the player can't reach yet; their spawns aren't suggested as catches */
 	disabledRegions: string[]
 	pins: Record<string, Pin>
+	/** Passives to implant at the Pal Surgery Table instead of breeding for */
+	surgery?: SurgerySettings
 }
 
 export const MAX_GENERATIONS = 5
@@ -81,6 +84,8 @@ export interface TargetResult {
 	status: TargetStatus
 	tree?: PlanNode
 	missingPassives: string[]
+	/** Wanted passives to implant at the Surgery Table once the pal is bred */
+	implants: string[]
 	reason?: string
 	minutes: number
 	generations: number

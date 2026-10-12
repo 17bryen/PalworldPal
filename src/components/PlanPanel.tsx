@@ -1,17 +1,12 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import {
 	Alert,
-	Badge,
 	Box,
-	Button,
 	Checkbox,
 	Chip,
-	FormControlLabel,
 	IconButton,
 	LinearProgress,
-	MenuItem,
 	Paper,
-	Switch,
 	Tab,
 	Table,
 	TableBody,
@@ -19,23 +14,21 @@ import {
 	TableHead,
 	TableRow,
 	Tabs,
-	TextField,
 	Tooltip,
 	Typography
 } from '@mui/material'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import AddIcon from '@mui/icons-material/Add'
 import SwapIcon from '@mui/icons-material/SwapHoriz'
-import MapIcon from '@mui/icons-material/MapOutlined'
 import PushPinIcon from '@mui/icons-material/PushPinOutlined'
 import { getPal } from '../data/gamedata'
 import { worldTree } from '../data/regions'
 import { useStore } from '../state/store'
-import { MAX_GENERATIONS, pinKey, type Plan, type PlanNode, type SolveProgress, type TargetResult } from '../solver/types'
+import { pinKey, type Plan, type PlanNode, type SolveProgress, type TargetResult } from '../solver/types'
 import { GenderIcon, PalAvatar, PassiveList } from './bits'
 import { StatusChip } from './ListsPanel'
 import { useAlternatives } from './Alternatives'
-import { MapAccessDialog } from './MapAccess'
+import { PlannerSettingsButton } from './PlannerSettings'
 
 const PlanDiagram = lazy(() => import('./PlanDiagram'))
 
@@ -172,7 +165,7 @@ function TargetCard({ result, selected, active }: { result: TargetResult; select
 					<Typography variant="subtitle1" fontWeight={700}>
 						{getPal(result.palId).name}
 					</Typography>
-					<PassiveList passives={wanted?.passives ?? []} />
+					<PassiveList passives={(wanted?.passives ?? []).filter((p) => !result.implants.includes(p))} implants={result.implants} />
 				</Box>
 				{result.status === 'planned' && !result.disabled && (
 					<Typography variant="body2" color="text.secondary">
@@ -314,83 +307,6 @@ function Empty({ text }: { text: string }) {
 	)
 }
 
-function SettingsBar() {
-	const { settings, updateSettings } = useStore()
-	const [mapOpen, setMapOpen] = useState(false)
-	const pinCount = Object.keys(settings.pins).length
-	const offRegions = settings.disabledRegions.length
-	return (
-		<Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2, px: 2, py: 1.25, borderBottom: 1, borderColor: 'divider' }}>
-			<Tooltip title="Most breeding steps between a pal you have and a pal you want" placement="top">
-				<TextField
-					select
-					size="small"
-					label="Max generations"
-					value={settings.maxGenerations}
-					onChange={(e) => updateSettings({ maxGenerations: Number(e.target.value) })}
-					sx={{ width: 140 }}
-				>
-					{Array.from({ length: MAX_GENERATIONS }, (_, i) => i + 1).map((n) => (
-						<MenuItem key={n} value={n}>
-							{n}
-						</MenuItem>
-					))}
-				</TextField>
-			</Tooltip>
-			<Tooltip title="Rough time to breed and hatch one egg; used to weigh eggs against catches" placement="top">
-				<TextField
-					size="small"
-					type="number"
-					label="Minutes per egg"
-					value={settings.minutesPerEgg}
-					onChange={(e) => updateSettings({ minutesPerEgg: Math.max(1, Number(e.target.value) || 1) })}
-					sx={{ width: 130 }}
-				/>
-			</Tooltip>
-			<FormControlLabel
-				control={<Switch size="small" checked={settings.allowCatching} onChange={(e) => updateSettings({ allowCatching: e.target.checked })} />}
-				label="Suggest catches"
-			/>
-			<Tooltip title="Legendary pals on your wanted list can still be caught directly" placement="top">
-				<FormControlLabel
-					control={
-						<Switch
-							size="small"
-							checked={settings.allowLegendaryCatches}
-							disabled={!settings.allowCatching}
-							onChange={(e) => updateSettings({ allowLegendaryCatches: e.target.checked })}
-						/>
-					}
-					label="Legendary catches"
-				/>
-			</Tooltip>
-			<Tooltip title="Bred pals with wanted passives carry no others, when that's possible" placement="top">
-				<FormControlLabel
-					control={
-						<Switch size="small" checked={settings.onlyWantedPassives} onChange={(e) => updateSettings({ onlyWantedPassives: e.target.checked })} />
-					}
-					label="Only wanted passives"
-				/>
-			</Tooltip>
-			<Box sx={{ display: 'flex', gap: 1, ml: 'auto' }}>
-				<Badge color="warning" badgeContent={offRegions} invisible={!offRegions}>
-					<Button size="small" variant="outlined" startIcon={<MapIcon />} onClick={() => setMapOpen(true)}>
-						Map access
-					</Button>
-				</Badge>
-				{pinCount > 0 && (
-					<Tooltip title="Pairs you chose for specific pals. Clear them to let the planner choose again." placement="top">
-						<Button size="small" variant="outlined" startIcon={<PushPinIcon />} onClick={() => updateSettings({ pins: {} })}>
-							Clear {pinCount} chosen
-						</Button>
-					</Tooltip>
-				)}
-			</Box>
-			{mapOpen && <MapAccessDialog onClose={() => setMapOpen(false)} />}
-		</Box>
-	)
-}
-
 function ProgressLine({ progress }: { progress: SolveProgress | null }) {
 	// Short runs finish before the bar would be readable; only show it once a run takes a moment
 	const [visible, setVisible] = useState(false)
@@ -448,7 +364,6 @@ export function PlanPanel({
 
 	return (
 		<Paper variant="outlined" sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' }}>
-			<SettingsBar />
 			<ProgressLine progress={progress} />
 			{error && (
 				<Alert severity="error" sx={{ mx: 2, mt: 1 }}>
@@ -467,6 +382,9 @@ export function PlanPanel({
 						{summary}
 					</Typography>
 				)}
+				<Box sx={{ ml: summary ? 0 : 'auto' }}>
+					<PlannerSettingsButton />
+				</Box>
 			</Box>
 			<Box
 				sx={{
@@ -479,7 +397,7 @@ export function PlanPanel({
 				}}
 			>
 				{!store.wanted.length ? (
-					<Empty text="Your plan shows up here once your wanted list has pals." />
+					<Empty text="Your plan shows up here once you add target pals." />
 				) : !plan ? null : tab === 'targets' ? (
 					plan.targets.map((t) => <TargetCard key={t.wantedUid} result={t} selected={t.wantedUid === selectedWanted} active={active} />)
 				) : tab === 'diagram' ? (

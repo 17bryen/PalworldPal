@@ -4,9 +4,7 @@ import MoreVertIcon from '@mui/icons-material/MoreVert'
 import EggIcon from '@mui/icons-material/Egg'
 import { gameData } from './data/gamedata'
 import { sanitize, useStore } from './state/store'
-import { usePlan } from './state/usePlan'
-import { ListsPanel } from './components/ListsPanel'
-import { PlanPanel } from './components/PlanPanel'
+import { BreedingPage } from './components/BreedingPage'
 import { PaldeckPage } from './components/PaldeckPage'
 import { MerchantsPage } from './components/MerchantsPage'
 import { MapPage } from './components/MapPage'
@@ -116,8 +114,6 @@ export function App() {
 		}),
 		[]
 	)
-	const [selectedWanted, setSelectedWanted] = useState<string | null>(null)
-	const { plan, progress, error } = usePlan(store.owned, store.wanted, store.settings, store.loaded)
 	useOverlaySync()
 
 	return (
@@ -163,9 +159,8 @@ export function App() {
 					</AppBar>
 					<Box sx={{ flex: 1, minHeight: 0, p: 2 }}>
 						{/* Both pages stay mounted so switching tabs doesn't rebuild the 300-row table */}
-						<Box sx={{ display: page === 'breeding' ? 'grid' : 'none', gridTemplateColumns: 'minmax(420px, 2fr) 3fr', gap: 2, height: '100%' }}>
-							<ListsPanel plan={plan} selectedWanted={selectedWanted} onSelectWanted={setSelectedWanted} />
-							<PlanPanel plan={plan} progress={progress} error={error} selectedWanted={selectedWanted} />
+						<Box sx={{ display: page === 'breeding' ? 'block' : 'none', height: '100%' }}>
+							<BreedingPage />
 						</Box>
 						<Box sx={{ display: page === 'paldeck' ? 'block' : 'none', height: '100%' }}>
 							{visited.has('paldeck') && <PaldeckPage />}

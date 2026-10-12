@@ -1,6 +1,7 @@
 import { Avatar, Box, Chip, Tooltip } from '@mui/material'
 import MaleIcon from '@mui/icons-material/Male'
 import FemaleIcon from '@mui/icons-material/Female'
+import ImplantIcon from '@mui/icons-material/MedicalServicesOutlined'
 import { getPal, getPassive, type Gender, type WorkKind } from '../data/gamedata'
 import { rarityColor } from '../theme'
 
@@ -48,28 +49,34 @@ export function passiveColor(rank: number): string {
 	return '#f07a7a'
 }
 
-export function PassiveChip({ name, onDelete }: { name: string; onDelete?: (event: React.SyntheticEvent) => void }) {
+export function PassiveChip({ name, onDelete, implant }: { name: string; onDelete?: (event: React.SyntheticEvent) => void; implant?: boolean }) {
 	const info = getPassive(name)
 	const color = passiveColor(info?.rank ?? 0)
+	const description = info?.description || name
 	return (
-		<Tooltip title={info?.description || name}>
+		<Tooltip title={implant ? `Implant at the Pal Surgery Table. ${description}` : description}>
 			<Chip
 				size="small"
 				label={name}
 				onDelete={onDelete}
+				icon={implant ? <ImplantIcon /> : undefined}
 				variant="outlined"
-				sx={{ color, borderColor: `${color}66`, '& .MuiChip-deleteIcon': { color: `${color}aa` } }}
+				sx={{ color, borderColor: `${color}66`, '& .MuiChip-deleteIcon': { color: `${color}aa` }, '& .MuiChip-icon': { color, fontSize: 14 } }}
 			/>
 		</Tooltip>
 	)
 }
 
-export function PassiveList({ passives, other = 0 }: { passives: string[]; other?: number }) {
-	if (!passives.length && !other) return null
+/** `implants` show after the bred passives, marked as Surgery Table implants */
+export function PassiveList({ passives, other = 0, implants = [] }: { passives: string[]; other?: number; implants?: string[] }) {
+	if (!passives.length && !other && !implants.length) return null
 	return (
 		<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
 			{passives.map((p) => (
 				<PassiveChip key={p} name={p} />
+			))}
+			{implants.map((p) => (
+				<PassiveChip key={`implant:${p}`} name={p} implant />
 			))}
 			{other > 0 && (
 				<Tooltip title="Passives you didn't ask for. Bred pals show the most they could carry.">

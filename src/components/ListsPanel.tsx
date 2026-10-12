@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useMemo, useState } from 'react'
 import {
 	Box,
 	Button,
@@ -31,6 +31,7 @@ import { useStore } from '../state/store'
 import type { Plan, PlanNode, TargetResult } from '../solver/types'
 import { GenderIcon, PalAvatar, PassiveList } from './bits'
 import { PalPicker, PassivePicker } from './pickers'
+import { LazyItem, LazyScroll } from './lazy'
 
 interface Draft {
 	uid?: string
@@ -103,7 +104,7 @@ function EntryForm({
 				<PassivePicker
 					value={draft.passives}
 					onChange={(passives) => setDraft({ ...draft, passives })}
-					label={withGender ? (draft.palId === YAKUMO_ID ? 'Passives, in slot order' : 'Passives') : 'Wanted passives'}
+					label={withGender ? (draft.palId === YAKUMO_ID ? 'Passives, in slot order' : 'Passives') : 'Target passives'}
 				/>
 			</Box>
 			<Box sx={{ display: 'flex', gap: 1 }}>
@@ -249,58 +250,6 @@ function GameRow({ pal, added, onAdd }: { pal: GamePal; added: boolean; onAdd: (
 	)
 }
 
-// Long lists (a full Palbox is over 900 pals) only mount the rows near the visible part
-type Watch = (el: Element, onChange: (near: boolean) => void) => () => void
-const LazyContext = createContext<Watch | null>(null)
-
-function LazyScroll({ children }: { children: ReactNode }) {
-	const root = useRef<HTMLDivElement>(null)
-	const [watch, setWatch] = useState<Watch | null>(null)
-	useEffect(() => {
-		const callbacks = new WeakMap<Element, (near: boolean) => void>()
-		const observer = new IntersectionObserver((entries) => entries.forEach((e) => callbacks.get(e.target)?.(e.isIntersecting)), {
-			root: root.current,
-			rootMargin: '800px 0px'
-		})
-		setWatch(() => (el: Element, onChange: (near: boolean) => void) => {
-			callbacks.set(el, onChange)
-			observer.observe(el)
-			return () => {
-				observer.unobserve(el)
-				callbacks.delete(el)
-			}
-		})
-		return () => observer.disconnect()
-	}, [])
-	return (
-		<Box ref={root} sx={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-			<LazyContext.Provider value={watch}>{children}</LazyContext.Provider>
-		</Box>
-	)
-}
-
-/** Holds a row's space while it's far from view; `estimate` is its height before it first shows */
-function LazyItem({ estimate, children }: { estimate: number; children: ReactNode }) {
-	const ref = useRef<HTMLDivElement>(null)
-	const watch = useContext(LazyContext)
-	const [near, setNear] = useState(false)
-	const height = useRef(estimate)
-	useEffect(() => {
-		const el = ref.current
-		if (!el || !watch) return
-		return watch(el, (on) => {
-			// A hidden page measures 0; keep the last real height
-			if (!on && el.offsetHeight) height.current = el.offsetHeight
-			setNear(on)
-		})
-	}, [watch])
-	return (
-		<div ref={ref} style={near ? undefined : { height: height.current }}>
-			{near && children}
-		</div>
-	)
-}
-
 const rowEstimate = (passives: string[]) => (passives.length ? 65 : 49)
 
 export function countSteps(node: PlanNode | undefined): number {
@@ -383,7 +332,7 @@ export function ListsPanel({
 	return (
 		<Paper variant="outlined" sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' }}>
 			<Tabs value={tab} onChange={(_, v) => switchTab(v)} sx={{ borderBottom: 1, borderColor: 'divider', px: 1 }}>
-				<Tab value="wanted" label={`Wanted (${store.wanted.length})`} />
+				<Tab value="wanted" label={`Target pals (${store.wanted.length})`} />
 				<Tab value="owned" label={`My pals (${store.owned.length})`} />
 			</Tabs>
 			{tab === 'owned' && gamePals.length > 0 && (

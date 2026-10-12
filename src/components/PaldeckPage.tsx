@@ -209,7 +209,7 @@ const PalRow = memo(function PalRow({
 				)}
 			</TableCell>
 			<TableCell padding="checkbox">
-				<IconButton size="small" disableRipple title={wanted ? 'Remove from wanted' : 'Add to wanted'} onClick={() => onToggleWanted(pal.id, wanted)}>
+				<IconButton size="small" disableRipple title={wanted ? 'Remove from target pals' : 'Add to target pals'} onClick={() => onToggleWanted(pal.id, wanted)}>
 					{wanted ? <StarIcon fontSize="small" sx={{ color: rarityColor(20) }} /> : <StarBorderIcon fontSize="small" />}
 				</IconButton>
 			</TableCell>

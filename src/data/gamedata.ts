@@ -29,6 +29,8 @@ export interface PalInfo {
 	minWildLevel: number | null
 	maxWildLevel: number | null
 	catchMinutes: number
+	/** Hidden breeding number; lower is stronger */
+	breedingPower: number
 	maleChance: number
 	work: Record<WorkKind, number>
 }
@@ -41,7 +43,15 @@ export interface PassiveInfo {
 	description: string
 	/** Can roll on wild pals, so Yakumo's partner skill can copy it */
 	copyable: boolean
+	/** Set when the Pal Surgery Table can implant it */
+	surgery?: { kind: SurgeryKind; cost: number }
 }
+
+/**
+ * table: on the Surgery Table from the start; implant: needs an implant bought from a vendor;
+ * consumable / worldTree: single-use implants found as drops and rewards
+ */
+export type SurgeryKind = 'table' | 'implant' | 'consumable' | 'worldTree'
 
 export const YAKUMO_ID = 'GuardianDog'
 /** Yakumo's chance per passive to copy onto a captured pal, by condensation stars 0-4 */

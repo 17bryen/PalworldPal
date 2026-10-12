@@ -170,3 +170,22 @@ describe('solvePlan', () => {
 		expect(ms).toBeLessThan(60000)
 	}, 120000)
 })
+
+describe('Surgery Table', () => {
+	const surgery = (gold: boolean) => ({ ...settings, surgery: { enabled: true, silver: true, gold, extra: [] } })
+
+	it('implants passives the table offers instead of breeding for them', () => {
+		const owned = [own('PinkCat', 'M', ['Lucky'])]
+		const [t] = solvePlan(owned, [want('PinkCat', ['Lucky', 'Philanthropist'])], surgery(true)).targets
+		expect(t.status).toBe('have')
+		expect(t.implants).toEqual(['Philanthropist'])
+		expect(t.missingPassives).toEqual([])
+	})
+
+	it('breeds for passives outside the budget', () => {
+		const owned = [own('PinkCat', 'M', ['Lucky'])]
+		const [t] = solvePlan(owned, [want('PinkCat', ['Lucky', 'Philanthropist'])], surgery(false)).targets
+		expect(t.implants).toEqual([])
+		expect(t.missingPassives).toEqual(['Philanthropist'])
+	})
+})
