@@ -25,7 +25,7 @@ import StarIcon from '@mui/icons-material/Star'
 import AddIcon from '@mui/icons-material/Add'
 import { getPal, YAKUMO_ID, type Gender } from '../data/gamedata'
 import { useGamePals } from '../state/bridge'
-import { planAdd, type GamePal } from '../state/gamepals'
+import { describeLocation, planAdd, type GamePal } from '../state/gamepals'
 import { useStore } from '../state/store'
 import type { Plan, PlanNode, TargetResult } from '../solver/types'
 import { GenderIcon, PalAvatar, PassiveList } from './bits'
@@ -127,7 +127,8 @@ function Row({
 	onToggle,
 	onClick,
 	onEdit,
-	onDelete
+	onDelete,
+	location
 }: {
 	palId: string
 	gender?: Gender | null
@@ -141,6 +142,8 @@ function Row({
 	onClick?: () => void
 	onEdit: () => void
 	onDelete: () => void
+	/** Where the pal is in the game, shown when hovering its portrait or name */
+	location?: string
 }) {
 	return (
 		<Box
@@ -171,12 +174,16 @@ function Row({
 				</Tooltip>
 			)}
 			<Box sx={{ display: 'contents', '& > *': { opacity: enabled === false ? 0.45 : 1 } }}>
-			<PalAvatar palId={palId} />
+			<Located location={location}>
+				<PalAvatar palId={palId} />
+			</Located>
 			<Box sx={{ flex: 1, minWidth: 0 }}>
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: passives.length ? 0.5 : 0 }}>
-					<Typography variant="body2" fontWeight={600} noWrap>
-						{getPal(palId).name}
-					</Typography>
+					<Located location={location}>
+						<Typography variant="body2" fontWeight={600} noWrap>
+							{getPal(palId).name}
+						</Typography>
+					</Located>
 					<GenderIcon gender={gender} size={16} />
 					{stars != null && palId === YAKUMO_ID && (
 						<Box sx={{ display: 'flex', alignItems: 'center', color: 'warning.main', ml: 0.5 }}>
@@ -219,17 +226,33 @@ function Row({
 	)
 }
 
+/** Shows where a pal is in the game when hovered; passes children through when that isn't known */
+function Located({ location, children }: { location?: string; children: React.ReactElement }) {
+	if (!location) return children
+	return (
+		<Tooltip title={location} placement="top-start">
+			<Box component="span" sx={{ display: 'inline-flex', minWidth: 0, cursor: 'help' }}>
+				{children}
+			</Box>
+		</Tooltip>
+	)
+}
+
 function GameRow({ pal, onAdd }: { pal: GamePal; onAdd: () => void }) {
 	return (
 		<Box
 			sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}
 		>
-			<PalAvatar palId={pal.palId} />
+			<Located location={pal.where && describeLocation(pal.where)}>
+				<PalAvatar palId={pal.palId} />
+			</Located>
 			<Box sx={{ flex: 1, minWidth: 0 }}>
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: pal.passives.length ? 0.5 : 0 }}>
-					<Typography variant="body2" fontWeight={600} noWrap>
-						{getPal(pal.palId).name}
-					</Typography>
+					<Located location={pal.where && describeLocation(pal.where)}>
+						<Typography variant="body2" fontWeight={600} noWrap>
+							{getPal(pal.palId).name}
+						</Typography>
+					</Located>
 					<GenderIcon gender={pal.gender} size={16} />
 				</Box>
 				<PassiveList passives={pal.passives} />
@@ -302,6 +325,12 @@ export function ListsPanel({
 		[store.owned, search, source]
 	)
 	const addPlan = useMemo(() => planAdd(store.owned, gamePals), [store.owned, gamePals])
+	const whereByKey = useMemo(() => new Map(gamePals.map((g) => [g.key, g.where])), [gamePals])
+	const locationOf = (game?: string) => {
+		if (!game) return undefined
+		const where = whereByKey.get(game)
+		return where ? describeLocation(where) : 'Not seen in the game this session'
+	}
 	const pending = addPlan.links.size + addPlan.adds.length
 	// Pals seen in the game this session that aren't in My Pals yet, listed under Game Synced
 	const notAdded = useMemo(
@@ -401,6 +430,7 @@ export function ListsPanel({
 								stars={o.stars}
 								onEdit={() => setDraft({ uid: o.uid, palId: o.palId, gender: o.gender, passives: o.passives, stars: o.stars ?? 0 })}
 								onDelete={() => store.removeOwned(o.uid)}
+								location={locationOf(o.game)}
 							/>
 						</LazyItem>
 					))}
