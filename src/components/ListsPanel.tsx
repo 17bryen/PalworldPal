@@ -28,6 +28,8 @@ import MaleIcon from '@mui/icons-material/Male'
 import FemaleIcon from '@mui/icons-material/Female'
 import StarIcon from '@mui/icons-material/Star'
 import AddIcon from '@mui/icons-material/Add'
+import RestoreIcon from '@mui/icons-material/RestoreFromTrash'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { getPal, YAKUMO_ID, type Gender } from '../data/gamedata'
 import { useGamePals } from '../state/bridge'
 import { describeLocation, ownedLocation, planAdd, type GamePal } from '../state/gamepals'
@@ -326,6 +328,7 @@ export function ListsPanel({
 	const results = useMemo(() => new Map(plan?.targets.map((t) => [t.wantedUid, t])), [plan])
 	const handCount = useMemo(() => store.owned.filter((o) => !o.game).length, [store.owned])
 	const [confirmRemove, setConfirmRemove] = useState(false)
+	const [showRemoved, setShowRemoved] = useState(false)
 	// Everything in the chosen view, regardless of the search box
 	const inView = useMemo(
 		() => (source === 'all' ? store.owned : store.owned.filter((o) => (source === 'hand' ? !o.game : !!o.game))),
@@ -458,6 +461,51 @@ export function ListsPanel({
 							<GameRow pal={g} onAdd={() => store.addFromGame([g])} />
 						</LazyItem>
 					))}
+				{tab === 'owned' && source !== 'hand' && store.removed.length > 0 && (
+					<Box sx={{ borderTop: 1, borderColor: 'divider', mt: 1 }}>
+						<Box sx={{ display: 'flex', alignItems: 'center', px: 1.5, pt: 1 }}>
+							<Tooltip
+								title="Synced pals that left your party and Palbox and didn't turn up anywhere else, so they were most likely sold, condensed or traded. They come back on their own if the game shows them again."
+								placement="top-start"
+							>
+								<Box onClick={() => setShowRemoved((v) => !v)} sx={{ display: 'flex', alignItems: 'center', flex: 1, cursor: 'pointer', userSelect: 'none' }}>
+									<Typography variant="overline" color="text.secondary">
+										Recently Removed ({store.removed.length})
+									</Typography>
+									<ExpandMoreIcon fontSize="small" sx={{ color: 'text.secondary', transform: showRemoved ? 'none' : 'rotate(-90deg)', transition: 'transform 150ms' }} />
+								</Box>
+							</Tooltip>
+							{showRemoved && (
+								<Button size="small" onClick={store.clearRemoved}>
+									Clear
+								</Button>
+							)}
+						</Box>
+						{showRemoved &&
+							store.removed.map((r) => (
+								<Box key={r.uid} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider', opacity: 0.75 }}>
+									<PalAvatar palId={r.palId} />
+									<Box sx={{ flex: 1, minWidth: 0 }}>
+										<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: r.passives.length ? 0.5 : 0 }}>
+											<Typography variant="body2" fontWeight={600} noWrap>
+												{r.name ?? getPal(r.palId).name}
+											</Typography>
+											<GenderIcon gender={r.gender} size={16} />
+											<Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }} noWrap>
+												{new Date(r.removedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+											</Typography>
+										</Box>
+										<PassiveList passives={r.passives} />
+									</Box>
+									<Tooltip title="Put Back in My Pals">
+										<IconButton size="small" onClick={() => store.restoreRemoved(r.uid)}>
+											<RestoreIcon fontSize="small" />
+										</IconButton>
+									</Tooltip>
+								</Box>
+							))}
+					</Box>
+				)}
 				{tab === 'wanted' && !store.wanted.length && (
 					<Empty text="Add the pals you want to breed. You can also star them in the Paldeck." />
 				)}

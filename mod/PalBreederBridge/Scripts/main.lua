@@ -13,7 +13,7 @@
 --   * the timer-thread predicate is pure arithmetic and allocates nothing;
 --   * every UObject read happens on the game thread, inside pcall.
 
-local VERSION = "1.7.0"
+local VERSION = "1.8.0"
 local TICK_MS = 33            -- timer resolution, not the write rate
 local POSITION_EVERY = 0.05   -- seconds between position writes
 local CAPTURES_EVERY = 3.0    -- seconds between capture-count reads
@@ -119,7 +119,8 @@ local function readCaptureItem(elem)
     local item = elem:get()
     return item.Key:ToString(), item.Value
 end
-local function writeCaptures(pc)
+-- `world` is the pal sync's world id, so the app files the catches under the right save
+local function writeCaptures(pc, world)
     local ps = get(rawPlayerState, pc)
     if not alive(ps) then return end
     local rd = get(rawRecordData, ps)
@@ -137,7 +138,8 @@ local function writeCaptures(pc)
     end)
     if not ok then return end
     table.sort(parts)
-    local text = '{"v":1,"mod":"' .. VERSION .. '","counts":{' .. table.concat(parts, ",") .. '}}'
+    local worldPart = world and string.format(',"world":"%s"', (world:gsub('[%c"\\]', ""))) or ""
+    local text = '{"v":1,"mod":"' .. VERSION .. '"' .. worldPart .. ',"counts":{' .. table.concat(parts, ",") .. '}}'
     if text ~= lastCaptures then
         if writeFile("captures.json", text) then lastCaptures = text end
     end
@@ -189,7 +191,7 @@ local function job()
         pcall(writePosition, pc)
         if (now - lastCaptureRead) >= CAPTURES_EVERY then
             lastCaptureRead = now
-            pcall(writeCaptures, pc)
+            pcall(writeCaptures, pc, pals and pals.worldId() or nil)
         end
         if pals ~= nil then
             -- A different controller means a new world or character

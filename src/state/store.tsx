@@ -28,6 +28,79 @@ export interface AppState {
 	syncCatches: boolean
 	overlay: OverlayPrefs
 	loot: LootState
+	/** Synced pals that left the party and Palbox and turned up nowhere else; restored if seen again */
+	removed: RemovedPal[]
+	/** The world (save or server) the lists above belong to; set by the game link */
+	world: string | null
+	/** Every other world's lists, kept while another is open */
+	worlds: Record<string, WorldData>
+	worldNames: Record<string, string>
+}
+
+export type RemovedPal = OwnedPal & { removedAt: number }
+
+/** What belongs to one world (save or server) rather than to the app */
+export interface WorldData {
+	owned: OwnedPal[]
+	wanted: WantedPal[]
+	catches: Record<string, number>
+	looted: Record<string, number>
+	removed: RemovedPal[]
+}
+
+const MAX_REMOVED = 200
+const LOCAL_HOST_ID = '0'.repeat(31) + '1'
+
+/** A world's name: what the game calls it, what the player renamed it to, or what kind it is */
+export function worldLabel(id: string, names: Record<string, string>): string {
+	if (names[id]) return names[id]
+	// A local host always has the same player id; anyone on a server has their own
+	return id.endsWith(`|${LOCAL_HOST_ID}`) ? 'Local Save' : 'Server'
+}
+
+const worldOf = (s: AppState): WorldData => ({ owned: s.owned, wanted: s.wanted, catches: s.catches, looted: s.loot.looted, removed: s.removed })
+const emptyWorld: WorldData = { owned: [], wanted: [], catches: {}, looted: {}, removed: [] }
+
+/**
+ * Moves synced pals that left for good (sold, condensed, traded) to Recently Removed, and brings
+ * back removed ones the game shows again
+ */
+export function withGamePresence(s: AppState, gone: string[], present: string[]): AppState {
+	const goneSet = new Set(gone)
+	const presentSet = new Set(present)
+	const leaving = s.owned.filter((o) => o.game && goneSet.has(o.game))
+	const returning = s.removed.filter((r) => r.game && presentSet.has(r.game))
+	if (!leaving.length && !returning.length) return s
+	const now = Date.now()
+	return {
+		...s,
+		owned: [...s.owned.filter((o) => !leaving.includes(o)), ...returning.map(({ removedAt: _, ...o }) => o)],
+		removed: [...leaving.map((o) => ({ ...o, removedAt: now })), ...s.removed.filter((r) => !returning.includes(r))].slice(0, MAX_REMOVED)
+	}
+}
+
+/**
+ * Opens a world's lists (each save or server keeps its own pals, targets, catches and loot
+ * timers). The first world seen keeps the lists already here.
+ */
+export function withWorld(s: AppState, id: string, name?: string): AppState {
+	const worldNames = name && !s.worldNames[id] ? { ...s.worldNames, [id]: name } : s.worldNames
+	if (s.world === id) return worldNames === s.worldNames ? s : { ...s, worldNames }
+	if (!s.world) return { ...s, world: id, worldNames }
+	const worlds = { ...s.worlds, [s.world]: worldOf(s) }
+	const next = worlds[id] ?? emptyWorld
+	delete worlds[id]
+	return {
+		...s,
+		owned: next.owned,
+		wanted: next.wanted,
+		catches: next.catches,
+		removed: next.removed,
+		loot: { ...s.loot, looted: next.looted },
+		world: id,
+		worlds,
+		worldNames
+	}
 }
 
 export interface LootState {
@@ -109,7 +182,21 @@ export const defaultSettings: PlanSettings = {
 	surgery: defaultSurgery
 }
 
-const emptyState: AppState = { version: 1, owned: [], wanted: [], settings: defaultSettings, catches: {}, map: defaultMap, syncCatches: true, overlay: defaultOverlay, loot: defaultLoot }
+const emptyState: AppState = {
+	version: 1,
+	owned: [],
+	wanted: [],
+	settings: defaultSettings,
+	catches: {},
+	map: defaultMap,
+	syncCatches: true,
+	overlay: defaultOverlay,
+	loot: defaultLoot,
+	removed: [],
+	world: null,
+	worlds: {},
+	worldNames: {}
+}
 const LOCAL_KEY = 'palbreeder'
 
 const newUid = () => crypto.randomUUID()
@@ -127,10 +214,28 @@ export function sanitize(raw: unknown): AppState {
 	}
 	// Older saves placed the minimap by corner; it's now positioned freely
 	const { corner: _corner, ...savedOverlay } = (s.overlay ?? {}) as Partial<OverlayPrefs> & { corner?: string }
+	const ownedList = <T extends OwnedPal>(list: T[] | undefined): T[] => (list ?? []).filter((o) => known(o.palId)).map((o) => ({ ...o, passives: o.passives ?? [] }))
+	const wantedList = (list: WantedPal[] | undefined) => (list ?? []).filter((w) => known(w.palId)).map((w) => ({ ...w, passives: w.passives ?? [] }))
+	const catchList = (c: Record<string, number> | undefined) => Object.fromEntries(Object.entries(c ?? {}).filter(([id, n]) => known(id) && Number.isFinite(n) && n > 0))
+	const worlds: Record<string, WorldData> = {}
+	for (const [id, w] of Object.entries(s.worlds ?? {})) {
+		if (!w || typeof w !== 'object') continue
+		worlds[id] = {
+			owned: ownedList(w.owned),
+			wanted: wantedList(w.wanted),
+			catches: catchList(w.catches),
+			looted: sanitizeLoot({ looted: w.looted }).looted,
+			removed: ownedList(w.removed).slice(0, MAX_REMOVED)
+		}
+	}
 	return {
 		version: 1,
-		owned: (s.owned ?? []).filter((o) => known(o.palId)).map((o) => ({ ...o, passives: o.passives ?? [] })),
-		wanted: (s.wanted ?? []).filter((w) => known(w.palId)).map((w) => ({ ...w, passives: w.passives ?? [] })),
+		owned: ownedList(s.owned),
+		wanted: wantedList(s.wanted),
+		removed: ownedList(s.removed).slice(0, MAX_REMOVED),
+		world: typeof s.world === 'string' && s.world ? s.world : null,
+		worlds,
+		worldNames: Object.fromEntries(Object.entries(s.worldNames ?? {}).filter(([, n]) => typeof n === 'string')),
 		settings: {
 			...defaultSettings,
 			...s.settings,
@@ -139,7 +244,7 @@ export function sanitize(raw: unknown): AppState {
 			pins: { ...s.settings?.pins },
 			surgery: { ...defaultSurgery, ...s.settings?.surgery, extra: [...(s.settings?.surgery?.extra ?? [])] }
 		},
-		catches: Object.fromEntries(Object.entries(s.catches ?? {}).filter(([id, n]) => known(id) && Number.isFinite(n) && n > 0)),
+		catches: catchList(s.catches),
 		map: { ...defaultMap, ...s.map, layers: [...(s.map?.layers ?? defaultMap.layers)] },
 		syncCatches: s.syncCatches ?? true,
 		overlay: {
@@ -241,17 +346,33 @@ function useStoreValue(readOnly: boolean) {
 	const syncGameStats = useCallback((gamePals: GamePal[]) => {
 		setState((s) => {
 			const byKey = new Map(gamePals.map((g) => [g.key, g]))
+			// Pals synced before the game's ids came through are found by their content once, then by id
+			const byContent = new Map(gamePals.map((g) => [g.contentKey, g]))
 			let changed = false
 			const owned = s.owned.map((o) => {
-				const g = o.game ? byKey.get(o.game) : undefined
+				const g = o.game ? (byKey.get(o.game) ?? (o.game.startsWith('id:') ? undefined : byContent.get(o.game))) : undefined
 				if (!g) return o
-				const next = { ...o, stats: g.stats ?? o.stats, box: g.where?.box ?? o.box, seen: g.where ?? o.seen, name: g.name ?? o.name }
-				if (JSON.stringify([next.stats, next.box, next.seen, next.name]) === JSON.stringify([o.stats, o.box, o.seen, o.name])) return o
+				const next = { ...o, game: g.key, stats: g.stats ?? o.stats, box: g.where?.box ?? o.box, seen: g.where ?? o.seen, name: g.name ?? o.name }
+				if (JSON.stringify([next.game, next.stats, next.box, next.seen, next.name]) === JSON.stringify([o.game, o.stats, o.box, o.seen, o.name])) return o
 				changed = true
 				return next
 			})
 			return changed ? { ...s, owned } : s
 		})
+	}, [])
+	const trackGamePresence = useCallback((gone: string[], present: string[]) => setState((s) => withGamePresence(s, gone, present)), [])
+	const restoreRemoved = useCallback((uid: string) => {
+		setState((s) => {
+			const r = s.removed.find((x) => x.uid === uid)
+			if (!r) return s
+			const { removedAt: _, ...o } = r
+			return { ...s, owned: [...s.owned, o], removed: s.removed.filter((x) => x.uid !== uid) }
+		})
+	}, [])
+	const clearRemoved = useCallback(() => setState((s) => ({ ...s, removed: [] })), [])
+	const switchWorld = useCallback((id: string, name?: string) => setState((s) => withWorld(s, id, name)), [])
+	const renameWorld = useCallback((id: string, name: string) => {
+		setState((s) => ({ ...s, worldNames: { ...s.worldNames, [id]: name.trim().slice(0, 40) } }))
 	}, [])
 	/** Follows pals whose gender or passives changed at the Surgery Table, keeping them the same entry */
 	const applyGameChanges = useCallback((changes: GamePalChange[]) => {
@@ -369,6 +490,11 @@ function useStoreValue(readOnly: boolean) {
 			removeOwned,
 			removeOwnedMany,
 			applyGameChanges,
+			trackGamePresence,
+			restoreRemoved,
+			clearRemoved,
+			switchWorld,
+			renameWorld,
 			addWanted,
 			addWantedMany,
 			updateWanted,
@@ -397,6 +523,11 @@ function useStoreValue(readOnly: boolean) {
 			removeOwned,
 			removeOwnedMany,
 			applyGameChanges,
+			trackGamePresence,
+			restoreRemoved,
+			clearRemoved,
+			switchWorld,
+			renameWorld,
 			addWanted,
 			addWantedMany,
 			updateWanted,

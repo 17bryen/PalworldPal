@@ -37,6 +37,8 @@ export interface CaptureData {
 	counts: Record<string, number>
 	mod: string
 	at: number
+	/** Mod 1.8+: the world these catches belong to */
+	world?: string
 }
 
 /** Parses the mod's live.json; null for anything partial or malformed */
@@ -56,7 +58,7 @@ export function parseCaptures(text: string, at: number): CaptureData | null {
 		if (!d.counts || typeof d.counts !== 'object') return null
 		const counts: Record<string, number> = {}
 		for (const [k, v] of Object.entries(d.counts)) if (typeof v === 'number') counts[k] = v
-		return { counts, mod: String(d.mod ?? ''), at }
+		return { counts, mod: String(d.mod ?? ''), at, world: typeof d.world === 'string' && d.world ? d.world : undefined }
 	} catch {
 		return null
 	}
@@ -64,11 +66,13 @@ export function parseCaptures(text: string, at: number): CaptureData | null {
 
 /** One of your pals as the mod reports it: game ids for species and passives, gender 1 male, 2 female */
 export interface RawGamePal {
+	/** Mod 1.8+: the game's own id for the pal, the same for its whole life */
+	id?: string
 	c: string
 	g: number
 	p: string[]
 	iv: number[]
-	/** Mod 1.5+: party or box, and the slot index */
+	/** Mod 1.5+: party or box (1.8+: other, for yours at a base or in storage), and the slot index */
 	in?: string
 	s?: number
 	/** Mod 1.6+: level, condensation rank (1 = no stars) and Pal Soul ranks for HP, attack, defense */
@@ -83,6 +87,10 @@ export interface GamePalsData {
 	pals: RawGamePal[]
 	mod: string
 	at: number
+	/** Mod 1.8+: which game session, world and save these came from, and what the mod could read */
+	session?: string
+	world?: { id: string; name: string }
+	ok?: { id: boolean; old: boolean }
 }
 
 /** Parses the mod's pals.json, dropping entries that don't have the expected shape */
@@ -99,7 +107,9 @@ export function parsePals(text: string, at: number): GamePalsData | null {
 				(e as RawGamePal).p.every((n) => typeof n === 'string') &&
 				Array.isArray((e as RawGamePal).iv)
 		)
-		return { pals, mod: String(d.mod ?? ''), at }
+		const world = d.world && typeof d.world.id === 'string' && d.world.id ? { id: d.world.id, name: String(d.world.name ?? '') } : undefined
+		const ok = d.ok && typeof d.ok === 'object' ? { id: d.ok.id === true, old: d.ok.old === true } : undefined
+		return { pals, mod: String(d.mod ?? ''), at, session: typeof d.session === 'string' ? d.session : undefined, world, ok }
 	} catch {
 		return null
 	}

@@ -5,11 +5,13 @@ import type { PalStats } from '../data/expeditions'
 
 /** One of your pals as the mod reports it: game ids for species and passives, gender 1 male, 2 female */
 export interface RawGamePal {
+	/** Mod 1.8+: the game's own id for the pal, the same for its whole life */
+	id?: string
 	c: string
 	g: number
 	p: string[]
 	iv: number[]
-	/** Mod 1.5+: party or box, and the slot index */
+	/** Mod 1.5+: party or box (1.8+: other, for yours at a base or in storage), and the slot index */
 	in?: string
 	s?: number
 	/** Mod 1.6+: level, condensation rank (1 = no stars) and Pal Soul ranks for HP, attack, defense */
@@ -20,20 +22,32 @@ export interface RawGamePal {
 	n?: string
 }
 
-/** Where a pal sits, e.g. "Party 4" or "Palbox 3:14" (page 3, slot 14) */
-export type PalLocation = { box: 'party' | 'palbox'; slot: number }
+/**
+ * Where a pal sits, e.g. "Party 4" or "Palbox 3:14" (page 3, slot 14); "other" is yours but
+ * outside both, working at a base or in storage
+ */
+export type PalLocation = { box: 'party' | 'palbox' | 'other'; slot: number }
 
 const PALBOX_PAGE = 30
 
 export function describeLocation(where: PalLocation): string {
 	if (where.box === 'party') return `Party ${where.slot + 1}`
+	if (where.box === 'other') return 'Outside the Palbox (at a base or in storage)'
 	return `Palbox ${Math.floor(where.slot / PALBOX_PAGE) + 1}:${(where.slot % PALBOX_PAGE) + 1}`
 }
 
-/** A pal from your party or Palbox, in this app's terms */
+const BOXES: Record<string, PalLocation['box']> = { party: 'party', box: 'palbox', other: 'other' }
+const NO_ID = '0'.repeat(32)
+
+/** One of your pals in the game, in this app's terms */
 export interface GamePal {
-	/** Same pal, same key, across reads; identical twins get #2, #3... */
+	/**
+	 * Same pal, same key, across reads: the game's id for it when the mod sends one, otherwise
+	 * `contentKey`
+	 */
 	key: string
+	/** Species, gender, passives, IVs and alpha; identical twins get #2, #3... */
+	contentKey: string
 	palId: string
 	gender: Gender
 	/** In slot order */
@@ -41,7 +55,7 @@ export interface GamePal {
 	where?: PalLocation
 	/** Mod 1.6+ */
 	stats?: PalStats
-	/** HP, attack, defense IVs; with the species they tell a pal apart when its gender or passives change */
+	/** HP, attack and defense IVs */
 	ivs: number[]
 	alpha: boolean
 	/** Mod 1.7+: the nickname the player gave it (up to 24 characters) */
@@ -62,8 +76,8 @@ export function normalizeGamePals(raw: RawGamePal[]): GamePal[] {
 		const base = [palId, gender, [...passives].sort().join(','), ivs.join('/'), /^boss_/i.test(r.c) ? 'alpha' : ''].join('|')
 		const n = (seen.get(base) ?? 0) + 1
 		seen.set(base, n)
-		const where: PalLocation | undefined =
-			typeof r.s === 'number' && r.s >= 0 && (r.in === 'party' || r.in === 'box') ? { box: r.in === 'party' ? 'party' : 'palbox', slot: r.s } : undefined
+		const box = r.in ? BOXES[r.in] : undefined
+		const where: PalLocation | undefined = typeof r.s === 'number' && r.s >= 0 && box ? { box, slot: r.s } : undefined
 		const stats: PalStats | undefined =
 			typeof r.lv === 'number' && r.lv > 0
 				? {
@@ -74,7 +88,9 @@ export function normalizeGamePals(raw: RawGamePal[]): GamePal[] {
 					}
 				: undefined
 		const name = typeof r.n === 'string' && r.n.trim() ? r.n.trim() : undefined
-		out.push({ key: n > 1 ? `${base}#${n}` : base, palId, gender, passives, where, stats, ivs, alpha: /^boss_/i.test(r.c), name })
+		const contentKey = n > 1 ? `${base}#${n}` : base
+		const id = typeof r.id === 'string' && /^[0-9a-f]{32}$/.test(r.id) && r.id !== NO_ID ? r.id : undefined
+		out.push({ key: id ? `id:${id}` : contentKey, contentKey, palId, gender, passives, where, stats, ivs, alpha: /^boss_/i.test(r.c), name })
 	}
 	return out
 }
@@ -100,28 +116,34 @@ export interface GamePalChange {
 }
 
 /**
- * Pals whose gender or passives changed between two reads of the game. The Surgery Table only
- * works on party pals, so a changed pal is the one in the same party slot with the same species,
- * IVs and alpha status but a new key.
+ * Pals whose key changed between two reads of the game because their gender, passives or IVs
+ * changed (Surgery Table, fruits). Pals with the game's own id never change key; for the rest, a
+ * changed pal is the one in the same slot with the same species and alpha status.
  */
 export function diffGamePals(prev: GamePal[], next: GamePal[]): GamePalChange[] {
 	const nextKeys = new Set(next.map((g) => g.key))
 	const prevKeys = new Set(prev.map((g) => g.key))
-	const appeared = next.filter((g) => !prevKeys.has(g.key) && g.where)
+	const appeared = next.filter((g) => !prevKeys.has(g.key) && g.where && !g.key.startsWith('id:'))
 	const changes: GamePalChange[] = []
 	for (const old of prev) {
-		if (nextKeys.has(old.key) || !old.where) continue
+		if (nextKeys.has(old.key) || !old.where || old.key.startsWith('id:')) continue
 		const now = appeared.find(
-			(g) =>
-				g.where!.box === old.where!.box &&
-				g.where!.slot === old.where!.slot &&
-				g.palId === old.palId &&
-				g.alpha === old.alpha &&
-				g.ivs.join('/') === old.ivs.join('/')
+			(g) => g.where!.box === old.where!.box && g.where!.slot === old.where!.slot && g.palId === old.palId && g.alpha === old.alpha
 		)
 		if (now) changes.push({ from: old.key, to: now })
 	}
 	return changes
+}
+
+/**
+ * Pals that were in your party or Palbox and are now nowhere the game shows: sold, condensed,
+ * released or traded. Only meaningful between two reads of the same game session, with the Palbox
+ * loaded and the mod able to see pals you put at a base or in storage (they show as "other").
+ */
+export function goneKeys(prev: GamePal[], next: GamePal[], changes: GamePalChange[]): string[] {
+	const present = new Set(next.map((g) => g.key))
+	const changed = new Set(changes.map((c) => c.from))
+	return prev.filter((g) => (g.where?.box === 'party' || g.where?.box === 'palbox') && !present.has(g.key) && !changed.has(g.key)).map((g) => g.key)
 }
 
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x))
@@ -141,7 +163,11 @@ export function planAdd(owned: OwnedPal[], gamePals: GamePal[]): AddPlan {
 	const links = new Map<string, string>()
 	const adds: GamePal[] = []
 	for (const gp of gamePals) {
-		if (linked.has(gp.key)) continue
+		// Entries synced before the game's ids came through still carry the older content key
+		if (linked.has(gp.key) || linked.has(gp.contentKey)) {
+			linked.add(gp.key)
+			continue
+		}
 		const match = free.find((o) => !links.has(o.uid) && o.palId === gp.palId && o.gender === gp.gender && sameSet(o.passives, gp.passives))
 		if (match) links.set(match.uid, gp.key)
 		else adds.push(gp)

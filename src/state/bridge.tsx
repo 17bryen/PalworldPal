@@ -115,6 +115,7 @@ function fakeBridge(): PalBridgeApi {
 		const species = ['SheepBall', 'PinkCat', 'BOSS_KingBahamut', 'Anubis', 'GuardianDog', 'Male_DarkTrader01', 'ChickenPal', 'Kitsunebi', 'IceHorse']
 		const passives = ['CraftSpeed_up3', 'PAL_CorporateSlave', 'Nocturnal', 'MoveSpeed_up_2', 'Rare', 'ElementBoost_Fire_2_PAL']
 		const fake = Array.from({ length: 300 }, (_, i) => ({
+			id: (i + 1).toString(16).padStart(32, '0'),
 			c: species[i % species.length],
 			g: (i % 3) % 2 ? 2 : 1,
 			p: passives.filter((_, j) => (i + j) % 4 === 0),
@@ -125,7 +126,10 @@ function fakeBridge(): PalBridgeApi {
 			r: 1 + (i % 5),
 			sr: [i % 11, (i * 3) % 11, (i * 7) % 11]
 		}))
-		palListeners.forEach((cb) => cb({ pals: fake, mod: 'fake', at: Date.now() }))
+		const read = (pals: typeof fake) => ({ pals, mod: 'fake', at: Date.now(), session: 'fake', world: { id: 'fake-world|me', name: 'Fake Server' }, ok: { id: true, old: true } })
+		palListeners.forEach((cb) => cb(read(fake)))
+		// Ten seconds later two pals have been sold, to try Recently Removed
+		setTimeout(() => palListeners.forEach((cb) => cb(read(fake.filter((_, i) => i !== 10 && i !== 11)))), 10_000)
 	}, 1500)
 	const status: GameLinkStatus = {
 		gamePath: 'C:\\Fake\\Palworld',

@@ -16,9 +16,9 @@ export interface OwnedPal {
 	game?: string
 	/** Last stats and storage the game reported, kept so expedition estimates work between sessions */
 	stats?: PalStats
-	box?: 'party' | 'palbox'
+	box?: 'party' | 'palbox' | 'other'
 	/** Where the game last showed it, for "Last Seen" when it isn't loaded this session */
-	seen?: { box: 'party' | 'palbox'; slot: number }
+	seen?: { box: 'party' | 'palbox' | 'other'; slot: number }
 	/** The nickname the player gave it in the game */
 	name?: string
 }
