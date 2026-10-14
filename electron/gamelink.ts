@@ -71,6 +71,10 @@ export interface RawGamePal {
 	/** Mod 1.5+: party or box, and the slot index */
 	in?: string
 	s?: number
+	/** Mod 1.6+: level, condensation rank (1 = no stars) and Pal Soul ranks for HP, attack, defense */
+	lv?: number
+	r?: number
+	sr?: number[]
 }
 
 export interface GamePalsData {

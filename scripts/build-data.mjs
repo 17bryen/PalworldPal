@@ -60,6 +60,8 @@ const outPals = pals.map((p) => {
 		catchMinutes: catchMinutes(p),
 		// The game's hidden breeding number: two parents average theirs and the closest pal hatches
 		breedingPower: p.BreedingPower,
+		// Base combat stats; with level, IVs, condensation and souls they give expedition firepower
+		stats: { hp: p.Hp, attack: p.Attack, defense: p.Defense },
 		maleChance: gender.MALE,
 		work: Object.fromEntries(
 			Object.entries(WORK_KEYS).map(([key, name]) => [name, p.WorkSuitability?.[key] ?? 0])

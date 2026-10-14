@@ -78,6 +78,9 @@ local function resolveContainers(pc, ps)
 end
 local function readGender(sp) return sp.Gender end
 local function readTalents(sp) return sp.Talent_HP, sp.Talent_Shot, sp.Talent_Defense end
+local function readLevel(sp) return sp.Level end
+-- Condensation (1 = no stars, 5 = four stars) and Pal Soul ranks for HP, attack and defense
+local function readRanks(sp) return sp.Rank, sp.Rank_HP, sp.Rank_Attack, sp.Rank_Defence end
 local function readPassives(sp)
     local names = {}
     sp.PassiveSkillList:ForEach(function(_, e) names[#names + 1] = e:get():ToString() end)
@@ -110,8 +113,12 @@ local function readPal(param, me)
         kind = "?"
     end
     local slot = math.tointeger(get(readSlot, sp)) or -1
-    return string.format('{"c":%s,"g":%d,"p":[%s],"iv":[%d,%d,%d],"in":"%s","s":%d}', quote(species), math.tointeger(gender) or 0,
-        table.concat(passives, ","), math.tointeger(hp) or 0, math.tointeger(shot) or 0, math.tointeger(def) or 0, kind, slot)
+    local level = math.tointeger(get(readLevel, sp)) or 0
+    local okRanks, rank, rankHp, rankAtk, rankDef = pcall(readRanks, sp)
+    if not okRanks then rank, rankHp, rankAtk, rankDef = 0, 0, 0, 0 end
+    return string.format('{"c":%s,"g":%d,"p":[%s],"iv":[%d,%d,%d],"in":"%s","s":%d,"lv":%d,"r":%d,"sr":[%d,%d,%d]}', quote(species),
+        math.tointeger(gender) or 0, table.concat(passives, ","), math.tointeger(hp) or 0, math.tointeger(shot) or 0, math.tointeger(def) or 0,
+        kind, slot, level, math.tointeger(rank) or 0, math.tointeger(rankHp) or 0, math.tointeger(rankAtk) or 0, math.tointeger(rankDef) or 0)
 end
 
 -- Scheduling (game thread only)

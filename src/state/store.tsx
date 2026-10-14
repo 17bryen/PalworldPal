@@ -237,6 +237,22 @@ function useStoreValue(readOnly: boolean) {
 			}
 		})
 	}, [])
+	/** Keeps synced pals' stats and storage up to date with what the game last reported */
+	const syncGameStats = useCallback((gamePals: GamePal[]) => {
+		setState((s) => {
+			const byKey = new Map(gamePals.map((g) => [g.key, g]))
+			let changed = false
+			const owned = s.owned.map((o) => {
+				const g = o.game ? byKey.get(o.game) : undefined
+				if (!g?.stats) return o
+				const box = g.where?.box ?? o.box
+				if (JSON.stringify(o.stats) === JSON.stringify(g.stats) && o.box === box) return o
+				changed = true
+				return { ...o, stats: g.stats, box }
+			})
+			return changed ? { ...s, owned } : s
+		})
+	}, [])
 	const removeOwned = useCallback((uid: string) => {
 		setState((s) => ({ ...s, owned: s.owned.filter((o) => o.uid !== uid) }))
 	}, [])
@@ -329,6 +345,7 @@ function useStoreValue(readOnly: boolean) {
 			state,
 			addOwned,
 			addFromGame,
+			syncGameStats,
 			updateOwned,
 			removeOwned,
 			addWanted,
@@ -354,6 +371,7 @@ function useStoreValue(readOnly: boolean) {
 			loaded,
 			addOwned,
 			addFromGame,
+			syncGameStats,
 			updateOwned,
 			removeOwned,
 			addWanted,

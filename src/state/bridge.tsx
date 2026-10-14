@@ -112,7 +112,7 @@ function fakeBridge(): PalBridgeApi {
 	setTimeout(() => {
 		const captures = { counts: { SheepBall: 5, PinkCat: 3, BOSS_ChickenPal: 1, ChickenPal: 2 }, mod: 'fake', at: Date.now() }
 		captureListeners.forEach((cb) => cb(captures))
-		const species = ['SheepBall', 'PinkCat', 'BOSS_KingBahamut', 'Anubis', 'GuardianDog', 'Male_DarkTrader01', 'ChickenPal']
+		const species = ['SheepBall', 'PinkCat', 'BOSS_KingBahamut', 'Anubis', 'GuardianDog', 'Male_DarkTrader01', 'ChickenPal', 'Kitsunebi', 'IceHorse']
 		const passives = ['CraftSpeed_up3', 'PAL_CorporateSlave', 'Nocturnal', 'MoveSpeed_up_2', 'Rare', 'ElementBoost_Fire_2_PAL']
 		const fake = Array.from({ length: 300 }, (_, i) => ({
 			c: species[i % species.length],
@@ -120,7 +120,10 @@ function fakeBridge(): PalBridgeApi {
 			p: passives.filter((_, j) => (i + j) % 4 === 0),
 			iv: [i % 101, (i * 7) % 101, (i * 13) % 101],
 			in: i < 5 ? 'party' : 'box',
-			s: i < 5 ? i : i - 5
+			s: i < 5 ? i : i - 5,
+			lv: 30 + (i % 31),
+			r: 1 + (i % 5),
+			sr: [i % 11, (i * 3) % 11, (i * 7) % 11]
 		}))
 		palListeners.forEach((cb) => cb({ pals: fake, mod: 'fake', at: Date.now() }))
 	}, 1500)
@@ -168,7 +171,7 @@ export const bridgeApi: PalBridgeApi | undefined =
 
 /** `syncCatches` is off in the overlay window, which only reads */
 export function BridgeProvider({ children, syncCatches: canSync = true }: { children: ReactNode; syncCatches?: boolean }) {
-	const { syncCatches, replaceCatches, loaded } = useStore()
+	const { syncCatches, replaceCatches, syncGameStats, loaded } = useStore()
 	const [liveStore] = useState(() => new LiveStore())
 	const [connected, setConnected] = useState(false)
 	const [motion] = useState(() => new Motion())
@@ -186,7 +189,7 @@ export function BridgeProvider({ children, syncCatches: canSync = true }: { chil
 				const kept = prev.map((p) => {
 					const now = fresh.get(p.key)
 					fresh.delete(p.key)
-					if (!now || (now.where?.box === p.where?.box && now.where?.slot === p.where?.slot)) return p
+					if (!now || (now.where?.box === p.where?.box && now.where?.slot === p.where?.slot && JSON.stringify(now.stats) === JSON.stringify(p.stats))) return p
 					changed = true
 					return now
 				})
@@ -219,6 +222,11 @@ export function BridgeProvider({ children, syncCatches: canSync = true }: { chil
 			clearInterval(timer)
 		}
 	}, [])
+
+	// Synced pals in My Pals keep their latest stats, for expedition estimates
+	useEffect(() => {
+		if (canSync && loaded && gamePals.length) syncGameStats(gamePals)
+	}, [canSync, loaded, gamePals, syncGameStats])
 
 	// The game's record is the source of truth for catches while syncing is on
 	useEffect(() => {

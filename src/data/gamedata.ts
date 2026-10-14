@@ -31,6 +31,8 @@ export interface PalInfo {
 	catchMinutes: number
 	/** Hidden breeding number; lower is stronger */
 	breedingPower: number
+	/** Base combat stats (attack is ranged attack) */
+	stats: { hp: number; attack: number; defense: number }
 	maleChance: number
 	work: Record<WorkKind, number>
 }

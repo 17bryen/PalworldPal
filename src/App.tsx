@@ -7,6 +7,7 @@ import { sanitize, useStore } from './state/store'
 import { BreedingPage } from './components/BreedingPage'
 import { PaldeckPage } from './components/PaldeckPage'
 import { MerchantsPage } from './components/MerchantsPage'
+import { ExpeditionsPage } from './components/ExpeditionsPage'
 import { MapPage } from './components/MapPage'
 import { NavigationContext } from './state/nav'
 import { GameLinkChip } from './components/GameLink'
@@ -75,8 +76,8 @@ function DataMenu() {
 	)
 }
 
-type Page = 'paldeck' | 'map' | 'breeding' | 'merchants' | 'overlay'
-const PAGES: Page[] = ['paldeck', 'map', 'breeding', 'merchants', 'overlay']
+type Page = 'paldeck' | 'map' | 'breeding' | 'merchants' | 'expeditions' | 'overlay'
+const PAGES: Page[] = ['paldeck', 'map', 'breeding', 'merchants', 'expeditions', 'overlay']
 const PAGE_KEY = 'palbreeder.page'
 
 /** The tab the app reopens on: the last one used, or the first */
@@ -149,6 +150,7 @@ export function App() {
 								<Tab value="map" label="Map" />
 								<Tab value="breeding" label="Breeding" />
 								<Tab value="merchants" label="Merchants" />
+								<Tab value="expeditions" label="Expeditions" />
 								<Tab value="overlay" label="Overlay" />
 							</Tabs>
 							<Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -170,6 +172,9 @@ export function App() {
 						</Box>
 						<Box sx={{ display: page === 'merchants' ? 'block' : 'none', height: '100%' }}>
 							{visited.has('merchants') && <MerchantsPage />}
+						</Box>
+						<Box sx={{ display: page === 'expeditions' ? 'block' : 'none', height: '100%' }}>
+							{visited.has('expeditions') && <ExpeditionsPage />}
 						</Box>
 						<Box sx={{ display: page === 'overlay' ? 'block' : 'none', height: '100%' }}>
 							{visited.has('overlay') && <OverlayPage />}

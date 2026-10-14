@@ -1,6 +1,7 @@
 import { passiveFromGameId, type Gender } from '../data/gamedata'
 import type { OwnedPal } from '../solver/types'
 import { palIdFromGame } from './captures'
+import type { PalStats } from '../data/expeditions'
 
 /** One of your pals as the mod reports it: game ids for species and passives, gender 1 male, 2 female */
 export interface RawGamePal {
@@ -11,6 +12,10 @@ export interface RawGamePal {
 	/** Mod 1.5+: party or box, and the slot index */
 	in?: string
 	s?: number
+	/** Mod 1.6+: level, condensation rank (1 = no stars) and Pal Soul ranks for HP, attack, defense */
+	lv?: number
+	r?: number
+	sr?: number[]
 }
 
 /** Where a pal sits, e.g. "Party 4" or "Palbox 3:14" (page 3, slot 14) */
@@ -32,6 +37,8 @@ export interface GamePal {
 	/** In slot order */
 	passives: string[]
 	where?: PalLocation
+	/** Mod 1.6+ */
+	stats?: PalStats
 }
 
 /** Your pals from the mod's list, skipping humans and anything this app doesn't know */
@@ -50,7 +57,16 @@ export function normalizeGamePals(raw: RawGamePal[]): GamePal[] {
 		seen.set(base, n)
 		const where: PalLocation | undefined =
 			typeof r.s === 'number' && r.s >= 0 && (r.in === 'party' || r.in === 'box') ? { box: r.in === 'party' ? 'party' : 'palbox', slot: r.s } : undefined
-		out.push({ key: n > 1 ? `${base}#${n}` : base, palId, gender, passives, where })
+		const stats: PalStats | undefined =
+			typeof r.lv === 'number' && r.lv > 0
+				? {
+						level: r.lv,
+						stars: Math.max(0, Math.min(4, (r.r ?? 1) - 1)),
+						ivs: [ivs[0] ?? 0, ivs[1] ?? 0, ivs[2] ?? 0],
+						souls: [r.sr?.[0] ?? 0, r.sr?.[1] ?? 0, r.sr?.[2] ?? 0]
+					}
+				: undefined
+		out.push({ key: n > 1 ? `${base}#${n}` : base, palId, gender, passives, where, stats })
 	}
 	return out
 }

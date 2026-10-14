@@ -1,5 +1,6 @@
 import type { Gender } from '../data/gamedata'
 import type { SurgerySettings } from '../data/surgery'
+import type { PalStats } from '../data/expeditions'
 
 export type { Gender }
 
@@ -13,6 +14,9 @@ export interface OwnedPal {
 	stars?: number
 	/** Key of the game pal it came from or was matched to (GamePal.key) */
 	game?: string
+	/** Last stats and storage the game reported, kept so expedition estimates work between sessions */
+	stats?: PalStats
+	box?: 'party' | 'palbox'
 }
 
 export interface WantedPal {
