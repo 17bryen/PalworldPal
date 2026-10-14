@@ -90,8 +90,14 @@ export function layerPoints(layer: MapLayer, map: MapIndex): LayerPoint[] {
  * 300 comes from the game data; chest and crate timers vary by source and server settings, so
  * these are editable.
  */
-export const LOOT_DEFAULT_MINUTES: Record<string, number> = { junk: 300, chest: 240, chest_element: 240, supply: 240 }
+export const LOOT_DEFAULT_MINUTES: Record<string, number> = { junk: 300, chest: 240, chest_element: 240, supply: 240, dungeon: 30 }
 export const isLootLayer = (layerId: string) => layerId in LOOT_DEFAULT_MINUTES
+
+/**
+ * Marked by clicking only: walking past a dungeon entrance doesn't mean you cleared it. Dungeons
+ * open at random spots for a while, so 30 minutes is a rough guess.
+ */
+export const CLICK_ONLY_LOOT = new Set(['dungeon'])
 
 let lootSpots: { key: string; map: MapIndex; x: number; y: number }[] | null = null
 /** Every lootable spot in world units, for standing-on-it detection */
@@ -99,7 +105,7 @@ export function allLootSpots() {
 	if (!lootSpots) {
 		lootSpots = []
 		for (const layer of mapLayers) {
-			if (!isLootLayer(layer.id)) continue
+			if (!isLootLayer(layer.id) || CLICK_ONLY_LOOT.has(layer.id)) continue
 			for (const map of [0, 1] as MapIndex[]) {
 				for (const p of layerPoints(layer, map)) lootSpots.push({ key: p.key, map, ...pixelToWorld(map, p.px, p.py) })
 			}
