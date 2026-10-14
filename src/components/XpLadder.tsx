@@ -8,7 +8,7 @@ import { buildLadder, type LadderStep } from '../data/ladder'
 import { CATCH_TARGET } from '../data/paldeck'
 import { useStore } from '../state/store'
 import { useGamePals } from '../state/bridge'
-import { describeLocation, type PalLocation } from '../state/gamepals'
+import { ownedLocation, type PalLocation } from '../state/gamepals'
 import { GenderIcon, PalAvatar } from './bits'
 import { BreedingNumber } from './BreedingCalculator'
 import { LazyItem, LazyScroll } from './lazy'
@@ -52,7 +52,7 @@ function useSpots(): Map<string, Spot[]> {
 		const spots = new Map<string, Spot[]>()
 		for (const o of owned) {
 			const w = o.game ? whereByKey.get(o.game) : undefined
-			const where = !o.game ? 'added by hand' : w ? describeLocation(w) : 'not seen in the game this session'
+			const where = ownedLocation(o, whereByKey) ?? 'Added by hand'
 			if (!spots.has(o.palId)) spots.set(o.palId, [])
 			spots.get(o.palId)!.push({ gender: o.gender, where, order: order(w) })
 		}

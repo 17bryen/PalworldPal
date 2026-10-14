@@ -25,9 +25,9 @@ import StarIcon from '@mui/icons-material/Star'
 import AddIcon from '@mui/icons-material/Add'
 import { getPal, YAKUMO_ID, type Gender } from '../data/gamedata'
 import { useGamePals } from '../state/bridge'
-import { describeLocation, planAdd, type GamePal } from '../state/gamepals'
+import { describeLocation, ownedLocation, planAdd, type GamePal } from '../state/gamepals'
 import { useStore } from '../state/store'
-import type { Plan, PlanNode, TargetResult } from '../solver/types'
+import type { OwnedPal, Plan, PlanNode, TargetResult } from '../solver/types'
 import { GenderIcon, PalAvatar, PassiveList } from './bits'
 import { PalPicker, PassivePicker } from './pickers'
 import { LazyItem, LazyScroll } from './lazy'
@@ -326,11 +326,7 @@ export function ListsPanel({
 	)
 	const addPlan = useMemo(() => planAdd(store.owned, gamePals), [store.owned, gamePals])
 	const whereByKey = useMemo(() => new Map(gamePals.map((g) => [g.key, g.where])), [gamePals])
-	const locationOf = (game?: string) => {
-		if (!game) return undefined
-		const where = whereByKey.get(game)
-		return where ? describeLocation(where) : 'Not seen in the game this session'
-	}
+	const locationOf = (o: OwnedPal) => ownedLocation(o, whereByKey)
 	const pending = addPlan.links.size + addPlan.adds.length
 	// Pals seen in the game this session that aren't in My Pals yet, listed under Game Synced
 	const notAdded = useMemo(
@@ -430,7 +426,7 @@ export function ListsPanel({
 								stars={o.stars}
 								onEdit={() => setDraft({ uid: o.uid, palId: o.palId, gender: o.gender, passives: o.passives, stars: o.stars ?? 0 })}
 								onDelete={() => store.removeOwned(o.uid)}
-								location={locationOf(o.game)}
+								location={locationOf(o)}
 							/>
 						</LazyItem>
 					))}

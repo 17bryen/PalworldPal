@@ -3,7 +3,7 @@ import { parsePals } from '../../electron/gamelink'
 import { pals as allPals } from '../data/gamedata'
 import { solvePlan } from '../solver/solver'
 import type { OwnedPal, PlanSettings } from '../solver/types'
-import { describeLocation, normalizeGamePals, planAdd } from './gamepals'
+import { describeLocation, normalizeGamePals, ownedLocation, planAdd } from './gamepals'
 
 describe('game pals', () => {
 	it('reads pals.json and drops malformed entries', () => {
@@ -33,6 +33,14 @@ describe('game pals', () => {
 		expect(describeLocation(party.where!)).toBe('Party 4')
 		expect(describeLocation(box.where!)).toBe('Palbox 3:14')
 		expect(old.where).toBeUndefined()
+	})
+
+	it('falls back to where a synced pal was last seen', () => {
+		const pal: OwnedPal = { uid: 'a', palId: 'PinkCat', gender: 'F', passives: [], game: 'k1', seen: { box: 'palbox', slot: 73 } }
+		expect(ownedLocation(pal, new Map([['k1', { box: 'party', slot: 0 }]]))).toBe('Party 1')
+		expect(ownedLocation(pal, new Map())).toBe('Last Seen: Palbox 3:14')
+		expect(ownedLocation({ ...pal, seen: undefined }, new Map())).toBe('Not seen in the game yet')
+		expect(ownedLocation({ ...pal, game: undefined }, new Map())).toBeUndefined()
 	})
 
 	it('keeps keys stable and tells identical twins apart', () => {

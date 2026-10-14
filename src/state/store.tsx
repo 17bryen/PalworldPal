@@ -237,18 +237,18 @@ function useStoreValue(readOnly: boolean) {
 			}
 		})
 	}, [])
-	/** Keeps synced pals' stats and storage up to date with what the game last reported */
+	/** Keeps synced pals' stats and last known spot up to date with what the game reports */
 	const syncGameStats = useCallback((gamePals: GamePal[]) => {
 		setState((s) => {
 			const byKey = new Map(gamePals.map((g) => [g.key, g]))
 			let changed = false
 			const owned = s.owned.map((o) => {
 				const g = o.game ? byKey.get(o.game) : undefined
-				if (!g?.stats) return o
-				const box = g.where?.box ?? o.box
-				if (JSON.stringify(o.stats) === JSON.stringify(g.stats) && o.box === box) return o
+				if (!g || (!g.stats && !g.where)) return o
+				const next = { ...o, stats: g.stats ?? o.stats, box: g.where?.box ?? o.box, seen: g.where ?? o.seen }
+				if (JSON.stringify([next.stats, next.box, next.seen]) === JSON.stringify([o.stats, o.box, o.seen])) return o
 				changed = true
-				return { ...o, stats: g.stats, box }
+				return next
 			})
 			return changed ? { ...s, owned } : s
 		})

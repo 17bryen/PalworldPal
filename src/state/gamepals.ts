@@ -71,6 +71,19 @@ export function normalizeGamePals(raw: RawGamePal[]): GamePal[] {
 	return out
 }
 
+/**
+ * Where a synced pal is: its spot this session, else "Last Seen: ..." from an earlier one. Checking
+ * that spot in the game loads it; if the pal isn't there, it was sold, condensed or moved.
+ * Undefined for pals added by hand.
+ */
+export function ownedLocation(o: OwnedPal, current: Map<string, PalLocation | undefined>): string | undefined {
+	if (!o.game) return undefined
+	const now = current.get(o.game)
+	if (now) return describeLocation(now)
+	if (o.seen) return `Last Seen: ${describeLocation(o.seen)}`
+	return 'Not seen in the game yet'
+}
+
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x))
 
 export interface AddPlan {

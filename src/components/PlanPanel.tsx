@@ -25,7 +25,7 @@ import { getPal } from '../data/gamedata'
 import { worldTree } from '../data/regions'
 import { useStore } from '../state/store'
 import { useGamePals } from '../state/bridge'
-import { describeLocation } from '../state/gamepals'
+import { ownedLocation } from '../state/gamepals'
 import { pinKey, type Plan, type PlanNode, type SolveProgress, type TargetResult } from '../solver/types'
 import { GenderIcon, PalAvatar, PassiveList } from './bits'
 import { StatusChip } from './ListsPanel'
@@ -58,8 +58,8 @@ export function NodePassives({ node, implants }: { node: PlanNode; implants?: st
 function OwnedChip({ ownedUid }: { ownedUid: string }) {
 	const owned = useStore().owned.find((o) => o.uid === ownedUid)
 	const gamePals = useGamePals()
-	const where = owned?.game ? gamePals.find((g) => g.key === owned.game)?.where : undefined
-	const title = !owned?.game ? 'Added by hand, so its spot in the game isn\'t known' : where ? describeLocation(where) : 'Not seen in the game this session'
+	const current = useMemo(() => new Map(gamePals.map((g) => [g.key, g.where])), [gamePals])
+	const title = (owned && ownedLocation(owned, current)) ?? 'Added by hand, so its spot in the game isn\'t known'
 	return (
 		<Tooltip title={title}>
 			<Chip size="small" color="success" variant="outlined" label="Owned" />

@@ -17,6 +17,8 @@ export interface OwnedPal {
 	/** Last stats and storage the game reported, kept so expedition estimates work between sessions */
 	stats?: PalStats
 	box?: 'party' | 'palbox'
+	/** Where the game last showed it, for "Last Seen" when it isn't loaded this session */
+	seen?: { box: 'party' | 'palbox'; slot: number }
 }
 
 export interface WantedPal {
