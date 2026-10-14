@@ -19,6 +19,8 @@ export interface OwnedPal {
 	box?: 'party' | 'palbox'
 	/** Where the game last showed it, for "Last Seen" when it isn't loaded this session */
 	seen?: { box: 'party' | 'palbox'; slot: number }
+	/** The nickname the player gave it in the game */
+	name?: string
 }
 
 export interface WantedPal {

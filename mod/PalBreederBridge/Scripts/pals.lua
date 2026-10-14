@@ -79,6 +79,7 @@ end
 local function readGender(sp) return sp.Gender end
 local function readTalents(sp) return sp.Talent_HP, sp.Talent_Shot, sp.Talent_Defense end
 local function readLevel(sp) return sp.Level end
+local function readName(sp) return sp.NickName:ToString() end
 -- Condensation (1 = no stars, 5 = four stars) and Pal Soul ranks for HP, attack and defense
 local function readRanks(sp) return sp.Rank, sp.Rank_HP, sp.Rank_Attack, sp.Rank_Defence end
 local function readPassives(sp)
@@ -90,6 +91,12 @@ end
 -- Names here come from the game's own ids, but keep the JSON valid whatever they hold
 local function quote(s)
     return '"' .. s:gsub('[%c"\\]', "") .. '"'
+end
+
+-- A player's text (pal nicknames), escaped so every character survives as JSON
+local JSON_ESCAPES = { ['"'] = '\\"', ['\\'] = '\\\\' }
+local function jsonString(s)
+    return '"' .. s:gsub('[%c"\\]', function(ch) return JSON_ESCAPES[ch] or string.format('\\u%04x', ch:byte()) end) .. '"'
 end
 
 -- One pal as JSON, or nil when it isn't yours or its data hasn't arrived yet
@@ -116,9 +123,11 @@ local function readPal(param, me)
     local level = math.tointeger(get(readLevel, sp)) or 0
     local okRanks, rank, rankHp, rankAtk, rankDef = pcall(readRanks, sp)
     if not okRanks then rank, rankHp, rankAtk, rankDef = 0, 0, 0, 0 end
-    return string.format('{"c":%s,"g":%d,"p":[%s],"iv":[%d,%d,%d],"in":"%s","s":%d,"lv":%d,"r":%d,"sr":[%d,%d,%d]}', quote(species),
+    local name = get(readName, sp) or ""
+    return string.format('{"c":%s,"g":%d,"p":[%s],"iv":[%d,%d,%d],"in":"%s","s":%d,"lv":%d,"r":%d,"sr":[%d,%d,%d],"n":%s}', quote(species),
         math.tointeger(gender) or 0, table.concat(passives, ","), math.tointeger(hp) or 0, math.tointeger(shot) or 0, math.tointeger(def) or 0,
-        kind, slot, level, math.tointeger(rank) or 0, math.tointeger(rankHp) or 0, math.tointeger(rankAtk) or 0, math.tointeger(rankDef) or 0)
+        kind, slot, level, math.tointeger(rank) or 0, math.tointeger(rankHp) or 0, math.tointeger(rankAtk) or 0, math.tointeger(rankDef) or 0,
+        jsonString(name))
 end
 
 -- Scheduling (game thread only)

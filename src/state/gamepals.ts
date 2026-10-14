@@ -16,6 +16,8 @@ export interface RawGamePal {
 	lv?: number
 	r?: number
 	sr?: number[]
+	/** Mod 1.7+: the pal's nickname, empty when it has none */
+	n?: string
 }
 
 /** Where a pal sits, e.g. "Party 4" or "Palbox 3:14" (page 3, slot 14) */
@@ -39,6 +41,11 @@ export interface GamePal {
 	where?: PalLocation
 	/** Mod 1.6+ */
 	stats?: PalStats
+	/** HP, attack, defense IVs; with the species they tell a pal apart when its gender or passives change */
+	ivs: number[]
+	alpha: boolean
+	/** Mod 1.7+: the nickname the player gave it (up to 24 characters) */
+	name?: string
 }
 
 /** Your pals from the mod's list, skipping humans and anything this app doesn't know */
@@ -66,7 +73,8 @@ export function normalizeGamePals(raw: RawGamePal[]): GamePal[] {
 						souls: [r.sr?.[0] ?? 0, r.sr?.[1] ?? 0, r.sr?.[2] ?? 0]
 					}
 				: undefined
-		out.push({ key: n > 1 ? `${base}#${n}` : base, palId, gender, passives, where, stats })
+		const name = typeof r.n === 'string' && r.n.trim() ? r.n.trim() : undefined
+		out.push({ key: n > 1 ? `${base}#${n}` : base, palId, gender, passives, where, stats, ivs, alpha: /^boss_/i.test(r.c), name })
 	}
 	return out
 }
@@ -82,6 +90,38 @@ export function ownedLocation(o: OwnedPal, current: Map<string, PalLocation | un
 	if (now) return describeLocation(now)
 	if (o.seen) return `Last Seen: ${describeLocation(o.seen)}`
 	return 'Not seen in the game yet'
+}
+
+export interface GamePalChange {
+	/** The key the pal had */
+	from: string
+	/** The same pal now */
+	to: GamePal
+}
+
+/**
+ * Pals whose gender or passives changed between two reads of the game. The Surgery Table only
+ * works on party pals, so a changed pal is the one in the same party slot with the same species,
+ * IVs and alpha status but a new key.
+ */
+export function diffGamePals(prev: GamePal[], next: GamePal[]): GamePalChange[] {
+	const nextKeys = new Set(next.map((g) => g.key))
+	const prevKeys = new Set(prev.map((g) => g.key))
+	const appeared = next.filter((g) => !prevKeys.has(g.key) && g.where)
+	const changes: GamePalChange[] = []
+	for (const old of prev) {
+		if (nextKeys.has(old.key) || !old.where) continue
+		const now = appeared.find(
+			(g) =>
+				g.where!.box === old.where!.box &&
+				g.where!.slot === old.where!.slot &&
+				g.palId === old.palId &&
+				g.alpha === old.alpha &&
+				g.ivs.join('/') === old.ivs.join('/')
+		)
+		if (now) changes.push({ from: old.key, to: now })
+	}
+	return changes
 }
 
 const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x))

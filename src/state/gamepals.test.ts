@@ -3,7 +3,7 @@ import { parsePals } from '../../electron/gamelink'
 import { pals as allPals } from '../data/gamedata'
 import { solvePlan } from '../solver/solver'
 import type { OwnedPal, PlanSettings } from '../solver/types'
-import { describeLocation, normalizeGamePals, ownedLocation, planAdd } from './gamepals'
+import { describeLocation, diffGamePals, normalizeGamePals, ownedLocation, planAdd } from './gamepals'
 
 describe('game pals', () => {
 	it('reads pals.json and drops malformed entries', () => {
@@ -41,6 +41,31 @@ describe('game pals', () => {
 		expect(ownedLocation(pal, new Map())).toBe('Last Seen: Palbox 3:14')
 		expect(ownedLocation({ ...pal, seen: undefined }, new Map())).toBe('Not seen in the game yet')
 		expect(ownedLocation({ ...pal, game: undefined }, new Map())).toBeUndefined()
+	})
+
+	it('follows a party pal through the Surgery Table', () => {
+		const before = normalizeGamePals([
+			{ c: 'IceHorse', g: 1, p: ['MoveSpeed_up_3', 'SalePrice_Up_1'], iv: [90, 80, 70], in: 'party', s: 4, n: 'Frosty' },
+			{ c: 'PinkCat', g: 2, p: [], iv: [1, 2, 3], in: 'box', s: 10 }
+		])
+		const after = normalizeGamePals([
+			{ c: 'IceHorse', g: 2, p: ['MoveSpeed_up_3', 'MoveSpeed_up_2', 'Test_PalEgg_HatchingSpeed_Up'], iv: [90, 80, 70], in: 'party', s: 4, n: 'Frosty' },
+			{ c: 'PinkCat', g: 2, p: [], iv: [1, 2, 3], in: 'box', s: 10 }
+		])
+		const changes = diffGamePals(before, after)
+		expect(changes).toHaveLength(1)
+		expect(changes[0].from).toBe(before[0].key)
+		expect(changes[0].to.gender).toBe('F')
+		expect(changes[0].to.passives).toEqual(['Swift', 'Runner', 'Philanthropist'])
+		expect(changes[0].to.name).toBe('Frosty')
+	})
+
+	it('does not mistake a different pal in the same slot for a changed one', () => {
+		const before = normalizeGamePals([{ c: 'IceHorse', g: 1, p: [], iv: [90, 80, 70], in: 'party', s: 4 }])
+		const otherIvs = normalizeGamePals([{ c: 'IceHorse', g: 2, p: [], iv: [10, 20, 30], in: 'party', s: 4 }])
+		const otherSpecies = normalizeGamePals([{ c: 'Anubis', g: 1, p: [], iv: [90, 80, 70], in: 'party', s: 4 }])
+		expect(diffGamePals(before, otherIvs)).toEqual([])
+		expect(diffGamePals(before, otherSpecies)).toEqual([])
 	})
 
 	it('keeps keys stable and tells identical twins apart', () => {

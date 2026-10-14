@@ -2,6 +2,11 @@ import { useMemo, useState } from 'react'
 import {
 	Box,
 	Button,
+	Dialog,
+	DialogActions,
+	DialogContent,
+	DialogContentText,
+	DialogTitle,
 	Checkbox,
 	Chip,
 	MenuItem,
@@ -320,6 +325,13 @@ export function ListsPanel({
 
 	const results = useMemo(() => new Map(plan?.targets.map((t) => [t.wantedUid, t])), [plan])
 	const handCount = useMemo(() => store.owned.filter((o) => !o.game).length, [store.owned])
+	const [confirmRemove, setConfirmRemove] = useState(false)
+	// Everything in the chosen view, regardless of the search box
+	const inView = useMemo(
+		() => (source === 'all' ? store.owned : store.owned.filter((o) => (source === 'hand' ? !o.game : !!o.game))),
+		[store.owned, source]
+	)
+	const viewName = source === 'all' ? 'pals from My Pals' : source === 'hand' ? 'hand-added pals' : 'game-synced pals'
 	const owned = useMemo(
 		() => filterAndSort(source === 'all' ? store.owned : store.owned.filter((o) => (source === 'hand' ? !o.game : !!o.game)), search),
 		[store.owned, search, source]
@@ -368,6 +380,11 @@ export function ListsPanel({
 						<ToggleButton value="synced">Game Synced ({store.owned.length - handCount})</ToggleButton>
 					</ToggleButtonGroup>
 					<Box sx={{ flex: 1 }} />
+					{inView.length > 0 && (
+						<Button size="small" color="error" onClick={() => setConfirmRemove(true)}>
+							Remove All
+						</Button>
+					)}
 					{source === 'synced' && gamePals.length > 0 && (
 						<Tooltip title="Your party and every Palbox page you've opened this session">
 							<span>
@@ -456,6 +473,27 @@ export function ListsPanel({
 					/>
 				)}
 			</LazyScroll>
+			<Dialog open={confirmRemove} onClose={() => setConfirmRemove(false)}>
+				<DialogTitle>Remove All</DialogTitle>
+				<DialogContent>
+					<DialogContentText>
+						This will remove all {inView.length} {viewName}.{source !== 'hand' && ' Pals from the game can be added back with Add All once their Palbox pages are open.'}
+					</DialogContentText>
+				</DialogContent>
+				<DialogActions>
+					<Button onClick={() => setConfirmRemove(false)}>Cancel</Button>
+					<Button
+						color="error"
+						variant="contained"
+						onClick={() => {
+							store.removeOwnedMany(inView.map((o) => o.uid))
+							setConfirmRemove(false)
+						}}
+					>
+						Remove {inView.length}
+					</Button>
+				</DialogActions>
+			</Dialog>
 		</Paper>
 	)
 }

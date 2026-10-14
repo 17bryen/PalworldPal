@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { getPal } from '../data/gamedata'
 import { LOOT_DEFAULT_MINUTES } from '../data/map'
 import type { CatchPref, OwnedPal, Pin, PlanSettings, WantedPal } from '../solver/types'
-import { planAdd, type GamePal } from './gamepals'
+import { planAdd, type GamePal, type GamePalChange } from './gamepals'
 import { defaultSurgery } from '../data/surgery'
 
 declare global {
@@ -232,7 +232,7 @@ function useStoreValue(readOnly: boolean) {
 				...s,
 				owned: [
 					...s.owned.map((o) => (links.has(o.uid) ? { ...o, game: links.get(o.uid) } : o)),
-					...adds.map((g) => ({ uid: newUid(), palId: g.palId, gender: g.gender, passives: g.passives, game: g.key }))
+					...adds.map((g) => ({ uid: newUid(), palId: g.palId, gender: g.gender, passives: g.passives, game: g.key, name: g.name, stats: g.stats, box: g.where?.box, seen: g.where }))
 				]
 			}
 		})
@@ -244,17 +244,36 @@ function useStoreValue(readOnly: boolean) {
 			let changed = false
 			const owned = s.owned.map((o) => {
 				const g = o.game ? byKey.get(o.game) : undefined
-				if (!g || (!g.stats && !g.where)) return o
-				const next = { ...o, stats: g.stats ?? o.stats, box: g.where?.box ?? o.box, seen: g.where ?? o.seen }
-				if (JSON.stringify([next.stats, next.box, next.seen]) === JSON.stringify([o.stats, o.box, o.seen])) return o
+				if (!g) return o
+				const next = { ...o, stats: g.stats ?? o.stats, box: g.where?.box ?? o.box, seen: g.where ?? o.seen, name: g.name ?? o.name }
+				if (JSON.stringify([next.stats, next.box, next.seen, next.name]) === JSON.stringify([o.stats, o.box, o.seen, o.name])) return o
 				changed = true
 				return next
 			})
 			return changed ? { ...s, owned } : s
 		})
 	}, [])
+	/** Follows pals whose gender or passives changed at the Surgery Table, keeping them the same entry */
+	const applyGameChanges = useCallback((changes: GamePalChange[]) => {
+		if (!changes.length) return
+		setState((s) => {
+			const byFrom = new Map(changes.map((c) => [c.from, c.to]))
+			let changed = false
+			const owned = s.owned.map((o) => {
+				const to = o.game ? byFrom.get(o.game) : undefined
+				if (!to) return o
+				changed = true
+				return { ...o, game: to.key, gender: to.gender, passives: to.passives }
+			})
+			return changed ? { ...s, owned } : s
+		})
+	}, [])
 	const removeOwned = useCallback((uid: string) => {
 		setState((s) => ({ ...s, owned: s.owned.filter((o) => o.uid !== uid) }))
+	}, [])
+	const removeOwnedMany = useCallback((uids: string[]) => {
+		const gone = new Set(uids)
+		setState((s) => ({ ...s, owned: s.owned.filter((o) => !gone.has(o.uid)) }))
 	}, [])
 
 	const addWanted = useCallback((pal: Omit<WantedPal, 'uid'>) => {
@@ -348,6 +367,8 @@ function useStoreValue(readOnly: boolean) {
 			syncGameStats,
 			updateOwned,
 			removeOwned,
+			removeOwnedMany,
+			applyGameChanges,
 			addWanted,
 			addWantedMany,
 			updateWanted,
@@ -374,6 +395,8 @@ function useStoreValue(readOnly: boolean) {
 			syncGameStats,
 			updateOwned,
 			removeOwned,
+			removeOwnedMany,
+			applyGameChanges,
 			addWanted,
 			addWantedMany,
 			updateWanted,

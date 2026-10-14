@@ -75,6 +75,8 @@ export interface RawGamePal {
 	lv?: number
 	r?: number
 	sr?: number[]
+	/** Mod 1.7+: the pal's nickname, empty when it has none */
+	n?: string
 }
 
 export interface GamePalsData {
