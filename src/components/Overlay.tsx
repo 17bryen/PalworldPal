@@ -8,7 +8,7 @@ import { useBridge, useLive, type LiveData } from '../state/bridge'
 import type { Motion, Pose } from '../state/motion'
 import { defaultLayout, lootReadyAt, useStore, type OverlayLayout, type OverlayPrefs } from '../state/store'
 import { useMinuteTick } from '../state/loot'
-import { asset, BOUNDS, LayerMarkers, PlayerMarker, toLatLng } from './MapPage'
+import { asset, BOUNDS, LayerMarkers, PlayerMarker, toLatLng, WildPalMarkers } from './MapPage'
 
 export const COMPASS_HEIGHT = 84
 /** The dark strip with the headings; markers hang below its top edge */
@@ -168,7 +168,7 @@ export function Compass({ pose, layerIds, range, width, prefs }: { pose: Pose; l
 	)
 }
 
-function Minimap({ live, layerIds, size, zoom }: { live: LiveData; layerIds: string[]; size: number; zoom: number }) {
+function Minimap({ live, layerIds, size, zoom, wildPals }: { live: LiveData; layerIds: string[]; size: number; zoom: number; wildPals: boolean }) {
 	const here = worldToPixel(live.x, live.y)
 	const shown = useMemo(() => mapLayers.filter((l) => layerIds.includes(l.id)), [layerIds])
 	return (
@@ -212,6 +212,7 @@ function Minimap({ live, layerIds, size, zoom }: { live: LiveData; layerIds: str
 				{shown.map((l) => (
 					<LayerMarkers key={l.id} layer={l} map={here.map} hideLooted />
 				))}
+				{wildPals && <WildPalMarkers map={here.map} size={26} />}
 				<PlayerMarker map={here.map} follow />
 			</MapContainer>
 			<Box sx={{ position: 'absolute', top: 4, left: '50%', transform: 'translateX(-50%)', zIndex: 1000, fontSize: 13, fontWeight: 800, color: '#f07a7a', textShadow: '0 1px 3px #000' }}>
@@ -367,7 +368,7 @@ export function OverlayApp() {
 					onResize={(dx) => setDraft({ ...layout, minimapX: minimap.left / screen.w, minimapY: minimap.top / screen.h, size: clamp(layout.size + dx, MINIMAP_SIZE_RANGE) })}
 					onDone={() => draft && commit(draft)}
 				>
-					<Minimap live={pose ? (live ?? PREVIEW_LIVE) : PREVIEW_LIVE} layerIds={map.layers} size={layout.size} zoom={overlay.zoom} />
+					<Minimap live={pose ? (live ?? PREVIEW_LIVE) : PREVIEW_LIVE} layerIds={map.layers} size={layout.size} zoom={overlay.zoom} wildPals={overlay.wildPals} />
 				</Movable>
 			)}
 			{editing && (

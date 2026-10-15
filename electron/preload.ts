@@ -28,6 +28,11 @@ contextBridge.exposeInMainWorld('palBridge', {
 		ipcRenderer.on('bridge:pals', listener)
 		return () => ipcRenderer.removeListener('bridge:pals', listener)
 	},
+	onWild: (cb: (data: unknown) => void) => {
+		const listener = (_e: unknown, data: unknown) => cb(data)
+		ipcRenderer.on('bridge:wild', listener)
+		return () => ipcRenderer.removeListener('bridge:wild', listener)
+	},
 	status: () => ipcRenderer.invoke('gamelink:status'),
 	install: () => ipcRenderer.invoke('gamelink:install'),
 	chooseGameFolder: () => ipcRenderer.invoke('gamelink:choose'),

@@ -3,6 +3,7 @@ import { normalizeCaptures } from './captures'
 import { normalizeGamePals, type GamePal, type RawGamePal } from './gamepals'
 import { Motion } from './motion'
 import { useStore } from './store'
+import { normalizeWildPals, type RawWildPal, type WildPal } from './wildpals'
 
 /** What the companion mod reports, relayed by the main process */
 export interface LiveData {
@@ -30,6 +31,13 @@ export interface GamePalsData {
 	at: number
 }
 
+/** Mod 1.9+: wild pals the game has loaded near you */
+export interface WildPalsData {
+	pals: RawWildPal[]
+	mod: string
+	at: number
+}
+
 export interface GameLinkStatus {
 	gamePath: string | null
 	ue4ss: boolean
@@ -44,11 +52,13 @@ export interface GameLinkStatus {
 }
 
 interface PalBridgeApi {
-	latest(): Promise<{ live: LiveData | null; captures: CaptureData | null; pals?: GamePalsData | null }>
+	latest(): Promise<{ live: LiveData | null; captures: CaptureData | null; pals?: GamePalsData | null; wild?: WildPalsData | null }>
 	onLive(cb: (data: LiveData) => void): () => void
 	onCaptures(cb: (data: CaptureData) => void): () => void
 	/** Mod 1.4+ */
 	onPals?(cb: (data: GamePalsData) => void): () => void
+	/** Mod 1.9+ */
+	onWild?(cb: (data: WildPalsData) => void): () => void
 	status(): Promise<GameLinkStatus>
 	install(): Promise<GameLinkStatus>
 	chooseGameFolder(): Promise<GameLinkStatus>
@@ -97,6 +107,8 @@ const BridgeContext = createContext<Bridge>({ available: false, motion: new Moti
 const LiveContext = createContext(new LiveStore())
 /** Kept apart from the bridge's position updates, which arrive many times a second */
 const GamePalsContext = createContext<GamePal[]>([])
+/** Changes every couple of seconds while you move, so it has its own context too */
+const WildPalsContext = createContext<WildPal[]>([])
 
 /** Dev-only stand-in for the game: walks a loop near Small Settlement (open with ?fakebridge) */
 function fakeBridge(): PalBridgeApi {
@@ -109,6 +121,25 @@ function fakeBridge(): PalBridgeApi {
 		liveListeners.forEach((cb) => cb(live))
 	}, 150)
 	const palListeners = new Set<(d: GamePalsData) => void>()
+	const wildListeners = new Set<(d: WildPalsData) => void>()
+	// A herd and some loners around wherever the walk is, drifting a little each update
+	const herd = ['SheepBall', 'SheepBall', 'SheepBall', 'PinkCat', 'BOSS_ChickenPal', 'Kitsunebi', 'ChickenPal', 'ChickenPal', 'IceHorse', 'SheepBall']
+	setInterval(() => {
+		const cx = -346618 + Math.sin(t / 6) * 30000
+		const cy = 191707 + Math.cos(t / 6) * 30000
+		const pals = herd.map((c, i) => ({
+			c,
+			x: cx + Math.cos(i * 1.7) * (4000 + (i % 3) * 600) + Math.sin(t + i) * 300,
+			y: cy + Math.sin(i * 1.7) * (4000 + (i % 3) * 600),
+			z: 0,
+			lv: 3 + i,
+			g: 1 + (i % 2),
+			...(i === 5 ? { l: true } : {})
+		}))
+		// The first three sheep share a spot, so they draw as one portrait
+		for (const p of pals.slice(1, 3)) Object.assign(p, { x: pals[0].x + 400, y: pals[0].y - 300 })
+		wildListeners.forEach((cb) => cb({ pals, mod: 'fake', at: Date.now() }))
+	}, 2000)
 	setTimeout(() => {
 		const captures = { counts: { SheepBall: 5, PinkCat: 3, BOSS_ChickenPal: 1, ChickenPal: 2 }, mod: 'fake', at: Date.now() }
 		captureListeners.forEach((cb) => cb(captures))
@@ -146,6 +177,7 @@ function fakeBridge(): PalBridgeApi {
 		onLive: (cb) => (liveListeners.add(cb), () => void liveListeners.delete(cb)),
 		onCaptures: (cb) => (captureListeners.add(cb), () => void captureListeners.delete(cb)),
 		onPals: (cb) => (palListeners.add(cb), () => void palListeners.delete(cb)),
+		onWild: (cb) => (wildListeners.add(cb), () => void wildListeners.delete(cb)),
 		status: async () => status,
 		install: async () => status,
 		chooseGameFolder: async () => status,
@@ -181,6 +213,14 @@ export function BridgeProvider({ children, syncCatches: canSync = true }: { chil
 	const [motion] = useState(() => new Motion())
 	const [captures, setCaptures] = useState<CaptureData | null>(null)
 	const [gamePals, setGamePals] = useState<GamePal[]>([])
+	const [wildPals, setWildPals] = useState<WildPal[]>([])
+
+	useEffect(() => {
+		if (!bridgeApi?.onWild) return
+		const take = (d: WildPalsData) => setWildPals(normalizeWildPals(d.pals))
+		bridgeApi.latest().then((d) => d.wild && take(d.wild))
+		return bridgeApi.onWild(take)
+	}, [])
 
 	// Your pals seen this session. The Palbox only loads the pages you open, so pals stay listed
 	// after their page unloads.
@@ -241,7 +281,9 @@ export function BridgeProvider({ children, syncCatches: canSync = true }: { chil
 	return (
 		<BridgeContext.Provider value={bridge}>
 			<LiveContext.Provider value={liveStore}>
-				<GamePalsContext.Provider value={gamePals}>{children}</GamePalsContext.Provider>
+				<GamePalsContext.Provider value={gamePals}>
+					<WildPalsContext.Provider value={connected ? wildPals : NO_WILD}>{children}</WildPalsContext.Provider>
+				</GamePalsContext.Provider>
 			</LiveContext.Provider>
 		</BridgeContext.Provider>
 	)
@@ -262,3 +304,6 @@ export function useLiveValue<T extends string | number | boolean | null>(select:
 	return useSyncExternalStore(store.subscribe, () => select(store.live))
 }
 export const useGamePals = () => useContext(GamePalsContext)
+/** Wild pals loaded near you; empty while the game isn't connected */
+export const useWildPals = () => useContext(WildPalsContext)
+const NO_WILD: WildPal[] = []

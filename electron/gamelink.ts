@@ -115,9 +115,32 @@ export function parsePals(text: string, at: number): GamePalsData | null {
 	}
 }
 
+/** Mod 1.9+: wild pals the game has loaded near you; "c" is the game's species id, alphas keep BOSS_ */
+export interface WildPalsData {
+	pals: { c: string; x: number; y: number; z: number; lv?: number; g?: number; l?: boolean }[]
+	mod: string
+	at: number
+}
+
+/** Parses the mod's wild.json, dropping entries that don't have the expected shape */
+export function parseWild(text: string, at: number): WildPalsData | null {
+	try {
+		const d = JSON.parse(text)
+		if (!Array.isArray(d.pals)) return null
+		const pals = (d.pals as unknown[]).filter(
+			(e): e is WildPalsData['pals'][number] =>
+				!!e && typeof (e as { c: unknown }).c === 'string' && ['x', 'y', 'z'].every((k) => typeof (e as Record<string, unknown>)[k] === 'number')
+		)
+		return { pals, mod: String(d.mod ?? ''), at }
+	} catch {
+		return null
+	}
+}
+
 let latestLive: LiveData | null = null
 let latestCaptures: CaptureData | null = null
 let latestPals: GamePalsData | null = null
+let latestWild: WildPalsData | null = null
 
 /** Polls the bridge files and forwards changes to every window (app and overlay). fs.watch is unreliable on Windows. */
 export function startBridge() {
@@ -163,7 +186,14 @@ export function startBridge() {
 		latestPals = pals
 		send('bridge:pals', pals)
 	})
-	ipcMain.handle('bridge:latest', () => ({ live: latestLive, captures: latestCaptures, pals: latestPals }))
+	// The mod rewrites it every couple of seconds while the pals near you move
+	watchFile('wild.json', 500, (text) => {
+		const wild = parseWild(text, Date.now())
+		if (!wild) return
+		latestWild = wild
+		send('bridge:wild', wild)
+	})
+	ipcMain.handle('bridge:latest', () => ({ live: latestLive, captures: latestCaptures, pals: latestPals, wild: latestWild }))
 }
 
 // ---- Finding Palworld and installing the mod ----

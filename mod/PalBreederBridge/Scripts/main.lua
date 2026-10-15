@@ -1,8 +1,8 @@
 -- PalworldPal companion mod: tells the app where you are and what you've caught. (Its folder keeps
 -- the app's original name, PalBreederBridge, so existing installs stay valid.)
 --
--- Client-side only. It reads the local player's position, facing, Paldeck capture counts and own
--- pals (pals.lua) and writes them as small JSON files to %APPDATA%\palbreeder\bridge\, which the
+-- Client-side only. It reads the local player's position, facing, Paldeck capture counts, own
+-- pals (pals.lua) and the wild pals loaded nearby (wild.lua) and writes them as small JSON files to %APPDATA%\palbreeder\bridge\, which the
 -- app reads. It changes nothing in the game and sends nothing over the network, so it works on
 -- servers without the mod.
 --
@@ -13,7 +13,7 @@
 --   * the timer-thread predicate is pure arithmetic and allocates nothing;
 --   * every UObject read happens on the game thread, inside pcall.
 
-local VERSION = "1.8.2"
+local VERSION = "1.9.0"
 local TICK_MS = 33            -- timer resolution, not the write rate
 local POSITION_EVERY = 0.05   -- seconds between position writes
 local CAPTURES_EVERY = 3.0    -- seconds between capture-count reads
@@ -161,13 +161,13 @@ else
     pals = nil
 end
 
--- Wild pal probe (wildprobe.lua); does nothing unless wild-probe.on exists in the output folder
-local okProbe, wildprobe = pcall(loadScript, "wildprobe")
-if okProbe and wildprobe ~= nil then
-    wildprobe.setup({ log = log, writeFile = writeFile, get = get, alive = alive, outDir = outDir })
+-- Nearby wild pals (wild.lua)
+local okWild, wild = pcall(loadScript, "wild")
+if okWild and wild ~= nil then
+    wild.setup({ log = log, writeFile = writeFile, get = get, alive = alive, version = VERSION })
 else
-    log("wild probe not loaded: " .. tostring(wildprobe))
-    wildprobe = nil
+    log("nearby pals not loaded: " .. tostring(wild))
+    wild = nil
 end
 
 -- Scheduling state, touched by both threads. Plain numbers and booleans only.
@@ -202,19 +202,14 @@ local function job()
             lastCaptureRead = now
             pcall(writeCaptures, pc, pals and pals.worldId() or nil)
         end
-        if pals ~= nil then
-            -- A different controller means a new world or character
-            if pc ~= palsPC then
-                palsPC = pc
-                pcall(pals.reset)
-                if wildprobe ~= nil then pcall(wildprobe.reset) end
-            end
-            pcall(pals.tick, pc, now, get(rawCursor, pc) == true)
+        -- A different controller means a new world or character
+        if pc ~= palsPC then
+            palsPC = pc
+            if pals ~= nil then pcall(pals.reset) end
+            if wild ~= nil then pcall(wild.reset) end
         end
-        if wildprobe ~= nil then
-            local ok, err = pcall(wildprobe.tick, pc, now)
-            if not ok then log("wild probe failed: " .. tostring(err)) end
-        end
+        if pals ~= nil then pcall(pals.tick, pc, now, get(rawCursor, pc) == true) end
+        if wild ~= nil then pcall(wild.tick, now) end
     end
     -- Release the timer thread last; the gap keeps the next dispatch clear of this one's cleanup
     endedAt = os.clock()

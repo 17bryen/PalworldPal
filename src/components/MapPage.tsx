@@ -27,7 +27,8 @@ import { CATEGORY_NAMES, CATEGORY_ORDER, HABITAT, layerPoints, MAP_SIZE, mapLaye
 import { CATCH_TARGET } from '../data/paldeck'
 import { REGIONS, regionName, spawnRegions } from '../data/regions'
 import { useStore } from '../state/store'
-import { useBridge, useLiveValue } from '../state/bridge'
+import { useBridge, useLiveValue, useWildPals } from '../state/bridge'
+import { groupWildPals, type WildGroup } from '../state/wildpals'
 import { theme } from '../theme'
 import { PalAvatar } from './bits'
 import { PalPicker } from './pickers'
@@ -252,6 +253,69 @@ export function PlayerMarker({ map, follow }: { map: MapIndex; follow: boolean }
 	return null
 }
 
+const WILD_BADGE = 'position:absolute;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.8)'
+const CROWN = '<svg viewBox="0 0 24 24" width="11" height="11"><path fill="#fff" d="M3 18h18l-1.5-10-4.5 4-3-6-3 6-4.5-4z"/></svg>'
+const STAR = '<svg viewBox="0 0 24 24" width="11" height="11"><path fill="#3a2a00" d="M12 2l2.9 6.9 7.1.6-5.4 4.7 1.7 7.1L12 17.6 5.7 21.3l1.7-7.1L2 9.5l7.1-.6z"/></svg>'
+
+/** A portrait for one or more wild pals of a species, with a count and alpha / lucky badges */
+function wildIcon(g: WildGroup, size: number): L.DivIcon {
+	const ring = g.alpha ? HABITAT_COLORS.alpha : g.lucky ? HABITAT_COLORS.day : 'rgba(232,236,242,0.9)'
+	const badges = [
+		g.alpha && `<span style="${WILD_BADGE};left:-4px;top:-4px;background:${HABITAT_COLORS.alpha}">${CROWN}</span>`,
+		g.lucky && `<span style="${WILD_BADGE};right:-4px;top:-4px;background:${HABITAT_COLORS.day}">${STAR}</span>`,
+		g.count > 1 &&
+			`<span style="position:absolute;right:-5px;bottom:-5px;min-width:17px;height:17px;padding:0 4px;box-sizing:border-box;border-radius:9px;background:#0e1014;border:1.5px solid #e8ecf2;color:#e8ecf2;font:700 11px/14px Roboto,system-ui,sans-serif;text-align:center">${g.count}</span>`
+	]
+	return L.divIcon({
+		className: '',
+		iconSize: [size, size],
+		iconAnchor: [size / 2, size / 2],
+		html: `<div style="position:relative;width:${size}px;height:${size}px">
+			<img src="${asset(`pals/${g.palId}.png`)}" alt="" style="width:100%;height:100%;box-sizing:border-box;border-radius:50%;border:2px solid ${ring};background:#1b1e26;box-shadow:0 1px 4px rgba(0,0,0,0.8)">
+			${badges.filter(Boolean).join('')}
+		</div>`
+	})
+}
+
+function wildTooltip(g: WildGroup): string {
+	const name = getPal(g.palId).name
+	const levels = g.maxLevel > g.minLevel ? `Lv ${g.minLevel}-${g.maxLevel}` : g.minLevel ? `Lv ${g.minLevel}` : ''
+	const kind = [g.alpha && 'Alpha', g.lucky && 'Lucky'].filter(Boolean).join(', ')
+	return [`<b>${g.count > 1 ? `${g.count} ` : ''}${name}</b>`, levels, kind].filter(Boolean).join('<br>')
+}
+
+/**
+ * Wild pals the game has loaded around you. Pals of one species close together on screen share a
+ * portrait with a count; alphas and lucky pals always get their own.
+ */
+export function WildPalMarkers({ map, size, interactive = false }: { map: MapIndex; size: number; interactive?: boolean }) {
+	const leaflet = useMap()
+	const wild = useWildPals()
+	const [zoom, setZoom] = useState(() => leaflet.getZoom())
+	useEffect(() => {
+		const onZoom = () => setZoom(leaflet.getZoom())
+		leaflet.on('zoomend', onZoom)
+		return () => {
+			leaflet.off('zoomend', onZoom)
+		}
+	}, [leaflet])
+	useEffect(() => {
+		// Portraits closer than about one portrait apart on screen merge; one image pixel is 2^zoom / UNIT screen pixels
+		const groups = groupWildPals(wild, map, (size * 0.9 * UNIT) / 2 ** zoom)
+		const layer = L.layerGroup()
+		for (const g of groups) {
+			const marker = L.marker(toLatLng(g.px, g.py), { icon: wildIcon(g, size), interactive, keyboard: false, zIndexOffset: g.alpha || g.lucky ? 600 : 500 })
+			if (interactive) marker.bindTooltip(wildTooltip(g), { direction: 'top', offset: [0, -size / 2] })
+			layer.addLayer(marker)
+		}
+		layer.addTo(leaflet)
+		return () => {
+			layer.remove()
+		}
+	}, [leaflet, wild, map, zoom, size, interactive])
+	return null
+}
+
 /** Leaflet measures its container once; re-measure whenever the Map tab is shown again */
 function ResizeWhenShown({ visible }: { visible: boolean }) {
 	const leaflet = useMap()
@@ -400,6 +464,7 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 	const [fitNonce, setFitNonce] = useState(0)
 	const [follow, setFollow] = useState(false)
 	const { connected } = useBridge()
+	const wildCount = useWildPals().length
 	const liveMap = useLiveValue((live) => (live ? worldToPixel(live.x, live.y).map : null))
 	const playerMap = connected ? liveMap : null
 
@@ -495,6 +560,17 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 					<Typography variant="caption" color="text.secondary">
 						{uncaught.length} pals still need {CATCH_TARGET} catches.
 					</Typography>
+					<Box sx={{ display: 'flex', alignItems: 'center', mt: 1.5 }}>
+						<Typography variant="body2" sx={{ flex: 1 }}>
+							Show Nearby Wild Pals
+						</Typography>
+						<Switch size="small" checked={prefs.wild} onChange={(e) => updateMap({ wild: e.target.checked })} />
+					</Box>
+					{prefs.wild && connected && (
+						<Typography variant="caption" color="text.secondary">
+							{wildCount ? `${wildCount} wild pals loaded around you.` : 'No wild pals loaded around you.'}
+						</Typography>
+					)}
 					{prefs.uncaught && regionRanking.length > 0 && (
 						<Box sx={{ mt: 1 }}>
 							{regionRanking.map((r) => (
@@ -538,6 +614,7 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 					{ready && shownLayers.map((l) => <LayerMarkers key={l.id} layer={l} map={map} />)}
 					{prefs.uncaught && <UncaughtShading map={map} palIds={uncaught} />}
 					{palId && <PalHabitat palId={palId} map={map} />}
+					{prefs.wild && <WildPalMarkers map={map} size={30} interactive />}
 					<FitToPal palId={palId} map={map} nonce={fitNonce} />
 					<CoordinateReadout map={map} />
 					<PlayerMarker map={map} follow={follow} />

@@ -221,6 +221,11 @@ export function OverlayPage() {
 							</TextField>
 						</Row>
 					)}
+					{overlay.minimap && (
+						<Row label="Nearby Wild Pals">
+							<Switch checked={overlay.wildPals} onChange={(e) => updateOverlay({ wildPals: e.target.checked })} />
+						</Row>
+					)}
 					<Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 1 }}>
 						Both show the markers turned on in the Map tab.
 					</Typography>

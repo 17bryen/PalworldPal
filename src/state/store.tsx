@@ -163,22 +163,26 @@ export interface OverlayPrefs extends OverlayLayout {
 	zoom: number
 	/** Compass shows markers within this many meters; 0 means no limit */
 	range: number
+	/** Wild pals loaded near you on the minimap */
+	wildPals: boolean
 }
 
 export const COMPASS_DEFAULT_RANGE = 200
 /** Range choices in meters; 0 is unlimited (JSON can't store Infinity) */
 export const COMPASS_RANGES = [50, 100, 150, 200, 300, 500, 0]
 
-const defaultOverlay: OverlayPrefs = { ...defaultLayout, enabled: false, compass: true, compassBar: true, compassTicks: true, compassLetters: true, minimap: true, display: null, zoom: 4, range: COMPASS_DEFAULT_RANGE }
+const defaultOverlay: OverlayPrefs = { ...defaultLayout, enabled: false, compass: true, compassBar: true, compassTicks: true, compassLetters: true, minimap: true, display: null, zoom: 4, range: COMPASS_DEFAULT_RANGE, wildPals: true }
 
 export interface MapPrefs {
 	/** Marker layers shown on the map */
 	layers: string[]
 	/** Shade the areas where pals you still need to catch live */
 	uncaught: boolean
+	/** Wild pals loaded near you */
+	wild: boolean
 }
 
-const defaultMap: MapPrefs = { layers: ['fast_travel'], uncaught: false }
+const defaultMap: MapPrefs = { layers: ['fast_travel'], uncaught: false, wild: true }
 
 export const defaultSettings: PlanSettings = {
 	maxGenerations: 4,
