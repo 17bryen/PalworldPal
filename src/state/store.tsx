@@ -4,6 +4,7 @@ import { LOOT_DEFAULT_MINUTES } from '../data/map'
 import type { CatchPref, OwnedPal, Pin, PlanSettings, WantedPal } from '../solver/types'
 import { planAdd, type GamePal, type GamePalChange } from './gamepals'
 import { defaultSurgery } from '../data/surgery'
+import { DEFAULT_BASIC, entryKey, getRecipe, type ChecklistEntry } from '../data/recipes'
 
 declare global {
 	interface Window {
@@ -35,7 +36,16 @@ export interface AppState {
 	/** Every other world's lists, kept while another is open */
 	worlds: Record<string, WorldData>
 	worldNames: Record<string, string>
+	craft: CraftState
 }
+
+/** The Recipes tab's checklist, and which craftable materials to stop at instead of breaking down */
+export interface CraftState {
+	list: ChecklistEntry[]
+	basic: string[]
+}
+
+const defaultCraft: CraftState = { list: [], basic: DEFAULT_BASIC }
 
 export type RemovedPal = OwnedPal & { removedAt: number }
 
@@ -195,7 +205,8 @@ const emptyState: AppState = {
 	removed: [],
 	world: null,
 	worlds: {},
-	worldNames: {}
+	worldNames: {},
+	craft: defaultCraft
 }
 const LOCAL_KEY = 'palbreeder'
 
@@ -236,6 +247,12 @@ export function sanitize(raw: unknown): AppState {
 		world: typeof s.world === 'string' && s.world ? s.world : null,
 		worlds,
 		worldNames: Object.fromEntries(Object.entries(s.worldNames ?? {}).filter(([, n]) => typeof n === 'string')),
+		craft: {
+			list: (s.craft?.list ?? [])
+				.filter((e) => getRecipe(e.id) && Number.isFinite(e.qty) && e.qty > 0)
+				.map((e) => ({ ...e, key: entryKey(e.id, e.rarity ?? null), rarity: e.rarity ?? null })),
+			basic: Array.isArray(s.craft?.basic) ? s.craft.basic.filter((id) => typeof id === 'string') : DEFAULT_BASIC
+		},
 		settings: {
 			...defaultSettings,
 			...s.settings,
@@ -476,6 +493,17 @@ function useStoreValue(readOnly: boolean) {
 		setState((s) => ({ ...s, loot: { ...s.loot, ...patch } }))
 	}, [])
 
+	const updateCraft = useCallback((patch: Partial<CraftState>) => setState((s) => ({ ...s, craft: { ...s.craft, ...patch } })), [])
+	/** Adds to the checklist, merging with the same item at the same tier */
+	const addToChecklist = useCallback((id: string, rarity: ChecklistEntry['rarity'], qty: number) => {
+		setState((s) => {
+			const key = entryKey(id, rarity)
+			const has = s.craft.list.some((e) => e.key === key)
+			const list = has ? s.craft.list.map((e) => (e.key === key ? { ...e, qty: e.qty + qty } : e)) : [...s.craft.list, { key, id, rarity, qty }]
+			return { ...s, craft: { ...s.craft, list } }
+		})
+	}, [])
+
 	const replaceState = useCallback((next: AppState) => setState(next), [])
 
 	return useMemo(
@@ -511,6 +539,8 @@ function useStoreValue(readOnly: boolean) {
 			updateOverlay,
 			setLooted,
 			updateLoot,
+			updateCraft,
+			addToChecklist,
 			replaceState
 		}),
 		[
@@ -544,6 +574,8 @@ function useStoreValue(readOnly: boolean) {
 			updateOverlay,
 			setLooted,
 			updateLoot,
+			updateCraft,
+			addToChecklist,
 			replaceState
 		]
 	)
