@@ -13,7 +13,7 @@
 --   * the timer-thread predicate is pure arithmetic and allocates nothing;
 --   * every UObject read happens on the game thread, inside pcall.
 
-local VERSION = "1.8.0"
+local VERSION = "1.8.2"
 local TICK_MS = 33            -- timer resolution, not the write rate
 local POSITION_EVERY = 0.05   -- seconds between position writes
 local CAPTURES_EVERY = 3.0    -- seconds between capture-count reads
@@ -161,6 +161,15 @@ else
     pals = nil
 end
 
+-- Wild pal probe (wildprobe.lua); does nothing unless wild-probe.on exists in the output folder
+local okProbe, wildprobe = pcall(loadScript, "wildprobe")
+if okProbe and wildprobe ~= nil then
+    wildprobe.setup({ log = log, writeFile = writeFile, get = get, alive = alive, outDir = outDir })
+else
+    log("wild probe not loaded: " .. tostring(wildprobe))
+    wildprobe = nil
+end
+
 -- Scheduling state, touched by both threads. Plain numbers and booleans only.
 local inFlight = false
 local sentAt = 0.0
@@ -198,8 +207,13 @@ local function job()
             if pc ~= palsPC then
                 palsPC = pc
                 pcall(pals.reset)
+                if wildprobe ~= nil then pcall(wildprobe.reset) end
             end
             pcall(pals.tick, pc, now, get(rawCursor, pc) == true)
+        end
+        if wildprobe ~= nil then
+            local ok, err = pcall(wildprobe.tick, pc, now)
+            if not ok then log("wild probe failed: " .. tostring(err)) end
         end
     end
     -- Release the timer thread last; the gap keeps the next dispatch clear of this one's cleanup
