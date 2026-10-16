@@ -43,9 +43,11 @@ export interface AppState {
 export interface CraftState {
 	list: ChecklistEntry[]
 	basic: string[]
+	/** How many of each checklist row you already have, by checklist key */
+	have: Record<string, number>
 }
 
-const defaultCraft: CraftState = { list: [], basic: DEFAULT_BASIC }
+export const defaultCraft: CraftState = { list: [], basic: DEFAULT_BASIC, have: {} }
 
 export type RemovedPal = OwnedPal & { removedAt: number }
 
@@ -255,7 +257,8 @@ export function sanitize(raw: unknown): AppState {
 			list: (s.craft?.list ?? [])
 				.filter((e) => getRecipe(e.id) && Number.isFinite(e.qty) && e.qty > 0)
 				.map((e) => ({ ...e, key: entryKey(e.id, e.rarity ?? null), rarity: e.rarity ?? null })),
-			basic: Array.isArray(s.craft?.basic) ? s.craft.basic.filter((id) => typeof id === 'string') : DEFAULT_BASIC
+			basic: Array.isArray(s.craft?.basic) ? s.craft.basic.filter((id) => typeof id === 'string') : DEFAULT_BASIC,
+			have: Object.fromEntries(Object.entries(s.craft?.have ?? {}).filter(([, n]) => Number.isFinite(n) && n > 0))
 		},
 		settings: {
 			...defaultSettings,

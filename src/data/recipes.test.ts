@@ -46,6 +46,40 @@ describe('breakdown', () => {
 		expect(basicOf(breakdown([entry('Pal_Sphere', 4)]))).toEqual({ Paldium_Fragment: 4 })
 	})
 
+	it('lists every step, deeper steps after the crafts they need', () => {
+		const b = breakdown([entry('Nail', 10)])
+		expect(b.crafts.map((c) => [c.id, c.level])).toEqual([
+			['Ingot', 0],
+			['Nail', 1]
+		])
+	})
+
+	it('keeps a step right under the craft it needs, not under an unrelated one', () => {
+		const ids = breakdown([entry('Pal_Sphere', 1), entry('Nail', 10)]).crafts.map((c) => c.id)
+		expect(ids).toHaveLength(3)
+		expect(ids.indexOf('Nail')).toBe(ids.indexOf('Ingot') + 1)
+	})
+
+	it('only crafts and gathers what you do not have yet', () => {
+		// 3 of 10 Nails in hand: 7 more is still 2 crafts of 5; 1 Ingot in hand leaves 1 to smelt
+		const b = breakdown([entry('Nail', 10)], undefined, { Nail: 3, Ingot: 1, Ore: 1 })
+		expect(b.crafts.map((c) => [c.id, c.qty, c.have, c.crafts])).toEqual([
+			['Ingot', 2, 1, 1],
+			['Nail', 10, 3, 2]
+		])
+		expect(b.basic).toEqual([{ id: 'Ore', qty: 2, have: 1 }])
+		// Having every Nail drops their ingredients entirely
+		const all = breakdown([entry('Nail', 10)], undefined, { Nail: 10 })
+		expect(all.crafts.map((c) => c.id)).toEqual(['Nail'])
+		expect(all.basic).toEqual([])
+	})
+
+	it('treats a material marked basic as had, not crafted', () => {
+		const b = breakdown([entry('Nail', 10)], ['Ingot'], { Ingot: 2 })
+		expect(b.basic).toEqual([{ id: 'Ingot', qty: 2, have: 2 }])
+		expect(b.crafts.map((c) => [c.id, c.level])).toEqual([['Nail', 0]])
+	})
+
 	it('builds structures from their costs', () => {
 		const furnace = recipes.find((r) => r.name === 'Primitive Furnace')!
 		const b = breakdown([entry(furnace.id, 2)])

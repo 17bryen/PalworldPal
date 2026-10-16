@@ -6,6 +6,7 @@ import {
 	Chip,
 	IconButton,
 	InputAdornment,
+	InputBase,
 	Paper,
 	Tab,
 	Tabs,
@@ -17,12 +18,13 @@ import SearchIcon from '@mui/icons-material/Search'
 import AddIcon from '@mui/icons-material/Add'
 import RemoveIcon from '@mui/icons-material/Remove'
 import CloseIcon from '@mui/icons-material/Close'
-import CallSplitIcon from '@mui/icons-material/CallSplit'
-import PushPinIcon from '@mui/icons-material/PushPinOutlined'
+import CheckIcon from '@mui/icons-material/Check'
+import RestartAltIcon from '@mui/icons-material/RestartAlt'
 import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd'
 import ItemIcon from '@mui/icons-material/Inventory2Outlined'
 import {
 	breakdown,
+	DEFAULT_BASIC,
 	getRecipe,
 	iconPath,
 	ITEM_GROUPS,
@@ -34,7 +36,7 @@ import {
 	type Rarity,
 	type Recipe
 } from '../data/recipes'
-import { useStore } from '../state/store'
+import { defaultCraft, useStore } from '../state/store'
 
 const asset = (file: string) => `${import.meta.env.BASE_URL}${file}`
 type Tab = 'All' | (typeof ITEM_GROUPS)[number] | 'Structures'
@@ -213,14 +215,56 @@ function Detail({ recipe }: { recipe: Recipe }) {
 
 // ---- The checklist ----
 
+/** How many you have out of how many the list needs; the first number is typed in */
+function Fraction({ have, need, onChange }: { have: number; need: number; onChange: (n: number) => void }) {
+	const done = have >= need
+	return (
+		<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontVariantNumeric: 'tabular-nums', color: done ? 'success.main' : 'text.primary' }}>
+			<InputBase
+				value={have || ''}
+				placeholder="0"
+				onChange={(e) => onChange(Math.min(999999, Math.floor(Number(e.target.value.replace(/[^0-9]/g, '')) || 0)))}
+				onFocus={(e) => e.target.select()}
+				inputProps={{ inputMode: 'numeric', 'aria-label': 'How many you have' }}
+				sx={{
+					width: 58,
+					fontSize: 14,
+					fontWeight: 700,
+					color: 'inherit',
+					borderRadius: 1,
+					bgcolor: 'rgba(255,255,255,0.05)',
+					'& input': { textAlign: 'right', px: 0.75, py: 0.25 },
+					'&.Mui-focused': { outline: 1, outlineColor: 'primary.main' }
+				}}
+			/>
+			<Typography variant="body2" fontWeight={700} sx={{ color: 'inherit', minWidth: 52 }}>
+				/ {need.toLocaleString()}
+			</Typography>
+		</Box>
+	)
+}
+
 function Checklist({ onPick }: { onPick: (id: string) => void }) {
 	const { craft, updateCraft } = useStore()
-	const result = useMemo(() => breakdown(craft.list, craft.basic), [craft.list, craft.basic])
-	const onList = new Set(craft.list.map((e) => e.key))
+	const result = useMemo(() => breakdown(craft.list, craft.basic, craft.have), [craft.list, craft.basic, craft.have])
 	const setQty = (key: string, qty: number) => updateCraft({ list: craft.list.map((e) => (e.key === key ? { ...e, qty } : e)) })
-	const toggleBasic = (id: string) =>
-		updateCraft({ basic: craft.basic.includes(id) ? craft.basic.filter((b) => b !== id) : [...craft.basic, id] })
-	const intermediates = result.crafts.filter((c) => !onList.has(c.key))
+	const setHave = (key: string, n: number) => {
+		const have = { ...craft.have }
+		if (n > 0) have[key] = n
+		else delete have[key]
+		updateCraft({ have })
+	}
+	// Having all of a step makes it a basic material you already have, so its ingredients drop out
+	const haveAll = (key: string, id: string, qty: number) => {
+		const onList = craft.list.some((e) => e.key === key)
+		updateCraft({ have: { ...craft.have, [key]: qty }, basic: onList || craft.basic.includes(id) ? craft.basic : [...craft.basic, id] })
+	}
+	// Having none of a crafted material puts it back into the crafting steps
+	const haveNone = (id: string) => {
+		const { [id]: _gone, ...have } = craft.have
+		updateCraft({ have, basic: craft.basic.filter((b) => b !== id) })
+	}
+	const changed = Object.keys(craft.have).length > 0 || craft.basic.length !== DEFAULT_BASIC.length || craft.basic.some((b) => !DEFAULT_BASIC.includes(b))
 
 	if (!craft.list.length) {
 		return (
@@ -259,62 +303,81 @@ function Checklist({ onPick }: { onPick: (id: string) => void }) {
 			</Box>
 
 			<Box>
-				<Typography variant="overline" color="text.secondary">
-					Basic Materials
-				</Typography>
+				<Box sx={{ display: 'flex', alignItems: 'center' }}>
+					<Typography variant="overline" color="text.secondary" sx={{ flex: 1 }}>
+						Basic Materials
+					</Typography>
+					<Tooltip title="Set Every Count to 0 and Break Every Crafted Material Back Down">
+						<span>
+							<Button size="small" startIcon={<RestartAltIcon />} disabled={!changed} onClick={() => updateCraft({ have: {}, basic: DEFAULT_BASIC })}>
+								Reset
+							</Button>
+						</span>
+					</Tooltip>
+				</Box>
 				{result.basic.map((m) => {
 					const craftable = !!getRecipe(m.id) && getRecipe(m.id)!.group !== 'Structure'
 					return (
 						<Box key={m.id} sx={{ display: 'flex', alignItems: 'center', gap: 1.25, py: 0.5, borderBottom: 1, borderColor: 'divider' }}>
 							<Icon id={m.id} size={30} />
-							<Typography variant="body2" sx={{ flex: 1 }}>
+							<Typography variant="body2" sx={{ flex: 1, minWidth: 0 }} noWrap>
 								{materialName(m.id)}
 							</Typography>
-							<Typography variant="body2" fontWeight={800} sx={{ fontVariantNumeric: 'tabular-nums' }}>
-								{m.qty.toLocaleString()}
-							</Typography>
-							{craftable && craft.basic.includes(m.id) ? (
-								<Tooltip title="Break Down Into Its Ingredients">
-									<IconButton size="small" onClick={() => toggleBasic(m.id)}>
-										<CallSplitIcon fontSize="small" />
+							<Fraction have={m.have} need={m.qty} onChange={(n) => setHave(m.id, n)} />
+							{craftable ? (
+								<Tooltip title="Have None, Craft Them">
+									<IconButton size="small" onClick={() => haveNone(m.id)} sx={{ color: 'error.main' }}>
+										<CloseIcon fontSize="small" />
 									</IconButton>
 								</Tooltip>
 							) : (
-								<Box sx={{ width: 30 }} />
+								<Box sx={{ width: 30, flexShrink: 0 }} />
 							)}
 						</Box>
 					)
 				})}
 			</Box>
 
-			{intermediates.length > 0 && (
+			{result.crafts.length > 0 && (
 				<Box>
 					<Typography variant="overline" color="text.secondary">
 						Crafting Steps
 					</Typography>
-					{intermediates.map((c) => {
+					{result.crafts.map((c) => {
 						const r = getRecipe(c.id)
+						const station = r?.stations?.[0]
 						return (
 							<Box key={c.key} sx={{ display: 'flex', alignItems: 'center', gap: 1.25, py: 0.5, borderBottom: 1, borderColor: 'divider' }}>
+								{/* Steps that need other crafts done first sit further in */}
+								{c.level > 0 && (
+									<Box sx={{ width: c.level * 20, flexShrink: 0, alignSelf: 'stretch', display: 'flex', justifyContent: 'flex-end', my: -0.5 }}>
+										<Box sx={{ width: 2, mr: 0.75, bgcolor: 'divider' }} />
+									</Box>
+								)}
 								<Icon id={c.id} size={30} />
 								<Box sx={{ flex: 1, minWidth: 0 }}>
 									<Typography variant="body2" noWrap>
 										{materialName(c.id)}
 									</Typography>
-									{r?.stations?.[0] && (
+									{(c.rarity || station) && (
 										<Typography variant="caption" color="text.secondary" noWrap component="div">
-											{r.stations[0]}
+											{c.rarity && (
+												<Box component="span" sx={{ color: RARITY_COLOR[c.rarity], fontWeight: 700, mr: station ? 0.75 : 0 }}>
+													{c.rarity}
+												</Box>
+											)}
+											{station}
 										</Typography>
 									)}
 								</Box>
-								<Tooltip title={c.makes > 1 ? `${c.crafts} crafts of ${c.makes}` : ''}>
-									<Typography variant="body2" fontWeight={700} sx={{ fontVariantNumeric: 'tabular-nums' }}>
-										{(c.crafts * c.makes).toLocaleString()}
-									</Typography>
+								<Tooltip title={c.crafts > 0 && c.makes > 1 ? `${c.crafts} crafts of ${c.makes}` : ''}>
+									<span>
+										<Fraction have={c.have} need={c.qty} onChange={(n) => setHave(c.key, n)} />
+									</span>
 								</Tooltip>
-								<Tooltip title="Treat as Basic">
-									<IconButton size="small" onClick={() => toggleBasic(c.id)}>
-										<PushPinIcon fontSize="small" />
+								<Tooltip title="Have All of These">
+									<IconButton size="small" onClick={() => haveAll(c.key, c.id, c.qty)} sx={{ color: c.have >= c.qty ? 'success.main' : undefined }}>
+										<CheckIcon fontSize="small" />
 									</IconButton>
 								</Tooltip>
 							</Box>
@@ -355,7 +418,7 @@ export function RecipesPage() {
 	}
 
 	return (
-		<Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(420px, 1fr) 360px 380px', gap: 2, height: '100%', minHeight: 0 }}>
+		<Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 1fr) 360px 500px', gap: 2, height: '100%', minHeight: 0 }}>
 			<Paper variant="outlined" sx={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 				<Tabs
 					value={tab}
@@ -412,7 +475,7 @@ export function RecipesPage() {
 						Checklist
 					</Typography>
 					{craft.list.length > 0 && (
-						<Button size="small" color="error" onClick={() => updateCraft({ list: [] })}>
+						<Button size="small" color="error" onClick={() => updateCraft({ ...defaultCraft })}>
 							Clear
 						</Button>
 					)}

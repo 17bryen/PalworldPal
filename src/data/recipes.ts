@@ -77,18 +77,23 @@ export function tierOf(r: Recipe, rarity: Rarity | null): Tier {
 }
 
 export interface Breakdown {
-	/** Basic materials to gather, most needed first */
-	basic: { id: string; qty: number }[]
-	/** Everything to craft or build, in an order where ingredients come first */
-	crafts: { key: string; id: string; rarity: Rarity | null; qty: number; crafts: number; makes: number }[]
+	/** Basic materials to gather, most needed first; `have` is how many of them you already have */
+	basic: { id: string; qty: number; have: number }[]
+	/**
+	 * Everything to craft or build, in an order where ingredients come first. `qty` is how many the
+	 * list needs, `have` how many of those you already have, `crafts` the batches still to make, and
+	 * `level` how many crafts deep its own ingredients go (0 when they're all basic).
+	 */
+	crafts: { key: string; id: string; rarity: Rarity | null; qty: number; have: number; crafts: number; makes: number; level: number }[]
 }
 
 /**
  * Everything a checklist takes. Each craftable ingredient is crafted in whole batches, totalled
  * across the list before rounding up, and broken down until only basic materials are left.
- * `basicIds` are materials to stop at even though they could be crafted.
+ * `basicIds` are materials to stop at even though they could be crafted. `have` counts, by
+ * checklist key, what you already have: those aren't crafted again, so their ingredients drop out.
  */
-export function breakdown(list: ChecklistEntry[], basicIds: Iterable<string> = DEFAULT_BASIC): Breakdown {
+export function breakdown(list: ChecklistEntry[], basicIds: Iterable<string> = DEFAULT_BASIC, have: Record<string, number> = {}): Breakdown {
 	const basicSet = new Set(basicIds)
 	// Nodes: checklist entries (gear at a tier) and every craftable ingredient under them
 	const recipeOf = (key: string): { id: string; rarity: Rarity | null; tier: Tier; makes: number } | null => {
@@ -126,6 +131,7 @@ export function breakdown(list: ChecklistEntry[], basicIds: Iterable<string> = D
 	const queue = [...new Set(list.map((e) => e.key))].filter((k) => !consumers.get(k))
 	const basic = new Map<string, number>()
 	const crafts: Breakdown['crafts'] = []
+	const ingredientsOf = new Map<string, string[]>()
 	const done = new Set<string>()
 	while (queue.length) {
 		const key = queue.shift()!
@@ -137,8 +143,12 @@ export function breakdown(list: ChecklistEntry[], basicIds: Iterable<string> = D
 			if (need > 0) basic.set(key, (basic.get(key) ?? 0) + need)
 			continue
 		}
-		const batches = Math.ceil(need / r.makes)
-		if (need > 0) crafts.push({ key, id: r.id, rarity: r.rarity, qty: need, crafts: batches, makes: r.makes })
+		const owned = Math.min(need, Math.max(0, have[key] ?? 0))
+		const batches = Math.ceil((need - owned) / r.makes)
+		if (need > 0) {
+			crafts.push({ key, id: r.id, rarity: r.rarity, qty: need, have: owned, crafts: batches, makes: r.makes, level: 0 })
+			ingredientsOf.set(key, r.tier.materials.map((m) => m.id))
+		}
 		for (const m of r.tier.materials) {
 			demand.set(m.id, (demand.get(m.id) ?? 0) + batches * m.qty)
 			const left = (consumers.get(m.id) ?? 1) - 1
@@ -146,9 +156,37 @@ export function breakdown(list: ChecklistEntry[], basicIds: Iterable<string> = D
 			if (left <= 0) queue.push(m.id)
 		}
 	}
+	// A step sits one level past the deepest step among its ingredients
+	const levels = new Map<string, number>()
+	const levelOf = (key: string, seen = new Set<string>()): number => {
+		const known = levels.get(key)
+		if (known != null) return known
+		seen.add(key)
+		let level = 0
+		for (const m of ingredientsOf.get(key) ?? []) {
+			if (ingredientsOf.has(m) && !seen.has(m)) level = Math.max(level, levelOf(m, seen) + 1)
+		}
+		levels.set(key, level)
+		return level
+	}
+	for (const c of crafts) c.level = levelOf(c.key)
+	const order = new Map(crafts.map((c, i) => [c.key, -i]))
+	// Each step follows the chain of its last prerequisite, so an indented step sits under what it needs
+	const chains = new Map<string, number>()
+	for (const c of [...crafts].filter((c) => c.level === 0).sort((a, b) => order.get(a.key)! - order.get(b.key)!)) chains.set(c.key, chains.size)
+	const chainOf = (key: string): number => {
+		const known = chains.get(key)
+		if (known != null) return known
+		chains.set(key, 0)
+		const chain = Math.max(0, ...(ingredientsOf.get(key) ?? []).filter((m) => ingredientsOf.has(m)).map(chainOf))
+		chains.set(key, chain)
+		return chain
+	}
 	return {
-		basic: [...basic].map(([id, qty]) => ({ id, qty })).sort((a, b) => b.qty - a.qty || materialName(a.id).localeCompare(materialName(b.id))),
+		basic: [...basic]
+			.map(([id, qty]) => ({ id, qty, have: Math.min(qty, Math.max(0, have[id] ?? 0)) }))
+			.sort((a, b) => b.qty - a.qty || materialName(a.id).localeCompare(materialName(b.id))),
 		// Ingredients first, the things on the list last
-		crafts: crafts.reverse()
+		crafts: crafts.sort((a, b) => chainOf(a.key) - chainOf(b.key) || a.level - b.level || order.get(a.key)! - order.get(b.key)!)
 	}
 }
