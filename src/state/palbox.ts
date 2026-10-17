@@ -1,5 +1,5 @@
 import { getPal, type Gender, type WorkKind } from '../data/gamedata'
-import { palElements } from '../data/expeditions'
+import { palElements, type PalStats } from '../data/expeditions'
 import type { OwnedPal } from '../solver/types'
 import type { GamePal, PalLocation } from './gamepals'
 
@@ -17,6 +17,8 @@ export interface BoxPal {
 	gender: Gender
 	passives: string[]
 	level?: number
+	/** Level, condensation stars, IVs and Pal Soul ranks, when the mod reported them */
+	stats?: PalStats
 	/** Its nickname */
 	name?: string
 	alpha: boolean
@@ -66,7 +68,7 @@ export function buildBox(owned: OwnedPal[], gamePals: GamePal[], added: Set<stri
 		liveKeys.add(g.key)
 		if (g.where?.box === 'palbox') livePages.add(pageOf(g.where.slot))
 		if (g.where?.box === 'party') liveParty = true
-		const p: BoxPal = { key: g.key, palId: g.palId, gender: g.gender, passives: g.passives, level: g.stats?.level, name: g.name, alpha: g.alpha, where: g.where, live: true, added: added.has(g.key) }
+		const p: BoxPal = { key: g.key, palId: g.palId, gender: g.gender, passives: g.passives, level: g.stats?.level, stats: g.stats, name: g.name, alpha: g.alpha, where: g.where, live: true, added: added.has(g.key) }
 		if (!place(p)) outside.push(p)
 	}
 
@@ -77,7 +79,7 @@ export function buildBox(owned: OwnedPal[], gamePals: GamePal[], added: Set<stri
 		// Moved on: the game has shown its page (or the party) this session without it
 		if (w?.box === 'palbox' && livePages.has(pageOf(w.slot))) continue
 		if (w?.box === 'party' && liveParty) continue
-		const p: BoxPal = { key: o.game, palId: o.palId, gender: o.gender, passives: o.passives, level: o.stats?.level, name: o.name, alpha: false, where: w, live: false, added: true }
+		const p: BoxPal = { key: o.game, palId: o.palId, gender: o.gender, passives: o.passives, level: o.stats?.level, stats: o.stats, name: o.name, alpha: false, where: w, live: false, added: true }
 		if (place(p)) {
 			if (gamePals.length && w?.box === 'palbox') stale.add(pageOf(w.slot))
 		} else outside.push(p)
