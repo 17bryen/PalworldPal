@@ -552,9 +552,9 @@ export function PalboxPage() {
 					<RecentlyRemoved />
 				</Box>
 			) : (
-				<Box sx={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'auto auto minmax(360px, 480px)', justifyContent: 'center', gap: 3, p: 2 }}>
+				<Box sx={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'auto auto minmax(360px, 504px)', justifyContent: 'center', gap: 3, p: 2 }}>
 					<Box>
-						<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, height: 34, mb: 1 }}>
+						<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, height: 34, mb: 1 }}>
 							<Typography variant="subtitle2">Party</Typography>
 							{partyMatches > 0 && <Badge color="primary" badgeContent={partyMatches} sx={{ ml: 1.5 }} />}
 						</Box>
@@ -562,7 +562,7 @@ export function PalboxPage() {
 					</Box>
 
 					<Box>
-						<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, height: 34, mb: 1 }}>
+						<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, height: 34, mb: 1 }}>
 							<IconButton size="small" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
 								<ChevronLeftIcon />
 							</IconButton>
