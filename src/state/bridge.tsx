@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyn
 import { normalizeCaptures } from './captures'
 import { diffGamePals, goneKeys, normalizeGamePals, type GamePal, type RawGamePal } from './gamepals'
 import { Motion } from './motion'
-import { useStore } from './store'
+import { useActions, useLoaded, useStoreSelect } from './store'
 import { normalizeWildPals, type RawWildPal, type WildPal } from './wildpals'
 
 /** What the companion mod reports, relayed by the main process */
@@ -213,7 +213,10 @@ export const bridgeApi: PalBridgeApi | undefined =
 
 /** `syncCatches` is off in the overlay window, which only reads */
 export function BridgeProvider({ children, syncCatches: canSync = true }: { children: ReactNode; syncCatches?: boolean }) {
-	const { syncCatches, replaceCatches, syncGameStats, applyGameChanges, trackGamePresence, switchWorld, world, loaded } = useStore()
+	const syncCatches = useStoreSelect((s) => s.syncCatches)
+	const world = useStoreSelect((s) => s.world)
+	const loaded = useLoaded()
+	const { replaceCatches, syncGameStats, applyGameChanges, trackGamePresence, switchWorld } = useActions()
 	// The previous read, and the game session and world it came from
 	const lastRead = useRef<{ pals: GamePal[]; session?: string; world?: string }>({ pals: [] })
 	const [liveStore] = useState(() => new LiveStore())

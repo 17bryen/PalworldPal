@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { getPal } from '../data/gamedata'
 import { LOOT_DEFAULT_MINUTES } from '../data/map'
 import type { CatchPref, OwnedPal, Pin, PlanSettings, WantedPal } from '../solver/types'
@@ -309,48 +309,108 @@ async function saveState(state: AppState): Promise<void> {
 	else localStorage.setItem(LOCAL_KEY, json)
 }
 
+const ownedIndexes = new WeakMap<OwnedPal[], Map<string, OwnedPal>>()
+/** My Pals by uid, built once per version of the list and shared by everything that looks pals up */
+export function ownedByUid(owned: OwnedPal[]): Map<string, OwnedPal> {
+	let index = ownedIndexes.get(owned)
+	if (!index) ownedIndexes.set(owned, (index = new Map(owned.map((o) => [o.uid, o]))))
+	return index
+}
+
+/** A patch that wouldn't change anything */
+function sameFields<T extends object>(current: T, patch: Partial<T>): boolean {
+	return (Object.keys(patch) as (keyof T)[]).every((k) => current[k] === patch[k])
+}
+
+function sameCounts(a: Record<string, number>, b: Record<string, number>): boolean {
+	const keys = Object.keys(a)
+	return keys.length === Object.keys(b).length && keys.every((k) => a[k] === b[k])
+}
+
+/**
+ * The app's state, held outside React so components can subscribe to only the fields they read
+ * (useStoreSelect) instead of re-rendering on every change anywhere in the app.
+ */
+class AppStore {
+	state: AppState = emptyState
+	private listeners = new Set<() => void>()
+	subscribe = (cb: () => void) => {
+		this.listeners.add(cb)
+		return () => void this.listeners.delete(cb)
+	}
+	get = () => this.state
+	set = (update: AppState | ((s: AppState) => AppState)) => {
+		const next = typeof update === 'function' ? update(this.state) : update
+		if (next === this.state) return
+		this.state = next
+		this.listeners.forEach((cb) => cb())
+	}
+}
+
+/**
+ * A saved state broadcast to the overlay is parsed fresh, so every part would look new; parts that
+ * didn't change keep their old objects, and nothing updates when nothing changed
+ */
+function keepUnchanged(prev: AppState, next: AppState): AppState {
+	let changed = false
+	const out = { ...next } as Record<string, unknown>
+	for (const key of Object.keys(next)) {
+		const before = (prev as unknown as Record<string, unknown>)[key]
+		if (JSON.stringify(before) === JSON.stringify(out[key])) out[key] = before
+		else changed = true
+	}
+	return changed ? (out as unknown as AppState) : prev
+}
+
 /** `readOnly` (the overlay window) follows the main window's saves and never writes */
 function useStoreValue(readOnly: boolean) {
-	const [state, setState] = useState<AppState>(emptyState)
-	// The Recipes checklist changes on every keystroke in its counts, so it's kept apart: changing it
-	// doesn't re-render every tab that reads the rest of the store. It's saved with everything else.
-	const [craft, setCraft] = useState<CraftState>(defaultCraft)
+	const [appStore] = useState(() => new AppStore())
+	const setState = appStore.set
 	const [loaded, setLoaded] = useState(false)
-	const saveTimer = useRef<ReturnType<typeof setTimeout>>()
-	const latest = useRef({ state, craft })
-	latest.current = { state, craft }
 
 	useEffect(() => {
 		loadState().then((s) => {
 			setState(s)
-			setCraft(s.craft)
 			setLoaded(true)
 		})
 		if (readOnly && window.palStore) {
 			return window.palStore.onChanged((json) => {
 				try {
-					setState(sanitize(JSON.parse(json)))
+					const next = sanitize(JSON.parse(json))
+					setState((s) => keepUnchanged(s, next))
 				} catch {
 					// A malformed broadcast; keep the last good state
 				}
 			})
 		}
-	}, [readOnly])
+	}, [readOnly, setState])
 
+	// Saved 300 ms after the last change
 	useEffect(() => {
 		if (!loaded || readOnly) return
-		clearTimeout(saveTimer.current)
-		saveTimer.current = setTimeout(() => void saveState({ ...state, craft }), 300)
-		// Closing the window inside the save delay still writes the latest lists
+		let timer: ReturnType<typeof setTimeout> | undefined
 		const flush = () => {
-			clearTimeout(saveTimer.current)
-			const json = JSON.stringify({ ...state, craft })
+			clearTimeout(timer)
+			timer = undefined
+			const json = JSON.stringify(appStore.state)
 			if (window.palStore) window.palStore.saveNow(json)
 			else localStorage.setItem(LOCAL_KEY, json)
 		}
+		const off = appStore.subscribe(() => {
+			clearTimeout(timer)
+			timer = setTimeout(() => {
+				timer = undefined
+				void saveState(appStore.state)
+			}, 300)
+		})
+		// Closing the window inside the save delay still writes the latest lists
 		window.addEventListener('beforeunload', flush)
-		return () => window.removeEventListener('beforeunload', flush)
-	}, [state, craft, loaded, readOnly])
+		return () => {
+			off()
+			window.removeEventListener('beforeunload', flush)
+			if (timer) flush()
+		}
+	}, [appStore, loaded, readOnly])
 
 	const addOwned = useCallback((pal: Omit<OwnedPal, 'uid'>) => {
 		setState((s) => ({ ...s, owned: [...s.owned, { ...pal, uid: newUid() }] }))
@@ -433,6 +493,7 @@ function useStoreValue(readOnly: boolean) {
 	const addWantedMany = useCallback((palIds: string[]) => {
 		setState((s) => {
 			const fresh = palIds.filter((id) => !s.wanted.some((w) => w.palId === id))
+			if (!fresh.length) return s
 			return { ...s, wanted: [...s.wanted, ...fresh.map((palId) => ({ uid: newUid(), palId, passives: [] }))] }
 		})
 	}, [])
@@ -450,7 +511,7 @@ function useStoreValue(readOnly: boolean) {
 	}, [])
 
 	const updateSettings = useCallback((patch: Partial<PlanSettings>) => {
-		setState((s) => ({ ...s, settings: { ...s.settings, ...patch } }))
+		setState((s) => (sameFields(s.settings, patch) ? s : { ...s, settings: { ...s.settings, ...patch } }))
 	}, [])
 	const setCatchPref = useCallback((palId: string, pref: CatchPref | null) => {
 		setState((s) => {
@@ -480,18 +541,18 @@ function useStoreValue(readOnly: boolean) {
 	}, [])
 
 	const replaceCatches = useCallback((catches: Record<string, number>) => {
-		setState((s) => ({ ...s, catches }))
+		setState((s) => (sameCounts(s.catches, catches) ? s : { ...s, catches }))
 	}, [])
 	const setSyncCatches = useCallback((syncCatches: boolean) => {
 		setState((s) => ({ ...s, syncCatches }))
 	}, [])
 
 	const updateMap = useCallback((patch: Partial<MapPrefs>) => {
-		setState((s) => ({ ...s, map: { ...s.map, ...patch } }))
+		setState((s) => (sameFields(s.map, patch) ? s : { ...s, map: { ...s.map, ...patch } }))
 	}, [])
 
 	const updateOverlay = useCallback((patch: Partial<OverlayPrefs>) => {
-		setState((s) => ({ ...s, overlay: { ...s.overlay, ...patch } }))
+		setState((s) => (sameFields(s.overlay, patch) ? s : { ...s, overlay: { ...s.overlay, ...patch } }))
 	}, [])
 
 	const setLooted = useCallback((key: string, at: number | null) => {
@@ -506,123 +567,66 @@ function useStoreValue(readOnly: boolean) {
 		setState((s) => ({ ...s, loot: { ...s.loot, ...patch } }))
 	}, [])
 
-	const updateCraft = useCallback((patch: Partial<CraftState>) => setCraft((c) => ({ ...c, ...patch })), [])
+	const updateCraft = useCallback((patch: Partial<CraftState>) => setState((s) => ({ ...s, craft: { ...s.craft, ...patch } })), [])
 	/** Adds to the checklist, merging with the same item at the same tier */
 	const addToChecklist = useCallback((id: string, rarity: ChecklistEntry['rarity'], qty: number) => {
-		setCraft((c) => {
+		setState((s) => {
 			const key = entryKey(id, rarity)
-			const has = c.list.some((e) => e.key === key)
-			const list = has ? c.list.map((e) => (e.key === key ? { ...e, qty: e.qty + qty } : e)) : [...c.list, { key, id, rarity, qty }]
-			return { ...c, list }
+			const has = s.craft.list.some((e) => e.key === key)
+			const list = has ? s.craft.list.map((e) => (e.key === key ? { ...e, qty: e.qty + qty } : e)) : [...s.craft.list, { key, id, rarity, qty }]
+			return { ...s, craft: { ...s.craft, list } }
 		})
 	}, [])
 
-	const replaceState = useCallback((next: AppState) => {
-		setState(next)
-		setCraft(next.craft)
-	}, [])
+	const replaceState = useCallback((next: AppState) => setState(next), [])
 	/** Everything as it would be saved, for exporting */
-	const snapshot = useCallback((): AppState => ({ ...latest.current.state, craft: latest.current.craft }), [])
+	const snapshot = useCallback((): AppState => appStore.state, [])
 
-	const craftStore = useMemo(() => ({ craft, updateCraft, addToChecklist }), [craft, updateCraft, addToChecklist])
-	const { craft: _stale, ...shared } = state
-	const store = useMemo(
-		() => ({
-			...shared,
-			loaded,
-			snapshot,
-			addOwned,
-			addFromGame,
-			syncGameStats,
-			updateOwned,
-			removeOwned,
-			removeOwnedMany,
-			applyGameChanges,
-			trackGamePresence,
-			restoreRemoved,
-			clearRemoved,
-			switchWorld,
-			renameWorld,
-			addWanted,
-			addWantedMany,
-			updateWanted,
-			removeWanted,
-			removeWantedPal,
-			toggleWantedDisabled,
-			updateSettings,
-			setCatchPref,
-			setPin,
-			setCatches,
-			updateMap,
-			replaceCatches,
-			setSyncCatches,
-			updateOverlay,
-			setLooted,
-			updateLoot,
-			replaceState
-		}),
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[
-			state,
-			loaded,
-			snapshot,
-			addOwned,
-			addFromGame,
-			syncGameStats,
-			updateOwned,
-			removeOwned,
-			removeOwnedMany,
-			applyGameChanges,
-			trackGamePresence,
-			restoreRemoved,
-			clearRemoved,
-			switchWorld,
-			renameWorld,
-			addWanted,
-			addWantedMany,
-			updateWanted,
-			removeWanted,
-			removeWantedPal,
-			toggleWantedDisabled,
-			updateSettings,
-			setCatchPref,
-			setPin,
-			setCatches,
-			updateMap,
-			replaceCatches,
-			setSyncCatches,
-			updateOverlay,
-			setLooted,
-			updateLoot,
-			replaceState
-		]
-	)
-	return { store, craftStore }
+	// Every action is stable, so components that only change things never re-render from the store
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	const actions = useMemo(() => ({ addOwned, updateOwned, addFromGame, syncGameStats, trackGamePresence, restoreRemoved, clearRemoved, switchWorld, renameWorld, applyGameChanges, removeOwned, removeOwnedMany, addWanted, addWantedMany, updateWanted, removeWanted, toggleWantedDisabled, removeWantedPal, updateSettings, setCatchPref, setPin, setCatches, replaceCatches, setSyncCatches, updateMap, updateOverlay, setLooted, updateLoot, updateCraft, addToChecklist, replaceState, snapshot }), [])
+	const value = useMemo(() => ({ appStore, actions, loaded }), [appStore, actions, loaded])
+	return value
 }
 
-type Store = ReturnType<typeof useStoreValue>['store']
-type CraftStore = ReturnType<typeof useStoreValue>['craftStore']
-const StoreContext = createContext<Store | null>(null)
-const CraftContext = createContext<CraftStore | null>(null)
+type StoreValue = ReturnType<typeof useStoreValue>
+export type StoreActions = StoreValue['actions']
+const StoreContext = createContext<StoreValue | null>(null)
 
 export function StoreProvider({ children, readOnly = false }: { children: ReactNode; readOnly?: boolean }) {
-	const { store, craftStore } = useStoreValue(readOnly)
-	return (
-		<StoreContext.Provider value={store}>
-			<CraftContext.Provider value={craftStore}>{children}</CraftContext.Provider>
-		</StoreContext.Provider>
-	)
+	const value = useStoreValue(readOnly)
+	return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
 }
 
-/** The Recipes checklist; kept out of useStore so editing it doesn't re-render the other tabs */
-export function useCraft(): CraftStore {
-	const craft = useContext(CraftContext)
-	if (!craft) throw new Error('useCraft outside StoreProvider')
-	return craft
-}
-
-export function useStore(): Store {
+function useStoreContext(): StoreValue {
 	const store = useContext(StoreContext)
 	if (!store) throw new Error('useStore outside StoreProvider')
 	return store
+}
+
+/**
+ * Part of the state; the component re-renders only when what `select` returns changes. Return a
+ * field or an item of the state as it is (or a primitive), never a new array or object, or it
+ * would re-render on every change.
+ */
+export function useStoreSelect<T>(select: (s: AppState) => T): T {
+	const { appStore } = useStoreContext()
+	return useSyncExternalStore(appStore.subscribe, () => select(appStore.state))
+}
+
+/** The store's actions; they never change, so using only these never re-renders */
+export function useActions(): StoreActions {
+	return useStoreContext().actions
+}
+
+/** Whether the saved state has been read yet */
+export function useLoaded(): boolean {
+	return useStoreContext().loaded
+}
+
+/** The Recipes checklist; editing it re-renders only what reads it */
+export function useCraft() {
+	const craft = useStoreSelect((s) => s.craft)
+	const { updateCraft, addToChecklist } = useActions()
+	return useMemo(() => ({ craft, updateCraft, addToChecklist }), [craft, updateCraft, addToChecklist])
 }

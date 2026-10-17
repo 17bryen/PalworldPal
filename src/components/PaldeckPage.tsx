@@ -33,7 +33,7 @@ import CheckIcon from '@mui/icons-material/Check'
 import { pals, WORK_KINDS, type PalInfo, type WorkKind } from '../data/gamedata'
 import { legendaryLine } from '../data/lineage'
 import { OTHER_REGION, REGIONS, regionName, spawnRegions } from '../data/regions'
-import { useStore } from '../state/store'
+import { useActions, useStoreSelect } from '../state/store'
 import { useNavigation } from '../state/nav'
 import { useBridge } from '../state/bridge'
 import { palHabitat } from '../data/map'
@@ -218,7 +218,11 @@ const PalRow = memo(function PalRow({
 })
 
 export function PaldeckPage() {
-	const store = useStore()
+	const wanted = useStoreSelect((s) => s.wanted)
+	const settings = useStoreSelect((s) => s.settings)
+	const catches = useStoreSelect((s) => s.catches)
+	const syncCatches = useStoreSelect((s) => s.syncCatches)
+	const actions = useActions()
 	const [search, setSearch] = useState('')
 	const [work, setWork] = useState<WorkKind | 'any'>('any')
 	const [minLevel, setMinLevel] = useState(1)
@@ -237,9 +241,8 @@ export function PaldeckPage() {
 	const [rowLimit, setRowLimit] = useState(50)
 	useEffect(() => startTransition(() => setRowLimit(Infinity)), [])
 
-	const wantedIds = useMemo(() => new Set(store.wanted.map((w) => w.palId)), [store.wanted])
-	const disabledRegions = store.settings.disabledRegions
-	const catches = store.catches
+	const wantedIds = useMemo(() => new Set(wanted.map((w) => w.palId)), [wanted])
+	const disabledRegions = settings.disabledRegions
 
 	const rows = useMemo(() => {
 		const q = search.trim().toLowerCase()
@@ -295,10 +298,10 @@ export function PaldeckPage() {
 			}),
 		[]
 	)
-	const { addWantedMany, removeWantedPal, setCatchPref, setCatches } = store
+	const { addWantedMany, removeWantedPal, setCatchPref, setCatches } = actions
 	const { openPalOnMap } = useNavigation()
 	const { captures } = useBridge()
-	const fromGame = !!captures && store.syncCatches
+	const fromGame = !!captures && syncCatches
 	const onToggleWanted = useCallback((id: string, wanted: boolean) => (wanted ? removeWantedPal(id) : addWantedMany([id])), [addWantedMany, removeWantedPal])
 	const onPrefMenu = useCallback((id: string, anchor: HTMLElement) => setPrefMenu({ id, anchor }), [])
 
@@ -472,7 +475,7 @@ export function PaldeckPage() {
 								pal={p}
 								checked={checked.has(p.id)}
 								wanted={wantedIds.has(p.id)}
-								pref={store.settings.catchPrefs[p.id]}
+								pref={settings.catchPrefs[p.id]}
 								onCheck={onCheck}
 								onToggleWanted={onToggleWanted}
 								onPrefMenu={onPrefMenu}
@@ -488,7 +491,7 @@ export function PaldeckPage() {
 				{(['default', 'easy', 'hard', 'never'] as const).map((pref) => (
 					<MenuItem
 						key={pref}
-						selected={(store.settings.catchPrefs[prefMenu?.id ?? ''] ?? 'default') === pref}
+						selected={(settings.catchPrefs[prefMenu?.id ?? ''] ?? 'default') === pref}
 						onClick={() => {
 							if (prefMenu) setCatchPref(prefMenu.id, pref === 'default' ? null : pref)
 							setPrefMenu(null)

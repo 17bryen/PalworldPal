@@ -31,7 +31,7 @@ import {
 	type PalOffer,
 	type Town
 } from '../data/merchants'
-import { useStore } from '../state/store'
+import { useActions, useStoreSelect } from '../state/store'
 import { rarityColor } from '../theme'
 import { PalAvatar } from './bits'
 
@@ -95,8 +95,8 @@ function Portrait({ merchant, size = 44 }: { merchant: Merchant; size?: number }
 }
 
 function WantedStar({ palId }: { palId: string }) {
-	const { wanted, addWantedMany, removeWantedPal } = useStore()
-	const isWanted = wanted.some((w) => w.palId === palId)
+	const isWanted = useStoreSelect((s) => s.wanted.some((w) => w.palId === palId))
+	const { addWantedMany, removeWantedPal } = useActions()
 	return (
 		<IconButton
 			size="small"

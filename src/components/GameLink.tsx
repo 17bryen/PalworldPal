@@ -17,7 +17,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked'
 import { MAPS, pixelToIngame, worldToPixel } from '../data/map'
 import { bridgeApi, useBridge, useLive, type GameLinkStatus } from '../state/bridge'
-import { useStore } from '../state/store'
+import { useActions, useStoreSelect } from '../state/store'
 
 function Step({ done, title, children }: { done: boolean; title: string; children?: ReactNode }) {
 	return (
@@ -34,7 +34,8 @@ function Step({ done, title, children }: { done: boolean; title: string; childre
 function GameLinkDialog({ onClose }: { onClose: () => void }) {
 	const { connected, captures } = useBridge()
 	const live = useLive()
-	const { syncCatches, setSyncCatches } = useStore()
+	const syncCatches = useStoreSelect((s) => s.syncCatches)
+	const { setSyncCatches } = useActions()
 	const [status, setStatus] = useState<GameLinkStatus | null>(null)
 	const [busy, setBusy] = useState(false)
 	const [error, setError] = useState<string | null>(null)

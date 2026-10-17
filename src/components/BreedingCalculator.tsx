@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, type ReactNode } from 'react'
+import { memo, useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
 	Box,
 	ButtonBase,
@@ -25,7 +25,7 @@ import ArrowDownIcon from '@mui/icons-material/ArrowDownward'
 import EggIcon from '@mui/icons-material/EggOutlined'
 import { getPal, palIndex, pals, type Gender, type PalInfo } from '../data/gamedata'
 import { breedingTarget, childrenOf, isSpecialResult, parentsOf } from '../data/breeding'
-import { useStore } from '../state/store'
+import { useStoreSelect } from '../state/store'
 import { rarityColor } from '../theme'
 import { GenderIcon, PalAvatar } from './bits'
 import { LazyItem, LazyScroll } from './lazy'
@@ -44,8 +44,10 @@ export function BreedingNumber({ palId }: { palId: string }) {
 
 /** Species in My pals, for the "Only My pals" filters */
 function useMyPalIds(): Set<string> {
-	const owned = useStore().owned
-	return useMemo(() => new Set(owned.map((o) => o.palId)), [owned])
+	const owned = useStoreSelect((s) => s.owned)
+	// The same Set until a species is added or removed, so level syncs don't redraw the grid
+	const species = useMemo(() => [...new Set(owned.map((o) => o.palId))].sort().join(','), [owned])
+	return useMemo(() => new Set(species ? species.split(',') : []), [species])
 }
 
 // ---- The big selection boxes ----
@@ -257,12 +259,16 @@ function BreedTwo({ onFindCombos }: { onFindCombos: (id: string) => void }) {
 	const outcome = outcomes.find((o) => !o.aGender || o.aGender === 'M') ?? outcomes[0]
 	const child = outcome ? pals[outcome.child].id : null
 
-	const pick = (id: string) => {
-		const next: [string | null, string | null] = [a, b]
+	// Stable, so the memoized cards in the grid don't all redraw; it reads the latest picks from a ref
+	const latest = useRef({ parents, active })
+	latest.current = { parents, active }
+	const pick = useCallback((id: string) => {
+		const { parents, active } = latest.current
+		const next: [string | null, string | null] = [...parents]
 		next[active] = id
 		setParents(next)
 		if (active === 0 && !next[1]) setActive(1)
-	}
+	}, [])
 	const clear = (i: 0 | 1) => {
 		const next: [string | null, string | null] = [a, b]
 		next[i] = null
@@ -457,7 +463,7 @@ function Combinations({ palId, setPalId }: { palId: string | null; setPalId: (id
 
 // ---- Page ----
 
-export function BreedingCalculator() {
+export const BreedingCalculator = memo(function BreedingCalculator() {
 	const [mode, setMode] = useState<'two' | 'combos'>('two')
 	const [comboPal, setComboPal] = useState<string | null>(null)
 	return (
@@ -480,4 +486,4 @@ export function BreedingCalculator() {
 			</Box>
 		</Paper>
 	)
-}
+})

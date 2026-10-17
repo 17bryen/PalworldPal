@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useMemo, useRef, useState } from 'react'
 import {
 	Alert,
 	Box,
@@ -34,7 +34,7 @@ import {
 	type Team
 } from '../data/expeditions'
 import { useGamePals } from '../state/bridge'
-import { useStore } from '../state/store'
+import { useStoreSelect } from '../state/store'
 import { PalAvatar } from './bits'
 
 const asset = (file: string) => `${import.meta.env.BASE_URL}${file}`
@@ -75,16 +75,23 @@ function ItemIcon({ option, size = 28 }: { option: RewardOption; size?: number }
 
 /** Palbox pals with stats from the game: this session's reads, else what My Pals last saved */
 function useCandidates(): Candidate[] {
-	const owned = useStore().owned
+	const owned = useStoreSelect((s) => s.owned)
 	const gamePals = useGamePals()
-	return useMemo(() => {
+	const last = useRef<{ signature: string; list: Candidate[] } | null>(null)
+	const list = useMemo(() => {
 		const byKey = new Map<string, { palId: string; stats: PalStats; box?: string }>()
 		for (const o of owned) if (o.game && o.stats) byKey.set(o.game, { palId: o.palId, stats: o.stats, box: o.box })
 		for (const g of gamePals) if (g.stats) byKey.set(g.key, { palId: g.palId, stats: g.stats, box: g.where?.box })
 		return [...byKey]
 			.filter(([, p]) => p.box === 'palbox')
 			.map(([key, p]) => ({ key, palId: p.palId, firepower: firepower(p.palId, p.stats) }))
+			// Strongest first, so each expedition's own sort finds them in order
+			.sort((a, b) => b.firepower - a.firepower)
 	}, [owned, gamePals])
+	// The same list until a pal's power or the Palbox changes, so the game re-reading pals doesn't redo every team
+	const signature = list.map((c) => `${c.key}:${c.firepower}`).join(',')
+	if (last.current?.signature !== signature) last.current = { signature, list }
+	return last.current.list
 }
 
 function ExpeditionCard({

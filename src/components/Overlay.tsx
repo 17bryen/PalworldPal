@@ -6,7 +6,7 @@ import { Box, Button, Paper, Typography } from '@mui/material'
 import { layerPoints, mapLayers, pixelToWorld, worldToPixel, type MapIndex } from '../data/map'
 import { useBridge, useLiveStore, useLiveValue, type LiveData } from '../state/bridge'
 import type { Motion, Pose } from '../state/motion'
-import { defaultLayout, lootReadyAt, useStore, type OverlayLayout, type OverlayPrefs } from '../state/store'
+import { defaultLayout, lootReadyAt, useLoaded, useStoreSelect, type OverlayLayout, type OverlayPrefs } from '../state/store'
 import { useMinuteTick } from '../state/loot'
 import { asset, BOUNDS, LayerMarkers, PlayerMarker, toLatLng, WildPalMarkers } from './MapPage'
 
@@ -75,7 +75,7 @@ function useWorldPoints(layerIds: string[], map: MapIndex) {
 export function Compass({ pose, layerIds, range, width, prefs }: { pose: Pose; layerIds: string[]; range: number; width: number; prefs: OverlayPrefs }) {
 	const map = worldToPixel(pose.x, pose.y).map
 	const all = useWorldPoints(layerIds, map)
-	const { loot } = useStore()
+	const loot = useStoreSelect((s) => s.loot)
 	const minute = useMinuteTick()
 	// Looted spots stay off the compass until they're back
 	const points = useMemo(() => all.filter((p) => lootReadyAt(p.key, loot) == null), [all, loot, minute])
@@ -339,7 +339,9 @@ function Movable({
 
 /** The whole overlay window: transparent everywhere except the compass and minimap */
 export function OverlayApp() {
-	const { overlay, map, loaded } = useStore()
+	const overlay = useStoreSelect((s) => s.overlay)
+	const map = useStoreSelect((s) => s.map)
+	const loaded = useLoaded()
 	const { connected, motion } = useBridge()
 	// Narrow live reads, so the window re-renders when these change rather than 20 times a second
 	const menuOpen = useLiveValue((live) => live?.ui === true)

@@ -25,7 +25,7 @@ import MoreVertIcon from '@mui/icons-material/MoreVert'
 import CheckIcon from '@mui/icons-material/Check'
 import EggIcon from '@mui/icons-material/Egg'
 import { gameData } from './data/gamedata'
-import { sanitize, useStore, worldLabel } from './state/store'
+import { sanitize, useActions, useStoreSelect, worldLabel } from './state/store'
 import { BreedingPage } from './components/BreedingPage'
 import { PaldeckPage } from './components/PaldeckPage'
 import { MerchantsPage } from './components/MerchantsPage'
@@ -39,7 +39,10 @@ import { useLootTracker } from './state/loot'
 import { AlternativesProvider } from './components/Alternatives'
 
 function DataMenu() {
-	const store = useStore()
+	const world = useStoreSelect((s) => s.world)
+	const worlds = useStoreSelect((s) => s.worlds)
+	const worldNames = useStoreSelect((s) => s.worldNames)
+	const store = { world, worlds, worldNames, ...useActions() }
 	const [anchor, setAnchor] = useState<HTMLElement | null>(null)
 	const [message, setMessage] = useState<string | null>(null)
 	const [renaming, setRenaming] = useState<string | null>(null)

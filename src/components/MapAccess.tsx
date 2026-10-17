@@ -2,10 +2,11 @@ import { useMemo } from 'react'
 import { Box, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, List, ListItemButton, Typography } from '@mui/material'
 import { pals } from '../data/gamedata'
 import { OTHER_REGION, REGIONS, spawnRegions } from '../data/regions'
-import { useStore } from '../state/store'
+import { useActions, useStoreSelect } from '../state/store'
 
 export function MapAccessDialog({ onClose }: { onClose: () => void }) {
-	const { settings, updateSettings } = useStore()
+	const settings = useStoreSelect((s) => s.settings)
+	const { updateSettings } = useActions()
 	const off = new Set(settings.disabledRegions)
 
 	const counts = useMemo(() => {

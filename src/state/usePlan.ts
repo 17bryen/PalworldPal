@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { OwnedPal, Plan, PlanSettings, SolveProgress, WantedPal } from '../solver/types'
 import type { SolveRequest } from '../solver/worker'
 
@@ -13,7 +13,7 @@ type WorkerMessage =
  */
 export function useBreedingRelevant(owned: OwnedPal[]): OwnedPal[] {
 	const last = useRef<{ signature: string; owned: OwnedPal[] } | null>(null)
-	const signature = JSON.stringify(owned.map((o) => [o.uid, o.palId, o.gender, o.passives, o.stars ?? null]))
+	const signature = useMemo(() => JSON.stringify(owned.map((o) => [o.uid, o.palId, o.gender, o.passives, o.stars ?? null])), [owned])
 	if (!last.current || last.current.signature !== signature) last.current = { signature, owned }
 	return last.current.owned
 }

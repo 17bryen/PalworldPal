@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { allLootSpots, worldToPixel } from '../data/map'
 import { useBridge, useLiveStore } from './bridge'
-import { lootReadyAt, useStore } from './store'
+import { lootReadyAt, useActions, useLoaded, useStoreSelect } from './store'
 
 /** Within this many world units (centimeters) of a spot counts as standing on it */
 const STAND_RADIUS = 400
@@ -10,7 +10,9 @@ const STAND_MS = 2500
 
 /** Marks a lootable spot looted once you've stood on it for a moment (main window only) */
 export function useLootTracker() {
-	const { loaded, loot, setLooted } = useStore()
+	const loaded = useLoaded()
+	const loot = useStoreSelect((s) => s.loot)
+	const { setLooted } = useActions()
 	const { connected } = useBridge()
 	const liveStore = useLiveStore()
 	const standing = useRef<{ key: string; since: number } | null>(null)

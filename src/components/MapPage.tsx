@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -26,7 +26,7 @@ import { getPal, pals } from '../data/gamedata'
 import { CATEGORY_NAMES, CATEGORY_ORDER, HABITAT, CLICK_ONLY_LOOT, isLootLayer, layerPoints, LOOT_DEFAULT_MINUTES, MAP_SIZE, mapLayers, palHabitat, pixelToIngame, worldToPixel, type MapIndex, type MapLayer } from '../data/map'
 import { CATCH_TARGET } from '../data/paldeck'
 import { REGIONS, regionName, spawnRegions } from '../data/regions'
-import { lootReadyAt, useStore } from '../state/store'
+import { lootReadyAt, useActions, useStoreSelect, type LootState } from '../state/store'
 import { useBridge, useLiveValue, useWildPals } from '../state/bridge'
 import { groupWildPals, type WildGroup } from '../state/wildpals'
 import { describeReady, useMinuteTick } from '../state/loot'
@@ -103,13 +103,14 @@ export function LayerMarkers({
 	onLootClick?: (key: string, looted: boolean) => void
 }) {
 	const leaflet = useMap()
-	const { loot } = useStore()
-	const minute = useMinuteTick()
+	const loot = useStoreSelect((s) => s.loot)
+	// Re-checked each minute, but the markers rebuild only when this layer's looted spots change
+	useMinuteTick()
 	const lootable = isLootLayer(layer.id)
 	// Dungeons are cleared, not looted
 	const done = CLICK_ONLY_LOOT.has(layer.id) ? 'cleared' : 'looted'
 	// Only lootable layers depend on timers; others never rebuild for them
-	const timers = lootable ? JSON.stringify([loot.looted, loot.minutes[layer.id], minute]) : ''
+	const timers = lootable ? `${coolingKeys(layer.id, loot)}|${loot.minutes[layer.id]}` : ''
 	useEffect(() => {
 		const image = layer.icon ? iconImage(layer.icon) : undefined
 		const group = L.layerGroup()
@@ -140,6 +141,15 @@ export function LayerMarkers({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [leaflet, layer, map, hideLooted, onLootClick, timers])
 	return null
+}
+
+/** This layer's spots that are looted and not back yet */
+function coolingKeys(layerId: string, loot: LootState): string {
+	const prefix = `${layerId}:`
+	return Object.keys(loot.looted)
+		.filter((k) => k.startsWith(prefix) && lootReadyAt(k, loot) != null)
+		.sort()
+		.join(',')
 }
 
 /** Habitat points are thinned to a grid this many map units wide */
@@ -272,6 +282,8 @@ export function PlayerMarker({ map, follow }: { map: MapIndex; follow: boolean }
 		const tick = () => {
 			frame = requestAnimationFrame(tick)
 			const { map, follow, connected } = state.current
+			// A hidden map (Map tab not shown) has no size; nothing to draw
+			if (!leaflet.getSize().x) return
 			const pose = connected ? motion.at() : null
 			const here = pose ? worldToPixel(pose.x, pose.y) : null
 			if (!pose || !here || here.map !== map) {
@@ -334,7 +346,7 @@ function wildTooltip(g: WildGroup): string {
  * Wild pals the game has loaded around you. Pals of one species close together on screen share a
  * portrait with a count; alphas and lucky pals always get their own.
  */
-export function WildPalMarkers({ map, size, interactive = false }: { map: MapIndex; size: number; interactive?: boolean }) {
+export function WildPalMarkers({ map, size, interactive = false, visible = true }: { map: MapIndex; size: number; interactive?: boolean; visible?: boolean }) {
 	const leaflet = useMap()
 	const wild = useWildPals()
 	const [zoom, setZoom] = useState(() => leaflet.getZoom())
@@ -346,6 +358,8 @@ export function WildPalMarkers({ map, size, interactive = false }: { map: MapInd
 		}
 	}, [leaflet])
 	useEffect(() => {
+		// A hidden Map tab skips the work; showing it again rebuilds
+		if (!visible) return
 		// Portraits closer than about one portrait apart on screen merge; one image pixel is 2^zoom / UNIT screen pixels
 		const groups = groupWildPals(wild, map, (size * 0.9 * UNIT) / 2 ** zoom)
 		const layer = L.layerGroup()
@@ -358,7 +372,7 @@ export function WildPalMarkers({ map, size, interactive = false }: { map: MapInd
 		return () => {
 			layer.remove()
 		}
-	}, [leaflet, wild, map, zoom, size, interactive])
+	}, [leaflet, wild, map, zoom, size, interactive, visible])
 	return null
 }
 
@@ -401,8 +415,9 @@ function CoordinateReadout({ map }: { map: MapIndex }) {
 }
 
 /** Respawn timers for junk piles, chests, supply crates and dungeons */
-function LootTimers() {
-	const { loot, updateLoot } = useStore()
+const LootTimers = memo(function LootTimers() {
+	const loot = useStoreSelect((s) => s.loot)
+	const { updateLoot } = useActions()
 	useMinuteTick()
 	const [open, setOpen] = useState(false)
 	const cooling = Object.keys(loot.looted).filter((k) => lootReadyAt(k, loot) != null).length
@@ -448,10 +463,11 @@ function LootTimers() {
 			</Collapse>
 		</Box>
 	)
-}
+})
 
-function LayerList({ map }: { map: MapIndex }) {
-	const { map: prefs, updateMap } = useStore()
+const LayerList = memo(function LayerList({ map }: { map: MapIndex }) {
+	const prefs = useStoreSelect((s) => s.map)
+	const { updateMap } = useActions()
 	const [search, setSearch] = useState('')
 	const [open, setOpen] = useState<Set<string>>(new Set(['Collectibles', 'Resource']))
 	const on = new Set(prefs.layers)
@@ -550,16 +566,28 @@ function LayerList({ map }: { map: MapIndex }) {
 			})}
 		</Box>
 	)
+})
+
+/** How many wild pals are loaded; its own component, so the wild pal updates don't redraw the page */
+function WildCount() {
+	const count = useWildPals().length
+	return (
+		<Typography variant="caption" color="text.secondary">
+			{count ? `${count} wild pals loaded around you.` : 'No wild pals loaded around you.'}
+		</Typography>
+	)
 }
 
 export function MapPage({ focus, visible }: { focus: { palId: string; nonce: number } | null; visible: boolean }) {
-	const { catches, map: prefs, updateMap, settings } = useStore()
+	const catches = useStoreSelect((s) => s.catches)
+	const prefs = useStoreSelect((s) => s.map)
+	const disabledRegions = useStoreSelect((s) => s.settings.disabledRegions)
+	const { updateMap, setLooted } = useActions()
 	const [map, setMap] = useState<MapIndex>(0)
 	const [palId, setPalId] = useState<string | null>(null)
 	const [fitNonce, setFitNonce] = useState(0)
 	const [follow, setFollow] = useState(false)
 	const { connected } = useBridge()
-	const wildCount = useWildPals().length
 	const liveMap = useLiveValue((live) => (live ? worldToPixel(live.x, live.y).map : null))
 	const playerMap = connected ? liveMap : null
 
@@ -589,12 +617,11 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 	// Regions ranked by how many still-needed pals spawn there (skipping regions turned off in Map access)
 	const regionRanking = useMemo(() => {
 		const counts = new Map<string, number>()
-		for (const id of uncaught) for (const r of spawnRegions(id)) if (r !== 'other' && !settings.disabledRegions.includes(r)) counts.set(r, (counts.get(r) ?? 0) + 1)
+		for (const id of uncaught) for (const r of spawnRegions(id)) if (r !== 'other' && !disabledRegions.includes(r)) counts.set(r, (counts.get(r) ?? 0) + 1)
 		return REGIONS.filter((r) => counts.get(r.key)).sort((a, b) => counts.get(b.key)! - counts.get(a.key)!).slice(0, 6).map((r) => ({ key: r.key, count: counts.get(r.key)! }))
-	}, [uncaught, settings.disabledRegions])
+	}, [uncaught, disabledRegions])
 
 	const shownLayers = useMemo(() => mapLayers.filter((l) => prefs.layers.includes(l.id)), [prefs.layers])
-	const { setLooted } = useStore()
 	const onLootClick = useCallback((key: string, looted: boolean) => setLooted(key, looted ? null : Date.now()), [setLooted])
 	const tileUrl = asset(`map/${map === 0 ? 'main' : 'worldTree'}/z{z}x{x}y{y}.webp`)
 
@@ -659,11 +686,7 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 						</Typography>
 						<Switch size="small" checked={prefs.wild} onChange={(e) => updateMap({ wild: e.target.checked })} />
 					</Box>
-					{prefs.wild && connected && (
-						<Typography variant="caption" color="text.secondary">
-							{wildCount ? `${wildCount} wild pals loaded around you.` : 'No wild pals loaded around you.'}
-						</Typography>
-					)}
+					{prefs.wild && connected && <WildCount />}
 					{prefs.uncaught && regionRanking.length > 0 && (
 						<Box sx={{ mt: 1 }}>
 							{regionRanking.map((r) => (
@@ -711,7 +734,7 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 					))}
 					{prefs.uncaught && <UncaughtShading map={map} palIds={uncaught} />}
 					{palId && <PalHabitat palId={palId} map={map} />}
-					{prefs.wild && <WildPalMarkers map={map} size={30} interactive />}
+					{prefs.wild && <WildPalMarkers map={map} size={30} interactive visible={visible} />}
 					<FitToPal palId={palId} map={map} nonce={fitNonce} />
 					<CoordinateReadout map={map} />
 					<PlayerMarker map={map} follow={follow} />

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Alert, Box, Button, MenuItem, Paper, Switch, TextField, Typography } from '@mui/material'
 import EditIcon from '@mui/icons-material/OpenWith'
 import { useBridge } from '../state/bridge'
-import { COMPASS_RANGES, defaultLayout, useStore, type OverlayLayout } from '../state/store'
+import { COMPASS_RANGES, defaultLayout, useActions, useLoaded, useStoreSelect, type OverlayLayout } from '../state/store'
 import { worldToPixel } from '../data/map'
 import { asset } from './MapPage'
 import { Compass, COMPASS_HEIGHT, MINIMAP_MARGIN, PREVIEW_LIVE } from './Overlay'
@@ -32,7 +32,9 @@ declare global {
 
 /** Keeps the overlay window in step with the saved settings, and saves what the hotkey and layout editor change */
 export function useOverlaySync() {
-	const { loaded, overlay, updateOverlay } = useStore()
+	const loaded = useLoaded()
+	const overlay = useStoreSelect((s) => s.overlay)
+	const { updateOverlay } = useActions()
 	useEffect(() => {
 		if (loaded) void window.palOverlay?.set(overlay.enabled, overlay.display)
 	}, [loaded, overlay.enabled, overlay.display])
@@ -53,7 +55,8 @@ const selectSx = { width: 180 }
 
 /** Your screen in miniature: the real compass and a minimap where the overlay puts them */
 function LayoutPreview({ display }: { display: DisplayInfo | undefined }) {
-	const { overlay, map } = useStore()
+	const overlay = useStoreSelect((s) => s.overlay)
+	const map = useStoreSelect((s) => s.map)
 	const w = display?.width ?? 1920
 	const h = display?.height ?? 1080
 	const scale = Math.min(560 / w, 320 / h)
@@ -113,7 +116,8 @@ function LayoutPreview({ display }: { display: DisplayInfo | undefined }) {
 }
 
 export function OverlayPage() {
-	const { overlay, updateOverlay } = useStore()
+	const overlay = useStoreSelect((s) => s.overlay)
+	const { updateOverlay } = useActions()
 	const { connected } = useBridge()
 	const [hotkey, setHotkey] = useState<string | null>(null)
 	const [displays, setDisplays] = useState<DisplayInfo[]>([])

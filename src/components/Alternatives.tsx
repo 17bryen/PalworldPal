@@ -19,7 +19,7 @@ import { getPal, palIndex, pals } from '../data/gamedata'
 import { parentPairs } from '../data/lineage'
 import { catchMinutes } from '../solver/solver'
 import { pinKey, type OwnedPal, type PlanNode, type PlanSettings } from '../solver/types'
-import { useStore } from '../state/store'
+import { useActions, useStoreSelect } from '../state/store'
 import { PalAvatar, PassiveList } from './bits'
 
 type ParentStatus = { kind: 'owned'; carries: string[] } | { kind: 'catch'; minutes: number } | { kind: 'breed' }
@@ -27,8 +27,8 @@ type ParentStatus = { kind: 'owned'; carries: string[] } | { kind: 'catch'; minu
 /** Rough effort to get the next breeding step of a breed-only parent, for ranking */
 const BREED_SCORE = 60
 
-function parentStatus(palId: string, owned: OwnedPal[], settings: PlanSettings, wanted: string[]): ParentStatus {
-	const mine = owned.filter((o) => o.palId === palId)
+function parentStatus(palId: string, bySpecies: Map<string, OwnedPal[]>, settings: PlanSettings, wanted: string[]): ParentStatus {
+	const mine = bySpecies.get(palId) ?? []
 	if (mine.length) {
 		// The owned one carrying the most of the passives this pal needs
 		const carries = mine.map((o) => wanted.filter((w) => o.passives.includes(w))).sort((a, b) => b.length - a.length)[0]
@@ -48,7 +48,14 @@ function StatusLabel({ status }: { status: ParentStatus }) {
 }
 
 function AlternativesDialog({ node, onClose }: { node: PlanNode; onClose: () => void }) {
-	const { owned, settings, setPin } = useStore()
+	const owned = useStoreSelect((s) => s.owned)
+	const settings = useStoreSelect((s) => s.settings)
+	const { setPin } = useActions()
+	const bySpecies = useMemo(() => {
+		const map = new Map<string, OwnedPal[]>()
+		for (const o of owned) map.set(o.palId, [...(map.get(o.palId) ?? []), o])
+		return map
+	}, [owned])
 	const [search, setSearch] = useState('')
 	const key = pinKey(node.palId, node.passives)
 	const pin = settings.pins[key]
@@ -60,8 +67,8 @@ function AlternativesDialog({ node, onClose }: { node: PlanNode; onClose: () => 
 			.map(([ia, ib]) => {
 				const a = pals[ia].id
 				const b = pals[ib].id
-				const sa = parentStatus(a, owned, settings, node.passives)
-				const sb = parentStatus(b, owned, settings, node.passives)
+				const sa = parentStatus(a, bySpecies, settings, node.passives)
+				const sb = parentStatus(b, bySpecies, settings, node.passives)
 				// Pairs whose owned parents already bring the needed passives come first
 				const brings = new Set([...carried(sa), ...carried(sb)]).size
 				const isCurrent = !!current && [a, b].sort().join() === [...current].sort().join()
@@ -74,7 +81,7 @@ function AlternativesDialog({ node, onClose }: { node: PlanNode; onClose: () => 
 				return true
 			})
 			.sort((x, y) => x.score - y.score)
-	}, [node.palId, node.passives, owned, settings, current?.join()])
+	}, [node.palId, node.passives, bySpecies, settings, current?.join()])
 
 	const q = search.trim().toLowerCase()
 	const shown = options.filter((o) => !q || getPal(o.a).name.toLowerCase().includes(q) || getPal(o.b).name.toLowerCase().includes(q))

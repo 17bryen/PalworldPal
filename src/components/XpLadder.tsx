@@ -1,4 +1,4 @@
-import { createContext, Fragment, useContext, useMemo, useState } from 'react'
+import { createContext, Fragment, memo, useCallback, useContext, useMemo, useRef, useState } from 'react'
 import { Box, Checkbox, Chip, MenuItem, Paper, TextField, Tooltip, Typography } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import ArrowIcon from '@mui/icons-material/ArrowForward'
@@ -6,7 +6,7 @@ import { getPal, palIndex, type Gender } from '../data/gamedata'
 import { parentsOf } from '../data/breeding'
 import { buildLadder, type LadderStep } from '../data/ladder'
 import { CATCH_TARGET } from '../data/paldeck'
-import { useStore } from '../state/store'
+import { useStoreSelect } from '../state/store'
 import { useGamePals } from '../state/bridge'
 import { ownedLocation, type PalLocation } from '../state/gamepals'
 import { GenderIcon, PalAvatar } from './bits'
@@ -43,7 +43,7 @@ const SpotsContext = createContext<Map<string, Spot[]>>(new Map())
 const MAX_SPOTS = 8
 
 function useSpots(): Map<string, Spot[]> {
-	const owned = useStore().owned
+	const owned = useStoreSelect((s) => s.owned)
 	const gamePals = useGamePals()
 	return useMemo(() => {
 		const whereByKey = new Map(gamePals.map((g) => [g.key, g.where]))
@@ -103,7 +103,8 @@ function Parent({ palId, gender, locate }: { palId: string; gender?: Gender; loc
 	)
 }
 
-function StepRow({ step, done, onToggle }: { step: LadderStep; done: boolean; onToggle: () => void }) {
+const StepRow = memo(function StepRow({ step, done, onToggle: toggleKey }: { step: LadderStep; done: boolean; onToggle: (key: string) => void }) {
+	const onToggle = () => toggleKey(stepKey(step))
 	return (
 		<Box
 			sx={{
@@ -131,7 +132,7 @@ function StepRow({ step, done, onToggle }: { step: LadderStep; done: boolean; on
 			</Box>
 		</Box>
 	)
-}
+})
 
 function stuckReason(id: string): string {
 	const i = palIndex(id)
@@ -139,17 +140,24 @@ function stuckReason(id: string): string {
 }
 
 export function XpLadder() {
-	const { catches, owned } = useStore()
+	const catches = useStoreSelect((s) => s.catches)
+	const owned = useStoreSelect((s) => s.owned)
 	const [goal, setGoal] = useState(readGoal)
-	const ladder = useMemo(() => buildLadder(owned, catches, goal), [owned, catches, goal])
+	// The ladder only reads species and gender, so level and Palbox syncs don't rebuild it
+	const breeders = useMemo(() => owned.map((o) => `${o.palId}|${o.gender}`).join(','), [owned])
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	const ladder = useMemo(() => buildLadder(owned, catches, goal), [breeders, catches, goal])
 	const spots = useSpots()
 	const [done, setDone] = useState(readDone)
-	const toggle = (key: string) =>
+	const liveSteps = useRef(ladder.steps)
+	liveSteps.current = ladder.steps
+	// Stable, so the memoized rows don't all redraw
+	const toggle = useCallback((key: string) =>
 		setDone((prev) => {
 			const next = new Set(prev)
 			if (!next.delete(key)) next.add(key)
 			// Steps that left the ladder (their catches are done) drop their checkmark
-			const live = new Set(ladder.steps.map(stepKey))
+			const live = new Set(liveSteps.current.map(stepKey))
 			const kept = [...next].filter((k) => live.has(k))
 			try {
 				localStorage.setItem(DONE_KEY, JSON.stringify(kept))
@@ -157,7 +165,7 @@ export function XpLadder() {
 				// Only a convenience; the checkmarks still work for this session
 			}
 			return new Set(kept)
-		})
+		}), [])
 
 	const changeGoal = (n: number) => {
 		setGoal(n)
@@ -203,7 +211,7 @@ export function XpLadder() {
 									</Typography>
 								)}
 								<LazyItem estimate={53}>
-									<StepRow step={s} done={done.has(stepKey(s))} onToggle={() => toggle(stepKey(s))} />
+									<StepRow step={s} done={done.has(stepKey(s))} onToggle={toggle} />
 								</LazyItem>
 							</Fragment>
 						))}

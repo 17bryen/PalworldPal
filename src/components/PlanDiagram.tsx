@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { Background, Controls, Handle, MarkerType, Position, ReactFlow, type Edge, type Node, type NodeProps } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import dagre from '@dagrejs/dagre'
@@ -193,38 +193,65 @@ export default function PlanDiagram({ plan, active }: { plan: Plan; active: Set<
 		return seen
 	}, [hovered, graph])
 
+	// Nodes and edges whose look didn't change keep their objects, so hovering redraws only what it lights or fades
+	const built = useRef({ graph, nodes: new Map<string, { look: string; node: Node }>(), edges: new Map<string, { look: string; edge: Edge }>() })
 	const { nodes, edges } = useMemo(() => {
+		if (built.current.graph !== graph) built.current = { graph, nodes: new Map(), edges: new Map() }
+		const cache = built.current
+		const reuse = (id: string, look: string, make: () => Node) => {
+			const prev = cache.nodes.get(id)
+			if (prev && prev.look === look) return prev.node
+			const node = make()
+			cache.nodes.set(id, { look, node })
+			return node
+		}
 		const { pals, steps, wanted, g } = graph
 		const faded = (id: string) => !!lineage && !lineage.has(id)
 		const nodes: Node[] = []
 		for (const [id, node] of pals) {
-			const pos = g.node(id)
-			nodes.push({
-				id,
-				type: 'pal',
-				position: { x: pos.x - PAL_WIDTH / 2, y: pos.y - PAL_HEIGHT / 2 },
-				data: { node, dim: !active.has(node.key), faded: faded(id), wanted: wanted.has(id), implants: wanted.get(id) ?? [] } satisfies PalNodeData,
-				draggable: false,
-				connectable: false
-			})
+			const dim = !active.has(node.key)
+			const fade = faded(id)
+			nodes.push(
+				reuse(id, `${dim}|${fade}`, () => {
+					const pos = g.node(id)
+					return {
+						id,
+						type: 'pal',
+						position: { x: pos.x - PAL_WIDTH / 2, y: pos.y - PAL_HEIGHT / 2 },
+						data: { node, dim, faded: fade, wanted: wanted.has(id), implants: wanted.get(id) ?? [] } satisfies PalNodeData,
+						draggable: false,
+						connectable: false
+					}
+				})
+			)
 		}
 		for (const [id, node] of steps) {
-			const pos = g.node(id)
-			nodes.push({
-				id,
-				type: 'step',
-				position: { x: pos.x - STEP_WIDTH / 2, y: pos.y - STEP_HEIGHT / 2 },
-				data: { node, dim: !active.has(node.key), faded: faded(id) } satisfies StepNodeData,
-				draggable: false,
-				connectable: false
-			})
+			const dim = !active.has(node.key)
+			const fade = faded(id)
+			nodes.push(
+				reuse(id, `${dim}|${fade}`, () => {
+					const pos = g.node(id)
+					return {
+						id,
+						type: 'step',
+						position: { x: pos.x - STEP_WIDTH / 2, y: pos.y - STEP_HEIGHT / 2 },
+						data: { node, dim, faded: fade } satisfies StepNodeData,
+						draggable: false,
+						connectable: false
+					}
+				})
+			)
 		}
 		const edges: Edge[] = graph.edges.map((e) => {
 			const lit = !!lineage && lineage.has(e.source) && lineage.has(e.target)
 			const dim = !active.has(e.child)
+			const id = `${e.source}->${e.target}`
+			const look = `${lit}|${dim}|${!!lineage}`
+			const prev = cache.edges.get(id)
+			if (prev && prev.look === look) return prev.edge
 			const color = lit ? theme.palette.primary.main : dim ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.45)'
-			return {
-				id: `${e.source}->${e.target}`,
+			const edge: Edge = {
+				id,
 				source: e.source,
 				target: e.target,
 				type: 'default',
@@ -232,6 +259,8 @@ export default function PlanDiagram({ plan, active }: { plan: Plan; active: Set<
 				markerEnd: e.target === e.child ? { type: MarkerType.ArrowClosed, color, width: 16, height: 16 } : undefined,
 				zIndex: lit ? 1 : 0
 			}
+			cache.edges.set(id, { look, edge })
+			return edge
 		})
 		return { nodes, edges }
 	}, [graph, lineage, active])

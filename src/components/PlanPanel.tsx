@@ -23,9 +23,9 @@ import SwapIcon from '@mui/icons-material/SwapHoriz'
 import PushPinIcon from '@mui/icons-material/PushPinOutlined'
 import { getPal } from '../data/gamedata'
 import { worldTree } from '../data/regions'
-import { useStore } from '../state/store'
+import { ownedByUid, useStoreSelect } from '../state/store'
 import { useGamePals } from '../state/bridge'
-import { ownedLocation } from '../state/gamepals'
+import { ownedLocation, type GamePal, type PalLocation } from '../state/gamepals'
 import { pinKey, type Plan, type PlanNode, type SolveProgress, type TargetResult } from '../solver/types'
 import { GenderIcon, PalAvatar, PassiveList } from './bits'
 import { StatusChip } from './ListsPanel'
@@ -41,25 +41,31 @@ export function formatMinutes(m: number): string {
 
 export const formatEggs = (eggs: number) => `~${eggs < 10 ? eggs.toFixed(1).replace(/\.0$/, '') : Math.round(eggs)} Egg${eggs > 1.05 ? 's' : ''}`
 
-export function yakumoName(uid: string, owned: { uid: string; stars?: number }[]): string {
-	const y = owned.find((o) => o.uid === uid)
-	return `Yakumo${y?.stars ? ` (${y.stars} star${y.stars > 1 ? 's' : ''})` : ''}`
+export function yakumoName(stars: number | undefined): string {
+	return `Yakumo${stars ? ` (${stars} star${stars > 1 ? 's' : ''})` : ''}`
+}
+
+const whereIndexes = new WeakMap<GamePal[], Map<string, PalLocation | undefined>>()
+/** Where each game pal is, built once per game read and shared by every Owned chip */
+function whereByKey(gamePals: GamePal[]) {
+	let index = whereIndexes.get(gamePals)
+	if (!index) whereIndexes.set(gamePals, (index = new Map(gamePals.map((g) => [g.key, g.where]))))
+	return index
 }
 
 /** A plan pal's passives; one you own also shows the passives it has that weren't asked for, dimmed */
 export function NodePassives({ node, implants }: { node: PlanNode; implants?: string[] }) {
 	const ownedUid = node.source.kind === 'owned' ? node.source.ownedUid : null
-	const owned = useStore().owned.find((o) => o.uid === ownedUid)
+	const owned = useStoreSelect((s) => (ownedUid ? ownedByUid(s.owned).get(ownedUid) : undefined))
 	const extra = owned ? owned.passives.filter((p) => !node.passives.includes(p)) : []
 	return <PassiveList passives={node.passives} implants={implants} extra={extra} />
 }
 
 /** "Owned", with where the pal is in the game on hover */
 function OwnedChip({ ownedUid }: { ownedUid: string }) {
-	const owned = useStore().owned.find((o) => o.uid === ownedUid)
+	const owned = useStoreSelect((s) => ownedByUid(s.owned).get(ownedUid))
 	const gamePals = useGamePals()
-	const current = useMemo(() => new Map(gamePals.map((g) => [g.key, g.where])), [gamePals])
-	const title = (owned && ownedLocation(owned, current)) ?? 'Added by hand, so its spot in the game isn\'t known'
+	const title = (owned && ownedLocation(owned, whereByKey(gamePals))) ?? 'Added by hand, so its spot in the game isn\'t known'
 	return (
 		<Tooltip title={title}>
 			<Chip size="small" color="success" variant="outlined" label="Owned" />
@@ -69,8 +75,10 @@ function OwnedChip({ ownedUid }: { ownedUid: string }) {
 
 /** What to do for this pal: breed it in a step, catch it, or use one you own */
 export function SourceBadge({ node }: { node: PlanNode }) {
-	const owned = useStore().owned
 	const src = node.source
+	// Only a Yakumo catch reads My Pals, for the Yakumo's stars
+	const yakumoUid = src.kind === 'catch' ? src.yakumo?.ownedUid : undefined
+	const yakumoStars = useStoreSelect((s) => (yakumoUid ? ownedByUid(s.owned).get(yakumoUid)?.stars : undefined))
 	switch (src.kind) {
 		case 'bred':
 			return (
@@ -85,7 +93,7 @@ export function SourceBadge({ node }: { node: PlanNode }) {
 		case 'catch':
 			if (src.yakumo)
 				return (
-					<Tooltip title={`Catch with ${yakumoName(src.yakumo.ownedUid, owned)} summoned until one has these passives`}>
+					<Tooltip title={`Catch with ${yakumoName(yakumoStars)} summoned until one has these passives`}>
 						<Chip size="small" color="secondary" variant="outlined" label={`Yakumo Catch, ~${Math.round(src.yakumo.catches)} Tries`} />
 					</Tooltip>
 				)
@@ -109,7 +117,7 @@ function GenderNeed({ node }: { node: PlanNode }) {
 /** Opens the other ways to get a bred pal; shows a pin once the player has chosen one */
 export function AlternativesButton({ node }: { node: PlanNode }) {
 	const openAlternatives = useAlternatives()
-	const pinned = useStore().settings.pins[pinKey(node.palId, node.passives)]
+	const pinned = useStoreSelect((s) => s.settings.pins[pinKey(node.palId, node.passives)])
 	// Owned pals have nothing to swap; catches can switch to breeding
 	if (node.source.kind === 'owned' && !pinned) return null
 	return (
@@ -175,7 +183,7 @@ export function activeKeys(plan: Plan): Set<string> {
 }
 
 function TargetCard({ result, selected, active }: { result: TargetResult; selected: boolean; active: Set<string> }) {
-	const wanted = useStore().wanted.find((w) => w.uid === result.wantedUid)
+	const wanted = useStoreSelect((s) => s.wanted.find((w) => w.uid === result.wantedUid))
 	return (
 		<Paper
 			id={`target-${result.wantedUid}`}
@@ -213,7 +221,7 @@ function TargetCard({ result, selected, active }: { result: TargetResult; select
 }
 
 function StepsView({ plan }: { plan: Plan }) {
-	const wanted = useStore().wanted
+	const wanted = useStoreSelect((s) => s.wanted)
 	const [done, setDone] = useState<Set<number>>(new Set())
 	useEffect(() => setDone(new Set()), [plan])
 	if (!plan.steps.length) return <Empty text="Nothing to breed." />
@@ -263,7 +271,8 @@ function StepsView({ plan }: { plan: Plan }) {
 }
 
 function CatchView({ plan }: { plan: Plan }) {
-	const { wanted, owned } = useStore()
+	const owned = useStoreSelect((s) => s.owned)
+	const wanted = useStoreSelect((s) => s.wanted)
 	if (!plan.catches.length) return <Empty text="Nothing to catch." />
 	return (
 		<Table size="small">
@@ -298,7 +307,7 @@ function CatchView({ plan }: { plan: Plan }) {
 							</TableCell>
 							<TableCell>
 								<Typography variant="body2" color="text.secondary">
-									{c.yakumo ? `${yakumoName(c.yakumo.ownedUid, owned)} out, ~${Math.round(c.yakumo.catches)} tries` : 'Any'}
+									{c.yakumo ? `${yakumoName(ownedByUid(owned).get(c.yakumo.ownedUid)?.stars)} out, ~${Math.round(c.yakumo.catches)} tries` : 'Any'}
 								</Typography>
 							</TableCell>
 							<TableCell>{formatMinutes(c.minutes)}</TableCell>
@@ -366,7 +375,7 @@ export function PlanPanel({
 	error: string | null
 	selectedWanted: string | null
 }) {
-	const store = useStore()
+	const hasWanted = useStoreSelect((s) => s.wanted.length > 0)
 	const [tab, setTab] = useState<PlanTab>('targets')
 	const active = useMemo(() => (plan ? activeKeys(plan) : new Set<string>()), [plan])
 
@@ -419,7 +428,7 @@ export function PlanPanel({
 					transition: 'opacity 200ms'
 				}}
 			>
-				{!store.wanted.length ? (
+				{!hasWanted ? (
 					<Empty text="Your plan shows up here once you add target pals." />
 				) : !plan ? null : tab === 'targets' ? (
 					plan.targets.map((t) => <TargetCard key={t.wantedUid} result={t} selected={t.wantedUid === selectedWanted} active={active} />)

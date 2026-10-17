@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
 	Autocomplete,
 	Badge,
@@ -24,7 +24,7 @@ import PushPinIcon from '@mui/icons-material/PushPinOutlined'
 import { getPassive, type PassiveInfo } from '../data/gamedata'
 import { affordable, defaultSurgery, EXTRA_PASSIVES, isSilver, SURGERY_GROUPS, TABLE_PASSIVES, type SurgerySettings } from '../data/surgery'
 import { MAX_GENERATIONS } from '../solver/types'
-import { useStore } from '../state/store'
+import { useActions, useStoreSelect } from '../state/store'
 import { PassiveChip } from './bits'
 import { MapAccessDialog } from './MapAccess'
 
@@ -39,8 +39,32 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 	)
 }
 
+/** Minutes per Egg; saved (and re-planned) when you leave the field or press Enter, not per keystroke */
+function MinutesPerEggField({ value, onCommit }: { value: number; onCommit: (n: number) => void }) {
+	const [draft, setDraft] = useState(String(value))
+	useEffect(() => setDraft(String(value)), [value])
+	const commit = () => {
+		const n = Math.max(1, Number(draft) || 1)
+		setDraft(String(n))
+		if (n !== value) onCommit(n)
+	}
+	return (
+		<TextField
+			size="small"
+			type="number"
+			label="Minutes per Egg"
+			value={draft}
+			onChange={(e) => setDraft(e.target.value)}
+			onBlur={commit}
+			onKeyDown={(e) => e.key === 'Enter' && commit()}
+			sx={{ width: 150 }}
+		/>
+	)
+}
+
 function SurgerySection() {
-	const { settings, updateSettings } = useStore()
+	const settings = useStoreSelect((s) => s.settings)
+	const { updateSettings } = useActions()
 	const surgery = settings.surgery ?? defaultSurgery
 	const set = (patch: Partial<SurgerySettings>) => updateSettings({ surgery: { ...surgery, ...patch } })
 	const extras = surgery.extra.map((n) => getPassive(n)).filter((p): p is PassiveInfo => !!p)
@@ -91,7 +115,8 @@ function SurgerySection() {
 }
 
 export function PlannerSettingsButton() {
-	const { settings, updateSettings } = useStore()
+	const settings = useStoreSelect((s) => s.settings)
+	const { updateSettings } = useActions()
 	const [open, setOpen] = useState(false)
 	const [mapOpen, setMapOpen] = useState(false)
 	const pinCount = Object.keys(settings.pins).length
@@ -125,14 +150,7 @@ export function PlannerSettingsButton() {
 								</TextField>
 							</Tooltip>
 							<Tooltip title="Rough time to breed and hatch one egg; used to weigh eggs against catches" placement="top">
-								<TextField
-									size="small"
-									type="number"
-									label="Minutes per Egg"
-									value={settings.minutesPerEgg}
-									onChange={(e) => updateSettings({ minutesPerEgg: Math.max(1, Number(e.target.value) || 1) })}
-									sx={{ width: 150 }}
-								/>
+								<MinutesPerEggField value={settings.minutesPerEgg} onCommit={(minutesPerEgg) => updateSettings({ minutesPerEgg })} />
 							</Tooltip>
 						</Box>
 						<Tooltip title="Bred pals carry no passives besides the ones you asked for, when that's possible" placement="right">
