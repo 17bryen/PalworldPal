@@ -76,9 +76,15 @@ export function Compass({ pose, layerIds, range, width, prefs }: { pose: Pose; l
 	const map = worldToPixel(pose.x, pose.y).map
 	const all = useWorldPoints(layerIds, map)
 	const loot = useStoreSelect((s) => s.loot)
+	const collected = useStoreSelect((s) => s.collected)
+	const greyCollected = useStoreSelect((s) => s.map.greyCollected)
 	const minute = useMinuteTick()
-	// Looted spots stay off the compass until they're back
-	const points = useMemo(() => all.filter((p) => lootReadyAt(p.key, loot) == null), [all, loot, minute])
+	// Looted spots stay off the compass until they're back, and collected effigies and journals for good
+	const points = useMemo(
+		() => all.filter((p) => !(loot.grey && lootReadyAt(p.key, loot) != null) && !(greyCollected && collected[p.key] != null)),
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+		[all, loot, collected, greyCollected, minute]
+	)
 	const toX = (relDeg: number) => width / 2 + (relDeg / COMPASS_HALF_FOV) * (width / 2)
 
 	// The nearest markers in any direction, refreshed only when you've moved a few meters, so each

@@ -29,6 +29,8 @@ export interface AppState {
 	syncCatches: boolean
 	overlay: OverlayPrefs
 	loot: LootState
+	/** Effigies and journals collected, by map marker key, with when the game first showed them collected */
+	collected: Record<string, number>
 	/** Synced pals that left the party and Palbox and turned up nowhere else; restored if seen again */
 	removed: RemovedPal[]
 	/** The world (save or server) the lists above belong to; set by the game link */
@@ -57,6 +59,7 @@ export interface WorldData {
 	wanted: WantedPal[]
 	catches: Record<string, number>
 	looted: Record<string, number>
+	collected: Record<string, number>
 	removed: RemovedPal[]
 }
 
@@ -70,8 +73,8 @@ export function worldLabel(id: string, names: Record<string, string>): string {
 	return id.endsWith(`|${LOCAL_HOST_ID}`) ? 'Local Save' : 'Server'
 }
 
-const worldOf = (s: AppState): WorldData => ({ owned: s.owned, wanted: s.wanted, catches: s.catches, looted: s.loot.looted, removed: s.removed })
-const emptyWorld: WorldData = { owned: [], wanted: [], catches: {}, looted: {}, removed: [] }
+const worldOf = (s: AppState): WorldData => ({ owned: s.owned, wanted: s.wanted, catches: s.catches, looted: s.loot.looted, collected: s.collected, removed: s.removed })
+const emptyWorld: WorldData = { owned: [], wanted: [], catches: {}, looted: {}, collected: {}, removed: [] }
 
 /**
  * Moves synced pals that left for good (sold, condensed, traded) to Recently Removed, and brings
@@ -109,6 +112,7 @@ export function withWorld(s: AppState, id: string, name?: string): AppState {
 		catches: next.catches,
 		removed: next.removed,
 		loot: { ...s.loot, looted: next.looted },
+		collected: next.collected ?? {},
 		world: id,
 		worlds,
 		worldNames
@@ -118,13 +122,15 @@ export function withWorld(s: AppState, id: string, name?: string): AppState {
 export interface LootState {
 	/** Mark a spot looted after standing on it for a moment */
 	auto: boolean
+	/** Grey out looted spots on the map and leave them off the minimap and compass until they're back */
+	grey: boolean
 	/** Minutes until each lootable marker type comes back */
 	minutes: Record<string, number>
 	/** When each spot was looted (ms since epoch), by spot key */
 	looted: Record<string, number>
 }
 
-const defaultLoot: LootState = { auto: true, minutes: { ...LOOT_DEFAULT_MINUTES }, looted: {} }
+const defaultLoot: LootState = { auto: true, grey: true, minutes: { ...LOOT_DEFAULT_MINUTES }, looted: {} }
 
 /** When a looted spot comes back (ms since epoch), or null when it's ready now */
 export function lootReadyAt(key: string, loot: LootState, now = Date.now()): number | null {
@@ -182,9 +188,13 @@ export interface MapPrefs {
 	uncaught: boolean
 	/** Wild pals loaded near you */
 	wild: boolean
+	/** Take collected effigies and journals from the game */
+	syncCollected: boolean
+	/** Grey out collected effigies and journals on the map and leave them off the minimap and compass */
+	greyCollected: boolean
 }
 
-const defaultMap: MapPrefs = { layers: ['fast_travel'], uncaught: false, wild: true }
+const defaultMap: MapPrefs = { layers: ['fast_travel'], uncaught: false, wild: true, syncCollected: true, greyCollected: true }
 
 export const defaultSettings: PlanSettings = {
 	maxGenerations: 4,
@@ -209,6 +219,7 @@ const emptyState: AppState = {
 	overlay: defaultOverlay,
 	loot: defaultLoot,
 	removed: [],
+	collected: {},
 	world: null,
 	worlds: {},
 	worldNames: {},
@@ -242,6 +253,7 @@ export function sanitize(raw: unknown): AppState {
 			wanted: wantedList(w.wanted),
 			catches: catchList(w.catches),
 			looted: sanitizeLoot({ looted: w.looted }).looted,
+			collected: timesOf(w.collected),
 			removed: ownedList(w.removed).slice(0, MAX_REMOVED)
 		}
 	}
@@ -250,6 +262,7 @@ export function sanitize(raw: unknown): AppState {
 		owned: ownedList(s.owned),
 		wanted: wantedList(s.wanted),
 		removed: ownedList(s.removed).slice(0, MAX_REMOVED),
+		collected: timesOf(s.collected),
 		world: typeof s.world === 'string' && s.world ? s.world : null,
 		worlds,
 		worldNames: Object.fromEntries(Object.entries(s.worldNames ?? {}).filter(([, n]) => typeof n === 'string')),
@@ -280,9 +293,14 @@ export function sanitize(raw: unknown): AppState {
 	}
 }
 
+/** Key -> time maps (looted spots, collected effigies), keeping only well-formed entries */
+const timesOf = (raw: Record<string, number> | undefined): Record<string, number> =>
+	Object.fromEntries(Object.entries(raw ?? {}).filter(([, at]) => typeof at === 'number' && Number.isFinite(at)))
+
 function sanitizeLoot(raw: Partial<LootState> | undefined): LootState {
 	const loot: LootState = {
 		auto: raw?.auto ?? true,
+		grey: raw?.grey ?? true,
 		minutes: { ...LOOT_DEFAULT_MINUTES, ...raw?.minutes },
 		looted: {}
 	}
@@ -563,6 +581,16 @@ function useStoreValue(readOnly: boolean) {
 			return { ...s, loot: { ...s.loot, looted } }
 		})
 	}, [])
+	/** Marks effigies and journals collected (they never become uncollected) */
+	const addCollected = useCallback((keys: string[]) => {
+		setState((s) => {
+			const fresh = keys.filter((k) => s.collected[k] == null)
+			if (!fresh.length) return s
+			const at = Date.now()
+			return { ...s, collected: { ...s.collected, ...Object.fromEntries(fresh.map((k) => [k, at])) } }
+		})
+	}, [])
+	const clearCollected = useCallback(() => setState((s) => (Object.keys(s.collected).length ? { ...s, collected: {} } : s)), [])
 	const updateLoot = useCallback((patch: Partial<LootState>) => {
 		setState((s) => ({ ...s, loot: { ...s.loot, ...patch } }))
 	}, [])
@@ -584,7 +612,7 @@ function useStoreValue(readOnly: boolean) {
 
 	// Every action is stable, so components that only change things never re-render from the store
 	// eslint-disable-next-line react-hooks/exhaustive-deps
-	const actions = useMemo(() => ({ addOwned, updateOwned, addFromGame, syncGameStats, trackGamePresence, restoreRemoved, clearRemoved, switchWorld, renameWorld, applyGameChanges, removeOwned, removeOwnedMany, addWanted, addWantedMany, updateWanted, removeWanted, toggleWantedDisabled, removeWantedPal, updateSettings, setCatchPref, setPin, setCatches, replaceCatches, setSyncCatches, updateMap, updateOverlay, setLooted, updateLoot, updateCraft, addToChecklist, replaceState, snapshot }), [])
+	const actions = useMemo(() => ({ addOwned, addCollected, clearCollected, updateOwned, addFromGame, syncGameStats, trackGamePresence, restoreRemoved, clearRemoved, switchWorld, renameWorld, applyGameChanges, removeOwned, removeOwnedMany, addWanted, addWantedMany, updateWanted, removeWanted, toggleWantedDisabled, removeWantedPal, updateSettings, setCatchPref, setPin, setCatches, replaceCatches, setSyncCatches, updateMap, updateOverlay, setLooted, updateLoot, updateCraft, addToChecklist, replaceState, snapshot }), [])
 	const value = useMemo(() => ({ appStore, actions, loaded }), [appStore, actions, loaded])
 	return value
 }

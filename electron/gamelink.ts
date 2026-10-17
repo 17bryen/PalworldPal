@@ -137,10 +137,34 @@ export function parseWild(text: string, at: number): WildPalsData | null {
 	}
 }
 
+/** Mod 1.10+: the effigies and journals you've collected, by class and world position */
+export interface CollectedData {
+	items: { c: string; x: number; y: number }[]
+	world?: string
+	mod: string
+	at: number
+}
+
+/** Parses the mod's collected.json, dropping entries that don't have the expected shape */
+export function parseCollected(text: string, at: number): CollectedData | null {
+	try {
+		const d = JSON.parse(text)
+		if (!Array.isArray(d.items)) return null
+		const items = (d.items as unknown[]).filter(
+			(e): e is CollectedData['items'][number] =>
+				!!e && typeof (e as { c: unknown }).c === 'string' && typeof (e as { x: unknown }).x === 'number' && typeof (e as { y: unknown }).y === 'number'
+		)
+		return { items, world: typeof d.world === 'string' && d.world ? d.world : undefined, mod: String(d.mod ?? ''), at }
+	} catch {
+		return null
+	}
+}
+
 let latestLive: LiveData | null = null
 let latestCaptures: CaptureData | null = null
 let latestPals: GamePalsData | null = null
 let latestWild: WildPalsData | null = null
+let latestCollected: CollectedData | null = null
 
 /** Polls the bridge files and forwards changes to every window (app and overlay). fs.watch is unreliable on Windows. */
 export function startBridge() {
@@ -193,7 +217,13 @@ export function startBridge() {
 		latestWild = wild
 		send('bridge:wild', wild)
 	})
-	ipcMain.handle('bridge:latest', () => ({ live: latestLive, captures: latestCaptures, pals: latestPals, wild: latestWild }))
+	watchFile('collected.json', 1000, (text) => {
+		const collected = parseCollected(text, Date.now())
+		if (!collected) return
+		latestCollected = collected
+		send('bridge:collected', collected)
+	})
+	ipcMain.handle('bridge:latest', () => ({ live: latestLive, captures: latestCaptures, pals: latestPals, wild: latestWild, collected: latestCollected }))
 }
 
 // ---- Finding Palworld and installing the mod ----

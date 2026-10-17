@@ -28,6 +28,11 @@ contextBridge.exposeInMainWorld('palBridge', {
 		ipcRenderer.on('bridge:pals', listener)
 		return () => ipcRenderer.removeListener('bridge:pals', listener)
 	},
+	onCollected: (cb: (data: unknown) => void) => {
+		const listener = (_e: unknown, data: unknown) => cb(data)
+		ipcRenderer.on('bridge:collected', listener)
+		return () => ipcRenderer.removeListener('bridge:collected', listener)
+	},
 	onWild: (cb: (data: unknown) => void) => {
 		const listener = (_e: unknown, data: unknown) => cb(data)
 		ipcRenderer.on('bridge:wild', listener)

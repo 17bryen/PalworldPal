@@ -72,7 +72,7 @@ describe('motion playback', () => {
 })
 
 describe('loot timers', () => {
-	const loot = { auto: true, minutes: { junk: 300, chest: 240 }, looted: { 'junk:4': 1_000_000, 'chest:9': 1_000_000 } }
+	const loot = { auto: true, grey: true, minutes: { junk: 300, chest: 240 }, looted: { 'junk:4': 1_000_000, 'chest:9': 1_000_000 } }
 
 	it('knows when each looted spot comes back', () => {
 		expect(lootReadyAt('junk:4', loot, 1_000_000 + 60_000)).toBe(1_000_000 + 300 * 60_000)

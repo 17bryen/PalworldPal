@@ -8,6 +8,10 @@ import {
 	Checkbox,
 	Chip,
 	Collapse,
+	Dialog,
+	DialogActions,
+	DialogContent,
+	DialogTitle,
 	IconButton,
 	InputAdornment,
 	Paper,
@@ -19,10 +23,12 @@ import {
 	Typography
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
+import SettingsIcon from '@mui/icons-material/SettingsOutlined'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import CloseIcon from '@mui/icons-material/Close'
 import MyLocationIcon from '@mui/icons-material/MyLocation'
 import { getPal, pals } from '../data/gamedata'
+import { isCollectibleLayer } from '../data/collectibles'
 import { CATEGORY_NAMES, CATEGORY_ORDER, HABITAT, CLICK_ONLY_LOOT, isLootLayer, layerPoints, LOOT_DEFAULT_MINUTES, MAP_SIZE, mapLayers, palHabitat, pixelToIngame, worldToPixel, type MapIndex, type MapLayer } from '../data/map'
 import { CATCH_TARGET } from '../data/paldeck'
 import { REGIONS, regionName, spawnRegions } from '../data/regions'
@@ -104,26 +110,33 @@ export function LayerMarkers({
 }) {
 	const leaflet = useMap()
 	const loot = useStoreSelect((s) => s.loot)
+	const collected = useStoreSelect((s) => s.collected)
+	const greyCollected = useStoreSelect((s) => s.map.greyCollected)
 	// Re-checked each minute, but the markers rebuild only when this layer's looted spots change
 	useMinuteTick()
-	const lootable = isLootLayer(layer.id)
+	const lootable = isLootLayer(layer.id) && loot.grey
+	const collectible = isCollectibleLayer(layer.id) && greyCollected
 	// Dungeons are cleared, not looted
 	const done = CLICK_ONLY_LOOT.has(layer.id) ? 'cleared' : 'looted'
 	// Only lootable layers depend on timers; others never rebuild for them
 	const timers = lootable ? `${coolingKeys(layer.id, loot)}|${loot.minutes[layer.id]}` : ''
+	// Collectible layers rebuild only when their own collected markers change
+	const got = collectible ? collectedKeys(layer.id, collected) : ''
 	useEffect(() => {
 		const image = layer.icon ? iconImage(layer.icon) : undefined
 		const group = L.layerGroup()
 		for (const p of layerPoints(layer, map)) {
 			const readyAt = lootable ? lootReadyAt(p.key, loot) : null
-			if (readyAt && hideLooted) continue
+			const isCollected = collectible && collected[p.key] != null
+			if ((readyAt || isCollected) && hideLooted) continue
 			const marker = image
-				? new IconMarker(toLatLng(p.px, p.py), { radius: 9, stroke: false, fill: false, image, dim: !!readyAt })
-				: L.circleMarker(toLatLng(p.px, p.py), { radius: 5, color: theme.palette.primary.main, weight: 2, fillOpacity: readyAt ? 0.15 : 0.6 })
+				? new IconMarker(toLatLng(p.px, p.py), { radius: 9, stroke: false, fill: false, image, dim: !!readyAt || isCollected })
+				: L.circleMarker(toLatLng(p.px, p.py), { radius: 5, color: theme.palette.primary.main, weight: 2, fillOpacity: readyAt || isCollected ? 0.15 : 0.6 })
 			const name = p.label ? `${p.label} (${layer.name})` : layer.name
 			// Built when shown, so the countdown is current
 			marker.bindTooltip(
 				() => {
+					if (isCollected) return `${name}<br>Collected`
 					if (!lootable) return name
 					const ready = lootReadyAt(p.key, loot)
 					const hint = onLootClick ? (ready ? '<br><i>Click to mark it ready</i>' : `<br><i>Click to mark it ${done}</i>`) : ''
@@ -131,7 +144,7 @@ export function LayerMarkers({
 				},
 				{ direction: 'top', offset: [0, -8] }
 			)
-			if (lootable && onLootClick) marker.on('click', () => onLootClick(p.key, !!readyAt))
+			if (isLootLayer(layer.id) && onLootClick) marker.on('click', () => onLootClick(p.key, !!readyAt))
 			group.addLayer(marker)
 		}
 		group.addTo(leaflet)
@@ -139,8 +152,17 @@ export function LayerMarkers({
 			group.remove()
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [leaflet, layer, map, hideLooted, onLootClick, timers])
+	}, [leaflet, layer, map, hideLooted, onLootClick, timers, got])
 	return null
+}
+
+/** This layer's collected effigies or journals */
+function collectedKeys(layerId: string, collected: Record<string, number>): string {
+	const prefix = `${layerId}:`
+	return Object.keys(collected)
+		.filter((k) => k.startsWith(prefix))
+		.sort()
+		.join(',')
 }
 
 /** This layer's spots that are looted and not back yet */
@@ -414,56 +436,94 @@ function CoordinateReadout({ map }: { map: MapIndex }) {
 	)
 }
 
-/** Respawn timers for junk piles, chests, supply crates and dungeons */
-const LootTimers = memo(function LootTimers() {
-	const loot = useStoreSelect((s) => s.loot)
-	const { updateLoot } = useActions()
-	useMinuteTick()
-	const [open, setOpen] = useState(false)
-	const cooling = Object.keys(loot.looted).filter((k) => lootReadyAt(k, loot) != null).length
+function SettingRow({ label, checked, onChange, hint }: { label: string; checked: boolean; onChange: (on: boolean) => void; hint?: string }) {
 	return (
-		<Box>
-			<Box onClick={() => setOpen((o) => !o)} sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}>
-				<Typography variant="overline" color="text.secondary" sx={{ flex: 1 }}>
-					Loot Timers
-				</Typography>
-				{cooling > 0 && <Chip size="small" label={`${cooling} Looted`} sx={{ height: 18, fontSize: 11, mr: 0.5 }} />}
-				<ExpandMoreIcon fontSize="small" sx={{ transform: open ? 'none' : 'rotate(-90deg)', transition: 'transform 150ms', color: 'text.secondary' }} />
-			</Box>
-			<Collapse in={open}>
-				<Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-					<Typography variant="body2" sx={{ flex: 1 }}>
-						Mark Looted When I Stand on It
-					</Typography>
-					<Switch size="small" checked={loot.auto} onChange={(e) => updateLoot({ auto: e.target.checked })} />
-				</Box>
-				<Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 1 }}>
-					Needs the game link. Looted spots hide from the overlay and grey out here until they're back. Click a marker to mark it by hand; dungeons are marked by clicking only.
-				</Typography>
-				{Object.keys(LOOT_DEFAULT_MINUTES).map((id) => (
-					<Box key={id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.25 }}>
-						<Typography variant="body2" sx={{ flex: 1 }}>
-							{mapLayers.find((l) => l.id === id)?.name ?? id}
-						</Typography>
-						<TextField
-							size="small"
-							type="number"
-							value={loot.minutes[id]}
-							onChange={(e) => updateLoot({ minutes: { ...loot.minutes, [id]: Math.max(1, Number(e.target.value) || 1) } })}
-							slotProps={{ input: { endAdornment: <InputAdornment position="end">min</InputAdornment> } }}
-							sx={{ width: 110, '& input': { py: 0.5 } }}
-						/>
-					</Box>
-				))}
-				{cooling > 0 && (
-					<Button size="small" onClick={() => updateLoot({ looted: {} })} sx={{ mt: 0.5, ml: -1 }}>
-						Clear All Timers
-					</Button>
-				)}
-			</Collapse>
+		<Box sx={{ display: 'flex', alignItems: 'center', py: 0.25 }}>
+			<Typography variant="body2" sx={{ flex: 1 }} title={hint}>
+				{label}
+			</Typography>
+			<Switch size="small" checked={checked} onChange={(e) => onChange(e.target.checked)} />
 		</Box>
 	)
-})
+}
+
+/** The Map tab's settings: what to shade and show, effigy and journal syncing, loot timers */
+function MapSettings({ open, onClose, uncaughtCount }: { open: boolean; onClose: () => void; uncaughtCount: number }) {
+	const prefs = useStoreSelect((s) => s.map)
+	const loot = useStoreSelect((s) => s.loot)
+	const collectedCount = useStoreSelect((s) => Object.keys(s.collected).length)
+	const { updateMap, updateLoot, clearCollected } = useActions()
+	const { connected } = useBridge()
+	useMinuteTick()
+	const cooling = Object.keys(loot.looted).filter((k) => lootReadyAt(k, loot) != null).length
+	return (
+		<Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+			<DialogTitle>Map Settings</DialogTitle>
+			<DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+				<Box>
+					<Typography variant="overline" color="text.secondary">
+						Pals
+					</Typography>
+					<SettingRow label="Shade Where Uncaught Pals Live" checked={prefs.uncaught} onChange={(uncaught) => updateMap({ uncaught })} hint={`${uncaughtCount} pals still need ${CATCH_TARGET} catches`} />
+					<SettingRow label="Show Nearby Wild Pals" checked={prefs.wild} onChange={(wild) => updateMap({ wild })} />
+					{prefs.wild && connected && <WildCount />}
+				</Box>
+				<Box>
+					<Typography variant="overline" color="text.secondary">
+						Effigies and Journals
+					</Typography>
+					<SettingRow label="Sync Collected From the Game" checked={prefs.syncCollected} onChange={(syncCollected) => updateMap({ syncCollected })} hint="Needs the game link" />
+					<SettingRow label="Grey Out Collected" checked={prefs.greyCollected} onChange={(greyCollected) => updateMap({ greyCollected })} hint="Collected ones also leave the minimap and compass" />
+					<Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+						<Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
+							{collectedCount} collected
+						</Typography>
+						{collectedCount > 0 && (
+							<Button size="small" onClick={clearCollected}>
+								Clear Collected
+							</Button>
+						)}
+					</Box>
+				</Box>
+				<Box>
+					<Typography variant="overline" color="text.secondary">
+						Loot
+					</Typography>
+					<SettingRow label="Mark Looted When I Stand on It" checked={loot.auto} onChange={(auto) => updateLoot({ auto })} hint="Needs the game link. Dungeons are marked by clicking only." />
+					<SettingRow label="Grey Out Looted" checked={loot.grey} onChange={(grey) => updateLoot({ grey })} hint="Looted spots also leave the minimap and compass until they're back" />
+					{Object.keys(LOOT_DEFAULT_MINUTES).map((id) => (
+						<Box key={id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.25 }}>
+							<Typography variant="body2" sx={{ flex: 1 }}>
+								{mapLayers.find((l) => l.id === id)?.name ?? id}
+							</Typography>
+							<TextField
+								size="small"
+								type="number"
+								value={loot.minutes[id]}
+								onChange={(e) => updateLoot({ minutes: { ...loot.minutes, [id]: Math.max(1, Number(e.target.value) || 1) } })}
+								slotProps={{ input: { endAdornment: <InputAdornment position="end">min</InputAdornment> } }}
+								sx={{ width: 110, '& input': { py: 0.5 } }}
+							/>
+						</Box>
+					))}
+					<Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+						<Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
+							{cooling} looted
+						</Typography>
+						{cooling > 0 && (
+							<Button size="small" onClick={() => updateLoot({ looted: {} })}>
+								Clear All Timers
+							</Button>
+						)}
+					</Box>
+				</Box>
+			</DialogContent>
+			<DialogActions>
+				<Button onClick={onClose}>Done</Button>
+			</DialogActions>
+		</Dialog>
+	)
+}
 
 const LayerList = memo(function LayerList({ map }: { map: MapIndex }) {
 	const prefs = useStoreSelect((s) => s.map)
@@ -486,6 +546,16 @@ const LayerList = memo(function LayerList({ map }: { map: MapIndex }) {
 		const next = new Set(on)
 		if (next.has(id)) next.delete(id)
 		else next.add(id)
+		updateMap({ layers: [...next] })
+	}
+	/** Every marker type in a category on, or all of them off when they already are */
+	const toggleAll = (ids: string[]) => {
+		const next = new Set(on)
+		const allOn = ids.every((id) => next.has(id))
+		for (const id of ids) {
+			if (allOn) next.delete(id)
+			else next.add(id)
+		}
 		updateMap({ layers: [...next] })
 	}
 
@@ -524,6 +594,15 @@ const LayerList = memo(function LayerList({ map }: { map: MapIndex }) {
 							sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5, cursor: 'pointer', userSelect: 'none' }}
 						>
 							<ExpandMoreIcon fontSize="small" sx={{ transform: expanded ? 'none' : 'rotate(-90deg)', transition: 'transform 150ms', color: 'text.secondary' }} />
+							<Checkbox
+								size="small"
+								disableRipple
+								checked={shown === items.length}
+								indeterminate={shown > 0 && shown < items.length}
+								onClick={(e) => e.stopPropagation()}
+								onChange={() => toggleAll(items.map((i) => i.layer.id))}
+								sx={{ p: 0.25, ml: -0.5 }}
+							/>
 							<Typography variant="subtitle2" sx={{ flex: 1 }}>
 								{CATEGORY_NAMES[cat] ?? cat}
 							</Typography>
@@ -582,11 +661,12 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 	const catches = useStoreSelect((s) => s.catches)
 	const prefs = useStoreSelect((s) => s.map)
 	const disabledRegions = useStoreSelect((s) => s.settings.disabledRegions)
-	const { updateMap, setLooted } = useActions()
+	const { setLooted } = useActions()
 	const [map, setMap] = useState<MapIndex>(0)
 	const [palId, setPalId] = useState<string | null>(null)
 	const [fitNonce, setFitNonce] = useState(0)
 	const [follow, setFollow] = useState(false)
+	const [settingsOpen, setSettingsOpen] = useState(false)
 	const { connected } = useBridge()
 	const liveMap = useLiveValue((live) => (live ? worldToPixel(live.x, live.y).map : null))
 	const playerMap = connected ? liveMap : null
@@ -628,10 +708,17 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 	return (
 		<Paper variant="outlined" sx={{ height: '100%', minHeight: 0, display: 'grid', gridTemplateColumns: '300px 1fr', overflow: 'hidden' }}>
 			<Box sx={{ borderRight: 1, borderColor: 'divider', overflowY: 'auto', p: 1.5, display: 'flex', flexDirection: 'column', gap: 2 }}>
-				<ToggleButtonGroup size="small" exclusive fullWidth value={map} onChange={(_, v: MapIndex | null) => v != null && setMap(v)}>
-					<ToggleButton value={0}>Palpagos</ToggleButton>
-					<ToggleButton value={1}>World Tree</ToggleButton>
-				</ToggleButtonGroup>
+				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+					<ToggleButtonGroup size="small" exclusive fullWidth value={map} onChange={(_, v: MapIndex | null) => v != null && setMap(v)}>
+						<ToggleButton value={0}>Palpagos</ToggleButton>
+						<ToggleButton value={1}>World Tree</ToggleButton>
+					</ToggleButtonGroup>
+					<Tooltip title="Map Settings">
+						<IconButton onClick={() => setSettingsOpen(true)}>
+							<SettingsIcon />
+						</IconButton>
+					</Tooltip>
+				</Box>
 
 				<Box>
 					<Typography variant="overline" color="text.secondary">
@@ -671,24 +758,11 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 							))}
 						</Box>
 					)}
-					<Box sx={{ display: 'flex', alignItems: 'center', mt: 1.5 }}>
-						<Typography variant="body2" sx={{ flex: 1 }}>
-							Shade Where Uncaught Pals Live
-						</Typography>
-						<Switch size="small" checked={prefs.uncaught} onChange={(e) => updateMap({ uncaught: e.target.checked })} />
-					</Box>
-					<Typography variant="caption" color="text.secondary">
-						{uncaught.length} pals still need {CATCH_TARGET} catches.
-					</Typography>
-					<Box sx={{ display: 'flex', alignItems: 'center', mt: 1.5 }}>
-						<Typography variant="body2" sx={{ flex: 1 }}>
-							Show Nearby Wild Pals
-						</Typography>
-						<Switch size="small" checked={prefs.wild} onChange={(e) => updateMap({ wild: e.target.checked })} />
-					</Box>
-					{prefs.wild && connected && <WildCount />}
 					{prefs.uncaught && regionRanking.length > 0 && (
-						<Box sx={{ mt: 1 }}>
+						<Box sx={{ mt: 1.5 }}>
+							<Typography variant="caption" color="text.secondary">
+								Most Uncaught Pals by Region
+							</Typography>
 							{regionRanking.map((r) => (
 								<Box key={r.key} sx={{ display: 'flex', justifyContent: 'space-between', py: 0.25 }}>
 									<Typography variant="body2">{regionName(r.key)}</Typography>
@@ -701,8 +775,6 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 					)}
 				</Box>
 
-				<LootTimers />
-
 				<Box>
 					<Typography variant="overline" color="text.secondary">
 						Markers
@@ -710,6 +782,7 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 					<LayerList map={map} />
 				</Box>
 			</Box>
+			<MapSettings open={settingsOpen} onClose={() => setSettingsOpen(false)} uncaughtCount={uncaught.length} />
 
 			<Box sx={{ position: 'relative', minHeight: 0, bgcolor: '#0e1014', '& .leaflet-container': { background: '#0e1014', fontFamily: 'inherit' } }}>
 				<MapContainer

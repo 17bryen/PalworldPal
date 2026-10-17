@@ -2,8 +2,9 @@
 -- the app's original name, PalBreederBridge, so existing installs stay valid.)
 --
 -- Client-side only. It reads the local player's position, facing, Paldeck capture counts, own
--- pals (pals.lua) and the wild pals loaded nearby (wild.lua) and writes them as small JSON files to %APPDATA%\palbreeder\bridge\, which the
--- app reads. It changes nothing in the game and sends nothing over the network, so it works on
+-- pals (pals.lua), the wild pals loaded nearby (wild.lua) and the effigies and journals you've
+-- collected (collectibles.lua), and writes them as small JSON files to
+-- %APPDATA%\palbreeder\bridge\, which the app reads. It changes nothing in the game and sends nothing over the network, so it works on
 -- servers without the mod.
 --
 -- THREADING. UE4SS's Lua state is shared and unlocked between its timer thread and the game
@@ -13,7 +14,7 @@
 --   * the timer-thread predicate is pure arithmetic and allocates nothing;
 --   * every UObject read happens on the game thread, inside pcall.
 
-local VERSION = "1.9.2"
+local VERSION = "1.10.0"
 local TICK_MS = 33            -- timer resolution, not the write rate
 local POSITION_EVERY = 0.05   -- seconds between position writes
 local CAPTURES_EVERY = 3.0    -- seconds between capture-count reads
@@ -170,13 +171,13 @@ else
     wild = nil
 end
 
--- Effigy probe (effigyprobe.lua); does nothing unless effigy-probe.on exists in the output folder
-local okEffigy, effigyprobe = pcall(loadScript, "effigyprobe")
-if okEffigy and effigyprobe ~= nil then
-    effigyprobe.setup({ log = log, writeFile = writeFile, get = get, alive = alive, outDir = outDir })
+-- Collected effigies and journals (collectibles.lua)
+local okCollectibles, collectibles = pcall(loadScript, "collectibles")
+if okCollectibles and collectibles ~= nil then
+    collectibles.setup({ log = log, writeFile = writeFile, get = get, alive = alive, version = VERSION })
 else
-    log("effigy probe not loaded: " .. tostring(effigyprobe))
-    effigyprobe = nil
+    log("collected effigies not loaded: " .. tostring(collectibles))
+    collectibles = nil
 end
 
 -- Scheduling state, touched by both threads. Plain numbers and booleans only.
@@ -216,14 +217,11 @@ local function job()
             palsPC = pc
             if pals ~= nil then pcall(pals.reset) end
             if wild ~= nil then pcall(wild.reset) end
-            if effigyprobe ~= nil then pcall(effigyprobe.reset) end
+            if collectibles ~= nil then pcall(collectibles.reset) end
         end
         if pals ~= nil then pcall(pals.tick, pc, now, get(rawCursor, pc) == true) end
         if wild ~= nil then pcall(wild.tick, now) end
-        if effigyprobe ~= nil then
-            local ok, err = pcall(effigyprobe.tick, pc, now)
-            if not ok then log("effigy probe failed: " .. tostring(err)) end
-        end
+        if collectibles ~= nil then pcall(collectibles.tick, now, pals and pals.worldId() or nil) end
     end
     -- Release the timer thread last; the gap keeps the next dispatch clear of this one's cleanup
     endedAt = os.clock()

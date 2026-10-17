@@ -4,6 +4,8 @@ import { diffGamePals, goneKeys, normalizeGamePals, type GamePal, type RawGamePa
 import { Motion } from './motion'
 import { useActions, useLoaded, useStoreSelect } from './store'
 import { normalizeWildPals, type RawWildPal, type WildPal } from './wildpals'
+import { collectedMarkerKeys } from '../data/collectibles'
+import { layerById, layerPoints, pixelToWorld } from '../data/map'
 
 /** What the companion mod reports, relayed by the main process */
 export interface LiveData {
@@ -37,6 +39,14 @@ export interface GamePalsData {
 	ok?: { id: boolean; old: boolean }
 }
 
+/** Mod 1.10+: the effigies and journals you've collected, by class and world position */
+export interface CollectedData {
+	items: { c: string; x: number; y: number }[]
+	world?: string
+	mod: string
+	at: number
+}
+
 /** Mod 1.9+: wild pals the game has loaded near you */
 export interface WildPalsData {
 	pals: RawWildPal[]
@@ -58,13 +68,15 @@ export interface GameLinkStatus {
 }
 
 interface PalBridgeApi {
-	latest(): Promise<{ live: LiveData | null; captures: CaptureData | null; pals?: GamePalsData | null; wild?: WildPalsData | null }>
+	latest(): Promise<{ live: LiveData | null; captures: CaptureData | null; pals?: GamePalsData | null; wild?: WildPalsData | null; collected?: CollectedData | null }>
 	onLive(cb: (data: LiveData) => void): () => void
 	onCaptures(cb: (data: CaptureData) => void): () => void
 	/** Mod 1.4+ */
 	onPals?(cb: (data: GamePalsData) => void): () => void
 	/** Mod 1.9+ */
 	onWild?(cb: (data: WildPalsData) => void): () => void
+	/** Mod 1.10+ */
+	onCollected?(cb: (data: CollectedData) => void): () => void
 	status(): Promise<GameLinkStatus>
 	install(): Promise<GameLinkStatus>
 	chooseGameFolder(): Promise<GameLinkStatus>
@@ -184,6 +196,16 @@ function fakeBridge(): PalBridgeApi {
 		onCaptures: (cb) => (captureListeners.add(cb), () => void captureListeners.delete(cb)),
 		onPals: (cb) => (palListeners.add(cb), () => void palListeners.delete(cb)),
 		onWild: (cb) => (wildListeners.add(cb), () => void wildListeners.delete(cb)),
+		onCollected: (cb) => {
+			// The first few Lifmunk Effigies and journals, as if collected
+			const items = (['lifmunk_effigy', 'journals'] as const).flatMap((id) =>
+				layerPoints(layerById.get(id)!, 0)
+					.slice(0, id === 'journals' ? 4 : 12)
+					.map((p) => ({ c: id === 'journals' ? 'Note' : 'Relic', ...pixelToWorld(0, p.px, p.py) }))
+			)
+			const timer = setTimeout(() => cb({ items, world: 'fake-world|me', mod: 'fake', at: Date.now() }), 2500)
+			return () => clearTimeout(timer)
+		},
 		status: async () => status,
 		install: async () => status,
 		chooseGameFolder: async () => status,
@@ -214,9 +236,11 @@ export const bridgeApi: PalBridgeApi | undefined =
 /** `syncCatches` is off in the overlay window, which only reads */
 export function BridgeProvider({ children, syncCatches: canSync = true }: { children: ReactNode; syncCatches?: boolean }) {
 	const syncCatches = useStoreSelect((s) => s.syncCatches)
+	const syncCollected = useStoreSelect((s) => s.map.syncCollected)
 	const world = useStoreSelect((s) => s.world)
 	const loaded = useLoaded()
-	const { replaceCatches, syncGameStats, applyGameChanges, trackGamePresence, switchWorld } = useActions()
+	const { replaceCatches, syncGameStats, applyGameChanges, trackGamePresence, switchWorld, addCollected } = useActions()
+	const [collected, setCollected] = useState<CollectedData | null>(null)
 	// The previous read, and the game session and world it came from
 	const lastRead = useRef<{ pals: GamePal[]; session?: string; world?: string }>({ pals: [] })
 	const [liveStore] = useState(() => new LiveStore())
@@ -299,6 +323,22 @@ export function BridgeProvider({ children, syncCatches: canSync = true }: { chil
 		}
 		if (syncCatches) replaceCatches(normalizeCaptures(captures.counts))
 	}, [canSync, captures, syncCatches, loaded, world, replaceCatches, switchWorld])
+
+	useEffect(() => {
+		if (!bridgeApi?.onCollected || !canSync) return
+		bridgeApi.latest().then((d) => d.collected && setCollected(d.collected))
+		return bridgeApi.onCollected(setCollected)
+	}, [canSync])
+
+	// Collected effigies and journals mark their map markers, filed under the game's world
+	useEffect(() => {
+		if (!canSync || !collected || !loaded || !syncCollected) return
+		if (collected.world && collected.world !== world) {
+			switchWorld(collected.world)
+			return
+		}
+		addCollected(collectedMarkerKeys(collected.items))
+	}, [canSync, collected, loaded, syncCollected, world, switchWorld, addCollected])
 
 	const bridge = useMemo(() => ({ available: !!bridgeApi, motion, connected, captures }), [motion, connected, captures])
 	return (
