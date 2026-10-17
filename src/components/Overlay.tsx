@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { MapContainer, TileLayer } from 'react-leaflet'
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { MapContainer, TileLayer, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Box, Button, Paper, Typography } from '@mui/material'
 import { layerPoints, mapLayers, pixelToWorld, worldToPixel, type MapIndex } from '../data/map'
-import { useBridge, useLive, type LiveData } from '../state/bridge'
+import { useBridge, useLiveStore, useLiveValue, type LiveData } from '../state/bridge'
 import type { Motion, Pose } from '../state/motion'
 import { defaultLayout, lootReadyAt, useStore, type OverlayLayout, type OverlayPrefs } from '../state/store'
 import { useMinuteTick } from '../state/loot'
@@ -30,7 +30,7 @@ export const PREVIEW_LIVE: LiveData = { x: -346618, y: 191707, z: 0, yaw: 0, ui:
 const wrap180 = (deg: number) => ((((deg + 180) % 360) + 360) % 360) - 180
 const clamp = (v: number, [lo, hi]: [number, number]) => Math.min(hi, Math.max(lo, v))
 
-/** The smoothed player pose, re-read every frame */
+/** The smoothed player pose, re-read every frame; standing still doesn't re-render */
 function useFramePose(motion: Motion, active: boolean): Pose | null {
 	const [pose, setPose] = useState<Pose | null>(null)
 	useEffect(() => {
@@ -39,8 +39,13 @@ function useFramePose(motion: Motion, active: boolean): Pose | null {
 			return
 		}
 		let frame = 0
+		let last: Pose | null = null
 		const tick = () => {
-			setPose(motion.at())
+			const next = motion.at()
+			if (!next !== !last || (next && last && (next.x !== last.x || next.y !== last.y || next.yaw !== last.yaw))) {
+				last = next
+				setPose(next)
+			}
 			frame = requestAnimationFrame(tick)
 		}
 		frame = requestAnimationFrame(tick)
@@ -51,6 +56,8 @@ function useFramePose(motion: Motion, active: boolean): Pose | null {
 
 /** Every point of the shown marker layers in world units, for distance and direction */
 function useWorldPoints(layerIds: string[], map: MapIndex) {
+	// Keyed on the ids, not the array: the overlay gets a fresh copy of the settings on every save
+	const ids = layerIds.join(',')
 	return useMemo(() => {
 		const points: { key: string; x: number; y: number; icon: string | null; name: string }[] = []
 		for (const layer of mapLayers) {
@@ -61,7 +68,8 @@ function useWorldPoints(layerIds: string[], map: MapIndex) {
 			}
 		}
 		return points
-	}, [layerIds, map])
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [ids, map])
 }
 
 export function Compass({ pose, layerIds, range, width, prefs }: { pose: Pose; layerIds: string[]; range: number; width: number; prefs: OverlayPrefs }) {
@@ -115,9 +123,11 @@ export function Compass({ pose, layerIds, range, width, prefs }: { pose: Pose; l
 
 	return (
 		<Box
+			// Values that change while you move or resize go in style; each distinct sx value adds a CSS
+			// rule that's never removed
+			style={{ width }}
 			sx={{
 				position: 'relative',
-				width,
 				height: COMPASS_HEIGHT,
 				// Fades out at both ends instead of stopping at a hard edge
 				maskImage: 'linear-gradient(to right, transparent, black 12%, black 88%, transparent)'
@@ -130,7 +140,7 @@ export function Compass({ pose, layerIds, range, width, prefs }: { pose: Pose; l
 				const label = prefs.compassLetters ? CARDINALS[heading] : undefined
 				if (!label && !prefs.compassTicks) return null
 				return (
-					<Box key={heading} sx={{ position: 'absolute', left: toX(rel), top: 0, transform: 'translateX(-50%)', textAlign: 'center' }}>
+					<Box key={heading} style={{ left: toX(rel) }} sx={{ position: 'absolute', top: 0, transform: 'translateX(-50%)', textAlign: 'center' }}>
 						{prefs.compassTicks && <Box sx={{ width: '2px', height: CARDINALS[heading] ? 10 : 6, mx: 'auto', bgcolor: CARDINALS[heading] ? '#e8ecf2' : 'rgba(232,236,242,0.5)' }} />}
 						{label && (
 							<Box sx={{ fontSize: label.length === 1 ? 15 : 12, fontWeight: 800, color: label === 'N' ? '#f07a7a' : '#e8ecf2', textShadow: '0 1px 3px #000' }}>
@@ -143,16 +153,13 @@ export function Compass({ pose, layerIds, range, width, prefs }: { pose: Pose; l
 			{nearby.map((p, i) => (
 				<Box
 					key={i}
-					sx={{
-						position: 'absolute',
+					style={{
 						left: toX(p.rel),
-						top: 14,
-						transform: 'translateX(-50%)',
-						textAlign: 'center',
 						// Farther markers fade; with no range limit, the fade runs out at 1 km
 						opacity: 1 - Math.min(1, p.meters / (range || 1000)) * 0.6,
 						zIndex: COMPASS_MAX_MARKERS - i
 					}}
+					sx={{ position: 'absolute', top: 14, transform: 'translateX(-50%)', textAlign: 'center' }}
 				>
 					{p.icon && <img src={asset(`map/icons/${p.icon}`)} width={COMPASS_ICON} height={COMPASS_ICON} style={{ filter: 'drop-shadow(0 1px 2px #000)' }} />}
 					{showLabel[i] && (
@@ -168,15 +175,39 @@ export function Compass({ pose, layerIds, range, width, prefs }: { pose: Pose; l
 	)
 }
 
-function Minimap({ live, layerIds, size, zoom, wildPals }: { live: LiveData; layerIds: string[]; size: number; zoom: number; wildPals: boolean }) {
-	const here = worldToPixel(live.x, live.y)
-	const shown = useMemo(() => mapLayers.filter((l) => layerIds.includes(l.id)), [layerIds])
+/** The compass for the live pose; the only part of the overlay that re-renders as you move */
+function LiveCompass({ motion, connected, ...props }: Omit<Parameters<typeof Compass>[0], 'pose'> & { motion: Motion; connected: boolean }) {
+	const pose = useFramePose(motion, connected)
+	if (connected && !pose) return null
+	return <Compass pose={pose ?? PREVIEW_LIVE} {...props} />
+}
+
+/** Lets Leaflet re-measure after a resize, instead of rebuilding the map and reloading its tiles */
+function Remeasure({ size }: { size: number }) {
+	const leaflet = useMap()
+	useEffect(() => {
+		leaflet.invalidateSize({ animate: false })
+	}, [leaflet, size])
+	return null
+}
+
+/**
+ * The minimap. It doesn't follow your position through props: PlayerMarker pans it every frame,
+ * so it only re-renders when you change maps or its settings change.
+ */
+const Minimap = memo(function Minimap({ map, layerIds, size, zoom, wildPals }: { map: MapIndex; layerIds: string[]; size: number; zoom: number; wildPals: boolean }) {
+	const liveStore = useLiveStore()
+	// Where it opens; read once per mount, since Leaflet ignores later centers
+	const start = liveStore.live && worldToPixel(liveStore.live.x, liveStore.live.y).map === map ? liveStore.live : PREVIEW_LIVE
+	const here = worldToPixel(start.x, start.y)
+	const ids = layerIds.join(',')
+	// eslint-disable-next-line react-hooks/exhaustive-deps
+	const shown = useMemo(() => mapLayers.filter((l) => layerIds.includes(l.id)), [ids])
 	return (
 		<Box
+			style={{ width: size, height: size }}
 			sx={{
 				position: 'relative',
-				width: size,
-				height: size,
 				borderRadius: '50%',
 				overflow: 'hidden',
 				border: '3px solid rgba(232,236,242,0.85)',
@@ -186,8 +217,7 @@ function Minimap({ live, layerIds, size, zoom, wildPals }: { live: LiveData; lay
 			}}
 		>
 			<MapContainer
-				// Remounted when the size changes so Leaflet re-measures
-				key={`${here.map}-${zoom}-${size}`}
+				key={`${map}-${zoom}`}
 				crs={L.CRS.Simple}
 				center={toLatLng(here.px, here.py)}
 				zoom={zoom}
@@ -208,19 +238,20 @@ function Minimap({ live, layerIds, size, zoom, wildPals }: { live: LiveData; lay
 				preferCanvas
 				style={{ width: '100%', height: '100%' }}
 			>
-				<TileLayer url={asset(`map/${here.map === 0 ? 'main' : 'worldTree'}/z{z}x{x}y{y}.webp`)} tileSize={512} maxNativeZoom={4} noWrap bounds={BOUNDS} />
+				<TileLayer url={asset(`map/${map === 0 ? 'main' : 'worldTree'}/z{z}x{x}y{y}.webp`)} tileSize={512} maxNativeZoom={4} noWrap bounds={BOUNDS} />
 				{shown.map((l) => (
-					<LayerMarkers key={l.id} layer={l} map={here.map} hideLooted />
+					<LayerMarkers key={l.id} layer={l} map={map} hideLooted />
 				))}
-				{wildPals && <WildPalMarkers map={here.map} size={26} />}
-				<PlayerMarker map={here.map} follow />
+				{wildPals && <WildPalMarkers map={map} size={26} />}
+				<PlayerMarker map={map} follow />
+				<Remeasure size={size} />
 			</MapContainer>
 			<Box sx={{ position: 'absolute', top: 4, left: '50%', transform: 'translateX(-50%)', zIndex: 1000, fontSize: 13, fontWeight: 800, color: '#f07a7a', textShadow: '0 1px 3px #000' }}>
 				N
 			</Box>
 		</Box>
 	)
-}
+})
 
 /** In layout editing, a box that can be dragged by its body and resized by its bottom-right corner */
 function Movable({
@@ -266,7 +297,7 @@ function Movable({
 		onDone()
 	}
 	return (
-		<Box sx={{ position: 'absolute', left, top, width, height }}>
+		<Box style={{ left, top, width, height }} sx={{ position: 'absolute' }}>
 			{children}
 			{editing && (
 				<Box
@@ -310,12 +341,13 @@ function Movable({
 export function OverlayApp() {
 	const { overlay, map, loaded } = useStore()
 	const { connected, motion } = useBridge()
-	const live = useLive()
+	// Narrow live reads, so the window re-renders when these change rather than 20 times a second
+	const menuOpen = useLiveValue((live) => live?.ui === true)
+	const liveMap = useLiveValue((live) => (live ? worldToPixel(live.x, live.y).map : null))
 	const [editing, setEditing] = useState(false)
 	// Positions while dragging; saved through the app when the drag ends
 	const [draft, setDraft] = useState<OverlayLayout | null>(null)
 	const [screen, setScreen] = useState({ w: window.innerWidth, h: window.innerHeight })
-	const pose = useFramePose(motion, connected)
 
 	useEffect(() => window.palOverlay?.onEditing((on) => setEditing(on)), [])
 	useEffect(() => {
@@ -335,9 +367,9 @@ export function OverlayApp() {
 	if (!loaded) return null
 	const layout: OverlayLayout = draft ?? overlay
 	const commit = (next: OverlayLayout) => void window.palOverlay?.sendLayout(next)
-	const current: Pose | null = pose ?? (editing ? PREVIEW_LIVE : null)
 	// Hidden while a menu, inventory or chest is open, unless arranging the layout
-	if (!current || (!editing && (!overlay.enabled || live?.ui))) return null
+	if ((!connected && !editing) || (!editing && (!overlay.enabled || menuOpen))) return null
+	const minimapMap: MapIndex = connected && liveMap != null ? liveMap : worldToPixel(PREVIEW_LIVE.x, PREVIEW_LIVE.y).map
 
 	const compass = {
 		left: layout.compassX * screen.w - layout.compassWidth / 2,
@@ -361,7 +393,7 @@ export function OverlayApp() {
 					onResize={(dx) => setDraft({ ...layout, compassWidth: clamp(layout.compassWidth + dx * 2, COMPASS_WIDTH_RANGE) })}
 					onDone={() => draft && commit(draft)}
 				>
-					<Compass pose={current} layerIds={map.layers} range={overlay.range} width={layout.compassWidth} prefs={overlay} />
+					<LiveCompass motion={motion} connected={connected} layerIds={map.layers} range={overlay.range} width={layout.compassWidth} prefs={overlay} />
 				</Movable>
 			)}
 			{overlay.minimap && (
@@ -375,7 +407,7 @@ export function OverlayApp() {
 					onResize={(dx) => setDraft({ ...layout, minimapX: minimap.left / screen.w, minimapY: minimap.top / screen.h, size: clamp(layout.size + dx, MINIMAP_SIZE_RANGE) })}
 					onDone={() => draft && commit(draft)}
 				>
-					<Minimap live={pose ? (live ?? PREVIEW_LIVE) : PREVIEW_LIVE} layerIds={map.layers} size={layout.size} zoom={overlay.zoom} wildPals={overlay.wildPals} />
+					<Minimap map={minimapMap} layerIds={map.layers} size={layout.size} zoom={overlay.zoom} wildPals={overlay.wildPals} />
 				</Movable>
 			)}
 			{editing && (
