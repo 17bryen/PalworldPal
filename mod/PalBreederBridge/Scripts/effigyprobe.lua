@@ -1,35 +1,37 @@
--- Effigy probe: finds out what the game records about collected effigies (and journals), and
--- whether those records can be matched to effigies on the map.
--- Only runs while the file %APPDATA%\palbreeder\bridge\effigy-probe.on exists.
+-- Effigy probe, round 2: reads which effigies and journals you've collected, two ways, and checks
+-- they agree. Only runs while the file %APPDATA%\palbreeder\bridge\effigy-probe.on exists.
 --
--- Every few seconds it reads your player record's effigy and journal fields and looks for effigy
--- and journal objects loaded near you, with their ids and positions. When a new collected entry
--- appears in the record (you picked one up), it logs it next to the nearest effigy objects, so the
--- record's keys can be compared with the objects' ids. Files:
---   effigy-probe.json            the latest read
---   effigy-probe-structure.json  the record's fields and the effigy classes' fields, once
---   effigy-probe-log.txt         one line per change
+-- Round 1 showed every effigy and journal object is loaded all the time (577 of them), each with a
+-- LevelObjectInstanceId, a RelicType and a bPickedInClient flag, and that the player record keeps
+-- RelicObtainForInstanceFlag_<bonus> and NoteObtainForInstanceFlag lists. This round:
+--   * finds the objects once, then every few seconds re-reads only their bPickedInClient flags
+--   * opens the record's lists through their struct layouts and reads every key
+--   * compares the picked flags with the record's keys and logs every change
+-- Files (never overwritten by an empty read):
+--   effigy-probe.json          the summary: counts per type, flags vs record, a few samples
+--   effigy-probe-objects.json  every object: class, type, id, position, picked
+--   effigy-probe-record.json   the record lists' layouts and every key
+--   effigy-probe-log.txt       one line per change
 
 local M = {}
 
-local READ_EVERY = 3.0
+local READ_EVERY = 5.0
 local FLAG_EVERY = 3.0
-local BROAD_SCAN_AFTER = 20.0   -- seconds after starting, one wide search for effigy-like classes
--- Guesses at the game's effigy and journal object classes, searched each read
-local CANDIDATES = { "PalLevelObjectRelic", "PalLevelObjectObtainable", "PalLevelObjectNote", "BP_LevelObject_Relic_C", "BP_LevelObject_Note_C", "PalMapObjectRelic" }
-local INTERESTING = { "relic", "effig", "note", "obtain", "collect", "journal" }
+local CLASSES = {
+    "BP_LevelObject_Relic_C", "BP_LevelObject_Relic_FlameBambi_C", "BP_LevelObject_Relic_GuardianDog_C",
+    "BP_LevelObject_Relic_IceCrocodile_C", "BP_LevelObject_Relic_LazyDragon_C", "BP_LevelObject_Relic_LeafMomonga_C",
+    "BP_LevelObject_Relic_Monkey_C", "BP_LevelObject_Relic_Mutant_C", "BP_LevelObject_Relic_NegativeKoala_C",
+    "BP_LevelObject_Relic_Penguin_C", "BP_LevelObject_Relic_PinkCat_C", "BP_LevelObject_Relic_SheepBall_C",
+    "BP_LevelObject_Note_C",
+}
 
 local ctx, get, alive = nil, nil, nil
 local enabled = false
 local flagCheckedAt = -1000.0
 local lastRead = -1000.0
-local startedAt = nil
-local broadDone = false
-local structureWritten = false
-local knownKeys = nil           -- record key -> true, from the previous read
-local foundClasses = {}         -- class name -> count, from the wide search
-local extraClasses = {}         -- classes the wide search turned up, searched from then on
-local propCache = {}            -- class name -> { {name, kind}, ... }
+local objects = nil          -- { obj, class, type, id, x, y, z, picked }
+local recordKeys = nil       -- record list name -> { key -> value }
+local recordLayoutWritten = false
 
 local ESCAPES = { ['"'] = '\\"', ['\\'] = '\\\\' }
 local function encode(v)
@@ -68,163 +70,175 @@ local function appendLog(line)
 end
 
 local function fname(o) return get(function(x) return x:GetFName():ToString() end, o) end
-local function interesting(name)
-    local lower = name:lower()
-    for _, w in ipairs(INTERESTING) do if lower:find(w, 1, true) then return true end end
-    return false
+
+local function guidText(x)
+    return string.format("%08x%08x%08x%08x", math.tointeger(x.A) & 0xffffffff, math.tointeger(x.B) & 0xffffffff,
+        math.tointeger(x.C) & 0xffffffff, math.tointeger(x.D) & 0xffffffff)
 end
 
--- A value read from the game as text: names, strings, GUIDs, numbers, booleans
+-- A value read from the game as text: GUIDs (directly or one struct level down), names, numbers
 local function text(v)
     if v == nil then return nil end
     local t = type(v)
     if t == "number" or t == "boolean" or t == "string" then return tostring(v) end
+    local g = get(guidText, v)
+    if g then return g end
+    for _, inner in ipairs({ "Guid", "ID", "Id", "InstanceId", "Value" }) do
+        local iv = get(function(x) return x[inner] end, v)
+        if iv ~= nil and iv ~= v then
+            local s = get(guidText, iv)
+            if s then return s end
+        end
+    end
     local s = get(function(x) return x:ToString() end, v)
     if type(s) == "string" then return s end
-    local g = get(function(x)
-        return string.format("%08x%08x%08x%08x", math.tointeger(x.A) & 0xffffffff, math.tointeger(x.B) & 0xffffffff,
-            math.tointeger(x.C) & 0xffffffff, math.tointeger(x.D) & 0xffffffff)
-    end, v)
-    if g then return g end
-    local inner = get(function(x) return x:get() end, v)
-    if inner ~= nil and inner ~= v then return text(inner) end
+    local unwrapped = get(function(x) return x:get() end, v)
+    if unwrapped ~= nil and unwrapped ~= v then return text(unwrapped) end
     return tostring(v)
 end
 
--- Every property of an object's class chain, cached per class
-local function props(obj)
-    local cls = get(function(o) return o:GetClass() end, obj)
-    local key = cls and fname(cls) or "?"
-    if propCache[key] then return propCache[key], key end
+-- ---- The effigy and journal objects ----
+
+local function findObjects()
     local list = {}
-    for _ = 1, 10 do
-        if cls == nil or not alive(cls) then break end
-        local owner = fname(cls) or "?"
-        pcall(function()
-            cls:ForEachProperty(function(p)
-                list[#list + 1] = { name = fname(p) or "?", kind = get(function(q) return q:GetClass():GetFName():ToString() end, p) or "?", owner = owner }
-            end)
-        end)
-        if owner == "Actor" or owner == "Object" then break end
-        cls = get(function(c) return c:GetSuperStruct() end, cls)
-    end
-    propCache[key] = list
-    return list, key
-end
-
--- The entries of a map property, as text
-local function mapEntries(map)
-    local out = {}
-    pcall(function()
-        map:ForEach(function(k, v)
-            out[#out + 1] = { key = text(k), value = text(v) }
-        end)
-    end)
-    return out
-end
-
-local function arrayEntries(arr)
-    local out = {}
-    pcall(function()
-        arr:ForEach(function(_, e) out[#out + 1] = text(e) end)
-    end)
-    return out
-end
-
--- ---- The player record ----
-
-local function readRecord(pc)
-    local ps = get(function(p) return p.PlayerState end, pc)
-    local rd = ps and get(function(p) return p.RecordData end, ps)
-    if rd == nil or not alive(rd) then return nil end
-    local list = props(rd)
-    local fields, keys = {}, {}
-    for _, p in ipairs(list) do
-        if interesting(p.name) then
-            local v = get(function(o) return o[p.name] end, rd)
-            local entry = { kind = p.kind }
-            if p.kind == "MapProperty" then
-                local entries = v and mapEntries(v) or {}
-                entry.count = #entries
-                entry.sample = {}
-                for i = 1, math.min(#entries, 12) do entry.sample[i] = entries[i].key .. " = " .. tostring(entries[i].value) end
-                for _, e in ipairs(entries) do keys[p.name .. ":" .. tostring(e.key)] = tostring(e.value) end
-            elseif p.kind == "ArrayProperty" or p.kind == "SetProperty" then
-                local entries = v and arrayEntries(v) or {}
-                entry.count = #entries
-                entry.sample = { table.unpack(entries, 1, math.min(#entries, 12)) }
-                for _, e in ipairs(entries) do keys[p.name .. ":" .. tostring(e)] = "in" end
-            else
-                entry.value = text(v)
-            end
-            fields[p.name] = entry
-        end
-    end
-    return { fields = fields, keys = keys, record = rd }
-end
-
--- ---- Effigy and journal objects near you ----
-
-local function readObject(obj, me)
-    local list, cls = props(obj)
-    local row = { class = cls, ids = {}, flags = {} }
-    local loc = get(function(o) return o:K2_GetActorLocation() end, obj)
-    if loc then
-        row.x, row.y, row.z = loc.X, loc.Y, loc.Z
-        if me then row.m = math.sqrt((loc.X - me.X) ^ 2 + (loc.Y - me.Y) ^ 2 + (loc.Z - me.Z) ^ 2) / 100 end
-    end
-    for _, p in ipairs(list) do
-        local lower = p.name:lower()
-        if lower:match("id$") or lower:find("guid", 1, true) or lower:find("instanceid", 1, true) then
-            if p.kind ~= "ObjectProperty" and p.kind ~= "MulticastInlineDelegateProperty" and p.kind ~= "ArrayProperty" and p.kind ~= "MapProperty" then
-                row.ids[p.name] = text(get(function(o) return o[p.name] end, obj))
-            end
-        elseif p.kind == "BoolProperty" and (interesting(p.name) or lower:find("hidden", 1, true) or lower:find("pick", 1, true)) then
-            row.flags[p.name] = get(function(o) return o[p.name] end, obj)
-        end
-    end
-    row.name = get(function(o) return o:GetFullName() end, obj)
-    return row
-end
-
-local function findObjects(me)
-    local rows, counts = {}, {}
-    local names = {}
-    for _, n in ipairs(CANDIDATES) do names[#names + 1] = n end
-    for n in pairs(extraClasses) do names[#names + 1] = n end
-    local seen = {}
-    for _, n in ipairs(names) do
-        local found = get(FindAllOf, n)
-        counts[n] = type(found) == "table" and #found or 0
+    local started = os.clock()
+    for _, cls in ipairs(CLASSES) do
+        local found = get(FindAllOf, cls)
         if type(found) == "table" then
             for _, o in ipairs(found) do
-                local addr = get(function(x) return x:GetAddress() end, o)
-                if alive(o) and addr and not seen[addr] then
-                    seen[addr] = true
-                    rows[#rows + 1] = readObject(o, me)
+                if alive(o) then
+                    local loc = get(function(a) return a:K2_GetActorLocation() end, o)
+                    list[#list + 1] = {
+                        obj = o,
+                        class = cls,
+                        type = text(get(function(a) return a.RelicType end, o)) or (cls:find("Note") and "Note" or "?"),
+                        id = text(get(function(a) return a.LevelObjectInstanceId end, o)),
+                        x = loc and loc.X, y = loc and loc.Y, z = loc and loc.Z,
+                    }
                 end
             end
         end
     end
-    table.sort(rows, function(a, b) return (a.m or 1e9) < (b.m or 1e9) end)
-    return rows, counts
+    appendLog(string.format("found %d effigy and journal objects in %.0f ms", #list, (os.clock() - started) * 1000))
+    return list
 end
 
--- One wide search of every actor for effigy- or journal-like class names (a one-off hitch)
-local function broadScan()
-    broadDone = true
-    local started = os.clock()
-    local all = get(FindAllOf, "Actor")
-    local n = type(all) == "table" and #all or 0
-    for i = 1, n do
-        local cls = get(function(o) return o:GetClass() end, all[i])
-        local name = cls and fname(cls)
-        if name and interesting(name) then
-            foundClasses[name] = (foundClasses[name] or 0) + 1
-            extraClasses[name] = true
+local function readPicked()
+    local changed = {}
+    -- Leaving the world unloads them all; that isn't every effigy being un-collected
+    local any = false
+    for _, e in ipairs(objects) do if alive(e.obj) then any = true break end end
+    if not any then return nil end
+    for _, e in ipairs(objects) do
+        local picked = alive(e.obj) and get(function(a) return a.bPickedInClient end, e.obj) == true or false
+        if e.picked ~= nil and e.picked ~= picked then changed[#changed + 1] = e end
+        e.picked = picked
+    end
+    return changed
+end
+
+-- ---- The record's collected lists ----
+
+-- A struct's fields, from the record class's property for it
+local function structLayout(prop)
+    local st = get(function(p) return p:GetStruct() end, prop)
+    local fields = {}
+    if st then
+        pcall(function()
+            st:ForEachProperty(function(f)
+                fields[#fields + 1] = { name = fname(f) or "?", kind = get(function(q) return q:GetClass():GetFName():ToString() end, f) or "?" }
+            end)
+        end)
+    end
+    return fields, st and fname(st) or "?"
+end
+
+local function entriesOf(value, kind)
+    local out = {}
+    if kind == "MapProperty" then
+        pcall(function() value:ForEach(function(k, v) out[#out + 1] = { text(k), text(v) } end) end)
+    elseif kind == "ArrayProperty" or kind == "SetProperty" then
+        pcall(function() value:ForEach(function(_, e) out[#out + 1] = { text(e), "in" } end) end)
+    end
+    return out
+end
+
+local function readRecord(pc)
+    local ps = get(function(p) return p.PlayerState end, pc)
+    local rd = ps and get(function(p) return p.RecordData end, ps)
+    if rd == nil or not alive(rd) then return nil, nil end
+    local cls = get(function(o) return o:GetClass() end, rd)
+    local lists, layouts = {}, {}
+    pcall(function()
+        cls:ForEachProperty(function(p)
+            local name = fname(p) or "?"
+            if name:find("RelicObtainForInstanceFlag", 1, true) or name == "NoteObtainForInstanceFlag" or name == "RelicPossessNumArray" then
+                local kind = get(function(q) return q:GetClass():GetFName():ToString() end, p) or "?"
+                local value = get(function(o) return o[name] end, rd)
+                local keys = {}
+                if kind == "StructProperty" then
+                    local fields, structName = structLayout(p)
+                    layouts[name] = { struct = structName, fields = fields }
+                    for _, f in ipairs(fields) do
+                        local inner = value and get(function(v) return v[f.name] end, value)
+                        for _, e in ipairs(inner and entriesOf(inner, f.kind) or {}) do keys[f.name .. "|" .. tostring(e[1])] = tostring(e[2]) end
+                    end
+                else
+                    layouts[name] = { kind = kind }
+                    for _, e in ipairs(value and entriesOf(value, kind) or {}) do keys[tostring(e[1])] = tostring(e[2]) end
+                end
+                lists[name] = keys
+            end
+        end)
+    end)
+    return lists, layouts
+end
+
+-- ---- Comparing ----
+
+local function bareKey(k) return (k:gsub("^[^|]*|", "")) end
+
+local function summarize(lists)
+    local byType, pickedIds = {}, {}
+    for _, e in ipairs(objects) do
+        local t = byType[e.type] or { total = 0, picked = 0 }
+        t.total = t.total + 1
+        if e.picked then
+            t.picked = t.picked + 1
+            if e.id then pickedIds[e.id] = e end
+        end
+        byType[e.type] = t
+    end
+    local recordIds, recordCounts = {}, {}
+    for name, keys in pairs(lists or {}) do
+        local n = 0
+        for k, v in pairs(keys) do
+            n = n + 1
+            if v ~= "false" then recordIds[bareKey(k)] = name end
+        end
+        recordCounts[name] = n
+    end
+    local both, onlyFlag, onlyRecord = 0, 0, 0
+    local onlyFlagSample, onlyRecordSample = {}, {}
+    for id, e in pairs(pickedIds) do
+        if recordIds[id] then both = both + 1 else
+            onlyFlag = onlyFlag + 1
+            if #onlyFlagSample < 5 then onlyFlagSample[#onlyFlagSample + 1] = { id = id, type = e.type } end
         end
     end
-    appendLog(string.format("wide search: %d actors in %.0f ms; effigy-like classes %s", n, (os.clock() - started) * 1000, encode(foundClasses)))
+    local objectIds = {}
+    for _, e in ipairs(objects) do if e.id then objectIds[e.id] = true end end
+    for id, name in pairs(recordIds) do
+        if not pickedIds[id] then
+            onlyRecord = onlyRecord + 1
+            if #onlyRecordSample < 5 then onlyRecordSample[#onlyRecordSample + 1] = { id = id, list = name, isAnObjectId = objectIds[id] == true } end
+        end
+    end
+    return {
+        byType = byType, recordCounts = recordCounts,
+        pickedFlagAndInRecord = both, pickedFlagOnly = onlyFlag, inRecordOnly = onlyRecord,
+        pickedFlagOnlySample = onlyFlagSample, inRecordOnlySample = onlyRecordSample,
+    }
 end
 
 local function playerLocation(pc)
@@ -236,61 +250,66 @@ end
 local function read(pc, now)
     lastRead = now
     local started = os.clock()
-    local me = playerLocation(pc)
-    local record = readRecord(pc)
-    local objects, counts = findObjects(me)
-
-    if record and not structureWritten then
-        structureWritten = true
-        local recordProps = {}
-        for _, p in ipairs(props(record.record)) do recordProps[#recordProps + 1] = p.name .. ":" .. p.kind end
-        local objectProps = {}
-        for cls, list in pairs(propCache) do
-            if cls ~= "?" and interesting(cls) then
-                local names = {}
-                for _, p in ipairs(list) do names[#names + 1] = p.owner .. "." .. p.name .. ":" .. p.kind end
-                objectProps[cls] = names
-            end
-        end
-        ctx.writeFile("effigy-probe-structure.json", encode({ record = recordProps, objects = objectProps }))
+    if objects == nil or #objects == 0 then
+        objects = findObjects()
+        if #objects == 0 then return end
     end
+    local flips = readPicked()
+    if flips == nil then
+        objects = nil
+        return
+    end
+    local lists, layouts = readRecord(pc)
+    local ms = (os.clock() - started) * 1000
+    local me = playerLocation(pc)
 
-    -- Something new in the record: you just picked one up. Log it beside the nearest objects.
-    if record then
-        if knownKeys then
-            for k, v in pairs(record.keys) do
-                if knownKeys[k] == nil or knownKeys[k] ~= v then
-                    local near = {}
-                    for i = 1, math.min(3, #objects) do near[i] = objects[i] end
-                    appendLog("record changed: " .. k .. " = " .. tostring(v) .. "; player " .. (me and string.format("%.0f,%.0f,%.0f", me.X, me.Y, me.Z) or "?") .. "; nearest " .. encode(near))
+    for _, e in ipairs(flips) do
+        local d = me and e.x and math.sqrt((e.x - me.X) ^ 2 + (e.y - me.Y) ^ 2) / 100
+        appendLog(string.format("picked flag changed: %s %s id %s at %.0f,%.0f now %s (%s m from you)", e.class, e.type, tostring(e.id), e.x or 0, e.y or 0,
+            tostring(e.picked), d and string.format("%.0f", d) or "?"))
+    end
+    if lists then
+        if recordKeys then
+            for name, keys in pairs(lists) do
+                for k, v in pairs(keys) do
+                    local before = recordKeys[name] and recordKeys[name][k]
+                    if before ~= v then appendLog("record changed: " .. name .. " " .. k .. " = " .. v .. (before and (" (was " .. before .. ")") or " (new)")) end
                 end
             end
-        else
-            local n = 0
-            for _ in pairs(record.keys) do n = n + 1 end
-            appendLog("first record read: " .. n .. " entries; fields " .. encode(record.fields))
         end
-        knownKeys = record.keys
+        recordKeys = lists
+        if not recordLayoutWritten then
+            recordLayoutWritten = true
+            ctx.writeFile("effigy-probe-record.json", encode({ layouts = layouts, lists = lists }))
+        end
     end
 
-    local ms = (os.clock() - started) * 1000
-    ctx.writeFile("effigy-probe.json", encode({
-        at = os.date("%H:%M:%S"), readMs = ms, player = me and { x = me.X, y = me.Y, z = me.Z },
-        record = record and record.fields or "no record data", classCounts = counts, wideSearch = foundClasses,
-        objects = { table.unpack(objects, 1, math.min(#objects, 40)) }
-    }))
-    if (now - startedAt) < 60 or #objects > 0 then
-        appendLog(string.format("read in %.0f ms: %d effigy-like objects loaded, nearest %s m; class counts %s", ms, #objects,
-            objects[1] and objects[1].m and string.format("%.0f", objects[1].m) or "-", encode(counts)))
+    local summary = summarize(lists)
+    summary.at = os.date("%H:%M:%S")
+    summary.readMs = ms
+    summary.objects = #objects
+    summary.recordRead = lists ~= nil
+    ctx.writeFile("effigy-probe.json", encode(summary))
+    if #flips > 0 or not M.wroteObjects then
+        M.wroteObjects = true
+        local rows = {}
+        for i, e in ipairs(objects) do rows[i] = { class = e.class, type = e.type, id = e.id, x = e.x, y = e.y, z = e.z, picked = e.picked } end
+        ctx.writeFile("effigy-probe-objects.json", encode(rows))
+        if lists then ctx.writeFile("effigy-probe-record.json", encode({ layouts = layouts, lists = lists })) end
     end
+    appendLog(string.format("read in %.1f ms: %d objects; picked flags %s; record lists %s; flag and record agree on %d, flag only %d, record only %d",
+        ms, #objects, encode(summary.byType), encode(summary.recordCounts), summary.pickedFlagAndInRecord, summary.pickedFlagOnly, summary.inRecordOnly))
 end
 
 function M.setup(c)
     ctx, get, alive = c, c.get, c.alive
 end
 
+-- A new world or character: find the objects again
 function M.reset()
-    knownKeys = nil
+    objects, recordKeys = nil, nil
+    recordLayoutWritten = false
+    M.wroteObjects = false
 end
 
 -- Called on the game thread from the bridge's job
@@ -303,15 +322,6 @@ function M.tick(pc, now)
         if f then f:close() end
     end
     if not enabled or pc == nil then return end
-    if startedAt == nil then
-        startedAt = now
-        appendLog("probe started")
-    end
-    if not broadDone and (now - startedAt) >= BROAD_SCAN_AFTER then
-        local ok, err = pcall(broadScan)
-        if not ok then appendLog("wide search failed: " .. tostring(err)) end
-        return
-    end
     if (now - lastRead) >= READ_EVERY then
         local ok, err = pcall(read, pc, now)
         if not ok then appendLog("read failed: " .. tostring(err)) end

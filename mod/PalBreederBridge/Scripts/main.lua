@@ -13,7 +13,7 @@
 --   * the timer-thread predicate is pure arithmetic and allocates nothing;
 --   * every UObject read happens on the game thread, inside pcall.
 
-local VERSION = "1.9.1"
+local VERSION = "1.9.2"
 local TICK_MS = 33            -- timer resolution, not the write rate
 local POSITION_EVERY = 0.05   -- seconds between position writes
 local CAPTURES_EVERY = 3.0    -- seconds between capture-count reads
