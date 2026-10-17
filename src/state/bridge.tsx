@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { normalizeCaptures } from './captures'
-import { normalizeGamePals, type GamePal, type RawGamePal } from './gamepals'
+import { diffGamePals, goneKeys, normalizeGamePals, type GamePal, type RawGamePal } from './gamepals'
 import { Motion } from './motion'
 import { useStore } from './store'
 import { normalizeWildPals, type RawWildPal, type WildPal } from './wildpals'
@@ -23,12 +23,18 @@ export interface CaptureData {
 	counts: Record<string, number>
 	mod: string
 	at: number
+	/** Mod 1.8+: the world these catches belong to */
+	world?: string
 }
 
 export interface GamePalsData {
 	pals: RawGamePal[]
 	mod: string
 	at: number
+	/** Mod 1.8+: which game session, world and save these came from, and what the mod could read */
+	session?: string
+	world?: { id: string; name: string }
+	ok?: { id: boolean; old: boolean }
 }
 
 /** Mod 1.9+: wild pals the game has loaded near you */
@@ -207,7 +213,9 @@ export const bridgeApi: PalBridgeApi | undefined =
 
 /** `syncCatches` is off in the overlay window, which only reads */
 export function BridgeProvider({ children, syncCatches: canSync = true }: { children: ReactNode; syncCatches?: boolean }) {
-	const { syncCatches, replaceCatches, syncGameStats, loaded } = useStore()
+	const { syncCatches, replaceCatches, syncGameStats, applyGameChanges, trackGamePresence, switchWorld, world, loaded } = useStore()
+	// The previous read, and the game session and world it came from
+	const lastRead = useRef<{ pals: GamePal[]; session?: string; world?: string }>({ pals: [] })
 	const [liveStore] = useState(() => new LiveStore())
 	const [connected, setConnected] = useState(false)
 	const [motion] = useState(() => new Motion())
@@ -222,26 +230,33 @@ export function BridgeProvider({ children, syncCatches: canSync = true }: { chil
 		return bridgeApi.onWild(take)
 	}, [])
 
-	// Your pals seen this session. The Palbox only loads the pages you open, so pals stay listed
-	// after their page unloads.
+	// Your party and the Palbox pages you've opened, as the game has them now. Opened pages stay
+	// loaded for the session, so a pal that drops out was sold, condensed, released or moved out.
 	useEffect(() => {
-		if (!bridgeApi?.onPals || !canSync) return
-		const merge = (d: GamePalsData) =>
-			setGamePals((prev) => {
-				const fresh = new Map(normalizeGamePals(d.pals).map((p) => [p.key, p]))
-				let changed = false
-				const kept = prev.map((p) => {
-					const now = fresh.get(p.key)
-					fresh.delete(p.key)
-					if (!now || (now.where?.box === p.where?.box && now.where?.slot === p.where?.slot && JSON.stringify(now.stats) === JSON.stringify(p.stats))) return p
-					changed = true
-					return now
-				})
-				return changed || fresh.size ? [...kept, ...fresh.values()] : prev
-			})
+		if (!bridgeApi?.onPals || !canSync || !loaded) return
+		const merge = (d: GamePalsData) => {
+			// Each save or server keeps its own lists
+			if (d.world) switchWorld(d.world.id, d.world.name)
+			const next = normalizeGamePals(d.pals)
+			const last = lastRead.current
+			// Only reads from the same game session compare: a new session starts with most pages unloaded
+			const sameSession = !!d.session && d.session === last.session && d.world?.id === last.world
+			const prev = sameSession ? last.pals : []
+			// A pal whose gender, passives or IVs changed is still the same pal
+			const changes = diffGamePals(prev, next)
+			applyGameChanges(changes)
+			// Gone for good only when the Palbox is loaded and the mod would have seen a move to a base or storage
+			const trusted = d.ok?.old === true && next.some((p) => p.where?.box === 'palbox')
+			trackGamePresence(
+				trusted ? goneKeys(prev, next, changes) : [],
+				next.map((p) => p.key)
+			)
+			lastRead.current = { pals: next, session: d.session, world: d.world?.id }
+			setGamePals((old) => (JSON.stringify(next) === JSON.stringify(old) ? old : next))
+		}
 		bridgeApi.latest().then((d) => d.pals && merge(d.pals))
 		return bridgeApi.onPals(merge)
-	}, [canSync])
+	}, [canSync, loaded, applyGameChanges, trackGamePresence, switchWorld])
 
 	useEffect(() => {
 		if (!bridgeApi) return
@@ -272,10 +287,15 @@ export function BridgeProvider({ children, syncCatches: canSync = true }: { chil
 		if (canSync && loaded && gamePals.length) syncGameStats(gamePals)
 	}, [canSync, loaded, gamePals, syncGameStats])
 
-	// The game's record is the source of truth for catches while syncing is on
+	// The game's record is the source of truth for catches while syncing is on, filed under its world
 	useEffect(() => {
-		if (canSync && captures && syncCatches && loaded) replaceCatches(normalizeCaptures(captures.counts))
-	}, [canSync, captures, syncCatches, loaded, replaceCatches])
+		if (!canSync || !captures || !loaded) return
+		if (captures.world && captures.world !== world) {
+			switchWorld(captures.world)
+			return
+		}
+		if (syncCatches) replaceCatches(normalizeCaptures(captures.counts))
+	}, [canSync, captures, syncCatches, loaded, world, replaceCatches, switchWorld])
 
 	const bridge = useMemo(() => ({ available: !!bridgeApi, motion, connected, captures }), [motion, connected, captures])
 	return (

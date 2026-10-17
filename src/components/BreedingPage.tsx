@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Box, Tab, Tabs } from '@mui/material'
 import { useStore } from '../state/store'
-import { usePlan } from '../state/usePlan'
+import { useBreedingRelevant, usePlan } from '../state/usePlan'
 import { BreedingCalculator } from './BreedingCalculator'
 import { ListsPanel } from './ListsPanel'
 import { PlanPanel } from './PlanPanel'
@@ -25,7 +25,8 @@ export function BreedingPage() {
 	const [view, setView] = useState<View>(initialView)
 	const [selectedWanted, setSelectedWanted] = useState<string | null>(null)
 	// Plans keep up with the lists from any view, so the Planner is ready when opened
-	const { plan, progress, error } = usePlan(store.owned, store.wanted, store.settings, store.loaded)
+	const owned = useBreedingRelevant(store.owned)
+	const { plan, progress, error } = usePlan(owned, store.wanted, store.settings, store.loaded)
 
 	const choose = (v: View) => {
 		setView(v)

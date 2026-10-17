@@ -312,12 +312,18 @@ async function saveState(state: AppState): Promise<void> {
 /** `readOnly` (the overlay window) follows the main window's saves and never writes */
 function useStoreValue(readOnly: boolean) {
 	const [state, setState] = useState<AppState>(emptyState)
+	// The Recipes checklist changes on every keystroke in its counts, so it's kept apart: changing it
+	// doesn't re-render every tab that reads the rest of the store. It's saved with everything else.
+	const [craft, setCraft] = useState<CraftState>(defaultCraft)
 	const [loaded, setLoaded] = useState(false)
 	const saveTimer = useRef<ReturnType<typeof setTimeout>>()
+	const latest = useRef({ state, craft })
+	latest.current = { state, craft }
 
 	useEffect(() => {
 		loadState().then((s) => {
 			setState(s)
+			setCraft(s.craft)
 			setLoaded(true)
 		})
 		if (readOnly && window.palStore) {
@@ -334,17 +340,17 @@ function useStoreValue(readOnly: boolean) {
 	useEffect(() => {
 		if (!loaded || readOnly) return
 		clearTimeout(saveTimer.current)
-		saveTimer.current = setTimeout(() => void saveState(state), 300)
+		saveTimer.current = setTimeout(() => void saveState({ ...state, craft }), 300)
 		// Closing the window inside the save delay still writes the latest lists
 		const flush = () => {
 			clearTimeout(saveTimer.current)
-			const json = JSON.stringify(state)
+			const json = JSON.stringify({ ...state, craft })
 			if (window.palStore) window.palStore.saveNow(json)
 			else localStorage.setItem(LOCAL_KEY, json)
 		}
 		window.addEventListener('beforeunload', flush)
 		return () => window.removeEventListener('beforeunload', flush)
-	}, [state, loaded, readOnly])
+	}, [state, craft, loaded, readOnly])
 
 	const addOwned = useCallback((pal: Omit<OwnedPal, 'uid'>) => {
 		setState((s) => ({ ...s, owned: [...s.owned, { ...pal, uid: newUid() }] }))
@@ -500,24 +506,31 @@ function useStoreValue(readOnly: boolean) {
 		setState((s) => ({ ...s, loot: { ...s.loot, ...patch } }))
 	}, [])
 
-	const updateCraft = useCallback((patch: Partial<CraftState>) => setState((s) => ({ ...s, craft: { ...s.craft, ...patch } })), [])
+	const updateCraft = useCallback((patch: Partial<CraftState>) => setCraft((c) => ({ ...c, ...patch })), [])
 	/** Adds to the checklist, merging with the same item at the same tier */
 	const addToChecklist = useCallback((id: string, rarity: ChecklistEntry['rarity'], qty: number) => {
-		setState((s) => {
+		setCraft((c) => {
 			const key = entryKey(id, rarity)
-			const has = s.craft.list.some((e) => e.key === key)
-			const list = has ? s.craft.list.map((e) => (e.key === key ? { ...e, qty: e.qty + qty } : e)) : [...s.craft.list, { key, id, rarity, qty }]
-			return { ...s, craft: { ...s.craft, list } }
+			const has = c.list.some((e) => e.key === key)
+			const list = has ? c.list.map((e) => (e.key === key ? { ...e, qty: e.qty + qty } : e)) : [...c.list, { key, id, rarity, qty }]
+			return { ...c, list }
 		})
 	}, [])
 
-	const replaceState = useCallback((next: AppState) => setState(next), [])
+	const replaceState = useCallback((next: AppState) => {
+		setState(next)
+		setCraft(next.craft)
+	}, [])
+	/** Everything as it would be saved, for exporting */
+	const snapshot = useCallback((): AppState => ({ ...latest.current.state, craft: latest.current.craft }), [])
 
-	return useMemo(
+	const craftStore = useMemo(() => ({ craft, updateCraft, addToChecklist }), [craft, updateCraft, addToChecklist])
+	const { craft: _stale, ...shared } = state
+	const store = useMemo(
 		() => ({
-			...state,
+			...shared,
 			loaded,
-			state,
+			snapshot,
 			addOwned,
 			addFromGame,
 			syncGameStats,
@@ -546,13 +559,13 @@ function useStoreValue(readOnly: boolean) {
 			updateOverlay,
 			setLooted,
 			updateLoot,
-			updateCraft,
-			addToChecklist,
 			replaceState
 		}),
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[
 			state,
 			loaded,
+			snapshot,
 			addOwned,
 			addFromGame,
 			syncGameStats,
@@ -581,19 +594,31 @@ function useStoreValue(readOnly: boolean) {
 			updateOverlay,
 			setLooted,
 			updateLoot,
-			updateCraft,
-			addToChecklist,
 			replaceState
 		]
 	)
+	return { store, craftStore }
 }
 
-type Store = ReturnType<typeof useStoreValue>
+type Store = ReturnType<typeof useStoreValue>['store']
+type CraftStore = ReturnType<typeof useStoreValue>['craftStore']
 const StoreContext = createContext<Store | null>(null)
+const CraftContext = createContext<CraftStore | null>(null)
 
 export function StoreProvider({ children, readOnly = false }: { children: ReactNode; readOnly?: boolean }) {
-	const store = useStoreValue(readOnly)
-	return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>
+	const { store, craftStore } = useStoreValue(readOnly)
+	return (
+		<StoreContext.Provider value={store}>
+			<CraftContext.Provider value={craftStore}>{children}</CraftContext.Provider>
+		</StoreContext.Provider>
+	)
+}
+
+/** The Recipes checklist; kept out of useStore so editing it doesn't re-render the other tabs */
+export function useCraft(): CraftStore {
+	const craft = useContext(CraftContext)
+	if (!craft) throw new Error('useCraft outside StoreProvider')
+	return craft
 }
 
 export function useStore(): Store {

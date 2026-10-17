@@ -17,7 +17,7 @@ export interface MapLayer {
 	id: string
 	name: string
 	category: string
-	/** Icon file name in public/map/icons */
+	/** Icon file name, with extension, in public/map/icons */
 	icon: string | null
 	/** Candidate spots for something that appears at one of them at a time */
 	random?: boolean

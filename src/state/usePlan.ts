@@ -7,6 +7,17 @@ type WorkerMessage =
 	| { id: number; type: 'done'; plan: Plan }
 	| { id: number; type: 'error'; message: string }
 
+/**
+ * My Pals as far as breeding cares: the same array until a pal is added or removed or its species,
+ * gender, passives or Yakumo stars change. Levels and stats syncing from the game don't re-plan.
+ */
+export function useBreedingRelevant(owned: OwnedPal[]): OwnedPal[] {
+	const last = useRef<{ signature: string; owned: OwnedPal[] } | null>(null)
+	const signature = JSON.stringify(owned.map((o) => [o.uid, o.palId, o.gender, o.passives, o.stars ?? null]))
+	if (!last.current || last.current.signature !== signature) last.current = { signature, owned }
+	return last.current.owned
+}
+
 /** Re-plans in a background worker whenever the lists or settings change */
 export function usePlan(owned: OwnedPal[], wanted: WantedPal[], settings: PlanSettings, enabled: boolean) {
 	const [plan, setPlan] = useState<Plan | null>(null)

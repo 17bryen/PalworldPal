@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import {
 	Box,
 	Button,
@@ -36,7 +36,7 @@ import {
 	type Rarity,
 	type Recipe
 } from '../data/recipes'
-import { defaultCraft, useStore } from '../state/store'
+import { defaultCraft, useCraft } from '../state/store'
 
 const asset = (file: string) => `${import.meta.env.BASE_URL}${file}`
 type Tab = 'All' | (typeof ITEM_GROUPS)[number] | 'Structures'
@@ -108,7 +108,7 @@ function QuantityField({ value, onChange, width = 88 }: { value: number; onChang
 }
 
 function Detail({ recipe }: { recipe: Recipe }) {
-	const { addToChecklist } = useStore()
+	const { addToChecklist } = useCraft()
 	const [rarity, setRarity] = useState<Rarity | null>(recipe.tiers[0].rarity)
 	const [qty, setQty] = useState(1)
 	const tiered = recipe.tiers.length > 1
@@ -245,7 +245,7 @@ function Fraction({ have, need, onChange }: { have: number; need: number; onChan
 }
 
 function Checklist({ onPick }: { onPick: (id: string) => void }) {
-	const { craft, updateCraft } = useStore()
+	const { craft, updateCraft } = useCraft()
 	const result = useMemo(() => breakdown(craft.list, craft.basic, craft.have), [craft.list, craft.basic, craft.have])
 	const setQty = (key: string, qty: number) => updateCraft({ list: craft.list.map((e) => (e.key === key ? { ...e, qty } : e)) })
 	const setHave = (key: string, n: number) => {
@@ -389,10 +389,31 @@ function Checklist({ onPick }: { onPick: (id: string) => void }) {
 	)
 }
 
+/** The checklist column; the only part of the page that re-renders when the checklist changes */
+function ChecklistPanel({ onPick }: { onPick: (id: string) => void }) {
+	const { craft, updateCraft } = useCraft()
+	return (
+		<Paper variant="outlined" sx={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+			<Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1.25, borderBottom: 1, borderColor: 'divider' }}>
+				<Typography variant="subtitle1" fontWeight={700} sx={{ flex: 1 }}>
+					Checklist
+				</Typography>
+				{craft.list.length > 0 && (
+					<Button size="small" color="error" onClick={() => updateCraft({ ...defaultCraft })}>
+						Clear
+					</Button>
+				)}
+			</Box>
+			<Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+				<Checklist onPick={onPick} />
+			</Box>
+		</Paper>
+	)
+}
+
 // ---- Page ----
 
 export function RecipesPage() {
-	const { craft, updateCraft } = useStore()
 	const [tab, setTab] = useState<Tab>('All')
 	const [category, setCategory] = useState<string>('All')
 	const [search, setSearch] = useState('')
@@ -411,11 +432,10 @@ export function RecipesPage() {
 	}, [tab, category, search])
 
 	const recipe = selected ? getRecipe(selected) : null
-	const pick = (id: string) => {
-		const r = getRecipe(id)
-		if (!r) return
-		setSelected(id)
-	}
+	// Stable, so the memoized grid tiles don't all re-render
+	const pick = useCallback((id: string) => {
+		if (getRecipe(id)) setSelected(id)
+	}, [])
 
 	return (
 		<Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 1fr) 360px 500px', gap: 2, height: '100%', minHeight: 0 }}>
@@ -469,21 +489,7 @@ export function RecipesPage() {
 				)}
 			</Paper>
 
-			<Paper variant="outlined" sx={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-				<Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1.25, borderBottom: 1, borderColor: 'divider' }}>
-					<Typography variant="subtitle1" fontWeight={700} sx={{ flex: 1 }}>
-						Checklist
-					</Typography>
-					{craft.list.length > 0 && (
-						<Button size="small" color="error" onClick={() => updateCraft({ ...defaultCraft })}>
-							Clear
-						</Button>
-					)}
-				</Box>
-				<Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-					<Checklist onPick={pick} />
-				</Box>
-			</Paper>
+			<ChecklistPanel onPick={pick} />
 		</Box>
 	)
 }

@@ -35,6 +35,7 @@ import { MapPage } from './components/MapPage'
 import { NavigationContext } from './state/nav'
 import { GameLinkChip } from './components/GameLink'
 import { OverlayPage, useOverlaySync } from './components/OverlaySettings'
+import { useLootTracker } from './state/loot'
 import { AlternativesProvider } from './components/Alternatives'
 
 function DataMenu() {
@@ -48,7 +49,7 @@ function DataMenu() {
 
 	const exportLists = () => {
 		setAnchor(null)
-		const blob = new Blob([JSON.stringify(store.state, null, 2)], { type: 'application/json' })
+		const blob = new Blob([JSON.stringify(store.snapshot(), null, 2)], { type: 'application/json' })
 		const a = document.createElement('a')
 		a.href = URL.createObjectURL(blob)
 		a.download = 'palworldpal-lists.json'
@@ -174,8 +175,14 @@ function initialPage(): Page {
 	}
 }
 
+/** Overlay sync and loot timers; a component of their own so their updates don't redraw the pages */
+function BackgroundTasks() {
+	useOverlaySync()
+	useLootTracker()
+	return null
+}
+
 export function App() {
-	const store = useStore()
 	const [page, setPage] = useState<Page>(initialPage)
 	// Pages mount on first visit and then stay mounted, so switching back is instant
 	const [visited, setVisited] = useState<Set<Page>>(() => new Set([page]))
@@ -199,7 +206,6 @@ export function App() {
 		}),
 		[]
 	)
-	useOverlaySync()
 
 	return (
 		<NavigationContext.Provider value={navigation}>

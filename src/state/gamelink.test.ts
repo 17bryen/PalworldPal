@@ -3,7 +3,7 @@ import { parseCaptures, parseLive } from '../../electron/gamelink'
 import { normalizeCaptures } from './captures'
 import { worldToPixel, pixelToIngame } from '../data/map'
 import { Motion } from './motion'
-import { lootReadyAt } from './store'
+import { lootReadyAt, sanitize } from './store'
 import { allLootSpots } from '../data/map'
 
 describe('bridge files', () => {
@@ -80,6 +80,13 @@ describe('loot timers', () => {
 		// Timer ran out, or never looted
 		expect(lootReadyAt('chest:9', loot, 1_000_000 + 241 * 60_000)).toBeNull()
 		expect(lootReadyAt('junk:5', loot, 1_000_000)).toBeNull()
+	})
+
+	it('times cleared dungeons but never marks them from standing nearby', () => {
+		const cleared = sanitize({ loot: { auto: true, looted: { 'dungeon:12': Date.now() } } }).loot
+		expect(cleared.minutes.dungeon).toBe(30)
+		expect(lootReadyAt('dungeon:12', cleared)).not.toBeNull()
+		expect(allLootSpots().some((s) => s.key.startsWith('dungeon:'))).toBe(false)
 	})
 
 	it('gives every lootable spot a stable id', () => {

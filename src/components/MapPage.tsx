@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -23,12 +23,13 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import CloseIcon from '@mui/icons-material/Close'
 import MyLocationIcon from '@mui/icons-material/MyLocation'
 import { getPal, pals } from '../data/gamedata'
-import { CATEGORY_NAMES, CATEGORY_ORDER, HABITAT, layerPoints, MAP_SIZE, mapLayers, palHabitat, pixelToIngame, worldToPixel, type MapIndex, type MapLayer } from '../data/map'
+import { CATEGORY_NAMES, CATEGORY_ORDER, HABITAT, CLICK_ONLY_LOOT, isLootLayer, layerPoints, LOOT_DEFAULT_MINUTES, MAP_SIZE, mapLayers, palHabitat, pixelToIngame, worldToPixel, type MapIndex, type MapLayer } from '../data/map'
 import { CATCH_TARGET } from '../data/paldeck'
 import { REGIONS, regionName, spawnRegions } from '../data/regions'
-import { useStore } from '../state/store'
+import { lootReadyAt, useStore } from '../state/store'
 import { useBridge, useLiveValue, useWildPals } from '../state/bridge'
 import { groupWildPals, type WildGroup } from '../state/wildpals'
+import { describeReady, useMinuteTick } from '../state/loot'
 import { theme } from '../theme'
 import { PalAvatar } from './bits'
 import { PalPicker } from './pickers'
@@ -46,53 +47,98 @@ export const BOUNDS: L.LatLngBoundsExpression = [
 
 const HABITAT_COLORS = { day: '#f0c35c', night: '#8f8cf0', both: '#5cc8f0', alpha: '#f07a7a' }
 
-// Marker icons are loaded once up front so the canvas can draw them synchronously
 const iconImages = new Map<string, HTMLImageElement>()
-function loadIcons(): Promise<void> {
-	const names = [...new Set(mapLayers.map((l) => l.icon).filter((n): n is string => !!n))]
-	return Promise.all(
-		names.map(
-			(name) =>
-				new Promise<void>((resolve) => {
-					const img = new Image()
-					img.onload = img.onerror = () => resolve()
-					img.src = asset(`map/icons/${name}.webp`)
-					iconImages.set(name, img)
-				})
-		)
-	).then(() => undefined)
+function iconImage(name: string): HTMLImageElement {
+	let img = iconImages.get(name)
+	if (!img) {
+		img = new Image()
+		img.src = asset(`map/icons/${name}`)
+		iconImages.set(name, img)
+	}
+	return img
 }
 
 /** A marker the canvas renderer draws as an image; thousands stay smooth, unlike DOM markers */
 const IconMarker = L.CircleMarker.extend({
-	_updatePath(this: L.CircleMarker & { _renderer: { _ctx: CanvasRenderingContext2D; _drawing: boolean }; _point: L.Point; _map: L.Map; options: { image?: HTMLImageElement } }) {
+	_updatePath(
+		this: L.CircleMarker & { _renderer: { _ctx: CanvasRenderingContext2D; _drawing: boolean }; _point: L.Point; _map: L.Map; options: { image?: HTMLImageElement; dim?: boolean } }
+	) {
 		// Leaflet also calls this outside a redraw pass; only paint during one, as its own circles do
 		if (!this._renderer._drawing) return
 		const img = this.options.image
-		if (!img?.complete || !img.naturalWidth) return
+		if (!img) return
+		if (!img.complete) {
+			// Repaint once the icon arrives
+			img.addEventListener('load', () => this.redraw(), { once: true })
+			return
+		}
+		if (!img.naturalWidth) return
 		const zoom = this._map.getZoom()
 		const size = zoom <= 0 ? 12 : zoom <= 1 ? 16 : zoom <= 2 ? 20 : 26
-		this._renderer._ctx.drawImage(img, this._point.x - size / 2, this._point.y - size / 2, size, size)
+		const ctx = this._renderer._ctx
+		if (this.options.dim) {
+			// Looted and waiting to come back
+			ctx.save()
+			ctx.globalAlpha = 0.35
+			ctx.filter = 'grayscale(1)'
+		}
+		ctx.drawImage(img, this._point.x - size / 2, this._point.y - size / 2, size, size)
+		if (this.options.dim) ctx.restore()
 	}
-}) as unknown as new (latlng: L.LatLngExpression, options: L.CircleMarkerOptions & { image?: HTMLImageElement }) => L.CircleMarker
+}) as unknown as new (latlng: L.LatLngExpression, options: L.CircleMarkerOptions & { image?: HTMLImageElement; dim?: boolean }) => L.CircleMarker
 
-export function LayerMarkers({ layer, map }: { layer: MapLayer; map: MapIndex }) {
+/**
+ * One marker layer. Lootable spots on cooldown are greyed out (Map tab) or left out entirely
+ * (`hideLooted`, for the minimap); `onLootClick` lets the Map tab mark or reset them by hand.
+ */
+export function LayerMarkers({
+	layer,
+	map,
+	hideLooted,
+	onLootClick
+}: {
+	layer: MapLayer
+	map: MapIndex
+	hideLooted?: boolean
+	onLootClick?: (key: string, looted: boolean) => void
+}) {
 	const leaflet = useMap()
+	const { loot } = useStore()
+	const minute = useMinuteTick()
+	const lootable = isLootLayer(layer.id)
+	// Dungeons are cleared, not looted
+	const done = CLICK_ONLY_LOOT.has(layer.id) ? 'cleared' : 'looted'
+	// Only lootable layers depend on timers; others never rebuild for them
+	const timers = lootable ? JSON.stringify([loot.looted, loot.minutes[layer.id], minute]) : ''
 	useEffect(() => {
-		const image = layer.icon ? iconImages.get(layer.icon) : undefined
+		const image = layer.icon ? iconImage(layer.icon) : undefined
 		const group = L.layerGroup()
 		for (const p of layerPoints(layer, map)) {
+			const readyAt = lootable ? lootReadyAt(p.key, loot) : null
+			if (readyAt && hideLooted) continue
 			const marker = image
-				? new IconMarker(toLatLng(p.px, p.py), { radius: 9, stroke: false, fill: false, image })
-				: L.circleMarker(toLatLng(p.px, p.py), { radius: 5, color: theme.palette.primary.main, weight: 2, fillOpacity: 0.6 })
-			marker.bindTooltip(p.label ? `${p.label} (${layer.name})` : layer.name, { direction: 'top', offset: [0, -8] })
+				? new IconMarker(toLatLng(p.px, p.py), { radius: 9, stroke: false, fill: false, image, dim: !!readyAt })
+				: L.circleMarker(toLatLng(p.px, p.py), { radius: 5, color: theme.palette.primary.main, weight: 2, fillOpacity: readyAt ? 0.15 : 0.6 })
+			const name = p.label ? `${p.label} (${layer.name})` : layer.name
+			// Built when shown, so the countdown is current
+			marker.bindTooltip(
+				() => {
+					if (!lootable) return name
+					const ready = lootReadyAt(p.key, loot)
+					const hint = onLootClick ? (ready ? '<br><i>Click to mark it ready</i>' : `<br><i>Click to mark it ${done}</i>`) : ''
+					return `${name}${ready ? `<br>${done === 'cleared' ? 'Cleared' : 'Looted'}, ${describeReady(ready)}` : ''}${hint}`
+				},
+				{ direction: 'top', offset: [0, -8] }
+			)
+			if (lootable && onLootClick) marker.on('click', () => onLootClick(p.key, !!readyAt))
 			group.addLayer(marker)
 		}
 		group.addTo(leaflet)
 		return () => {
 			group.remove()
 		}
-	}, [leaflet, layer, map])
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [leaflet, layer, map, hideLooted, onLootClick, timers])
 	return null
 }
 
@@ -354,6 +400,56 @@ function CoordinateReadout({ map }: { map: MapIndex }) {
 	)
 }
 
+/** Respawn timers for junk piles, chests, supply crates and dungeons */
+function LootTimers() {
+	const { loot, updateLoot } = useStore()
+	useMinuteTick()
+	const [open, setOpen] = useState(false)
+	const cooling = Object.keys(loot.looted).filter((k) => lootReadyAt(k, loot) != null).length
+	return (
+		<Box>
+			<Box onClick={() => setOpen((o) => !o)} sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}>
+				<Typography variant="overline" color="text.secondary" sx={{ flex: 1 }}>
+					Loot Timers
+				</Typography>
+				{cooling > 0 && <Chip size="small" label={`${cooling} Looted`} sx={{ height: 18, fontSize: 11, mr: 0.5 }} />}
+				<ExpandMoreIcon fontSize="small" sx={{ transform: open ? 'none' : 'rotate(-90deg)', transition: 'transform 150ms', color: 'text.secondary' }} />
+			</Box>
+			<Collapse in={open}>
+				<Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+					<Typography variant="body2" sx={{ flex: 1 }}>
+						Mark Looted When I Stand on It
+					</Typography>
+					<Switch size="small" checked={loot.auto} onChange={(e) => updateLoot({ auto: e.target.checked })} />
+				</Box>
+				<Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 1 }}>
+					Needs the game link. Looted spots hide from the overlay and grey out here until they're back. Click a marker to mark it by hand; dungeons are marked by clicking only.
+				</Typography>
+				{Object.keys(LOOT_DEFAULT_MINUTES).map((id) => (
+					<Box key={id} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.25 }}>
+						<Typography variant="body2" sx={{ flex: 1 }}>
+							{mapLayers.find((l) => l.id === id)?.name ?? id}
+						</Typography>
+						<TextField
+							size="small"
+							type="number"
+							value={loot.minutes[id]}
+							onChange={(e) => updateLoot({ minutes: { ...loot.minutes, [id]: Math.max(1, Number(e.target.value) || 1) } })}
+							slotProps={{ input: { endAdornment: <InputAdornment position="end">min</InputAdornment> } }}
+							sx={{ width: 110, '& input': { py: 0.5 } }}
+						/>
+					</Box>
+				))}
+				{cooling > 0 && (
+					<Button size="small" onClick={() => updateLoot({ looted: {} })} sx={{ mt: 0.5, ml: -1 }}>
+						Clear All Timers
+					</Button>
+				)}
+			</Collapse>
+		</Box>
+	)
+}
+
 function LayerList({ map }: { map: MapIndex }) {
 	const { map: prefs, updateMap } = useStore()
 	const [search, setSearch] = useState('')
@@ -436,7 +532,7 @@ function LayerList({ map }: { map: MapIndex }) {
 								>
 									<Checkbox size="small" checked={on.has(layer.id)} disableRipple sx={{ p: 0.25 }} />
 									{layer.icon ? (
-										<img src={asset(`map/icons/${layer.icon}.webp`)} alt="" width={20} height={20} />
+										<img src={asset(`map/icons/${layer.icon}`)} alt="" width={20} height={20} />
 									) : (
 										<Box sx={{ width: 20 }} />
 									)}
@@ -459,7 +555,6 @@ function LayerList({ map }: { map: MapIndex }) {
 export function MapPage({ focus, visible }: { focus: { palId: string; nonce: number } | null; visible: boolean }) {
 	const { catches, map: prefs, updateMap, settings } = useStore()
 	const [map, setMap] = useState<MapIndex>(0)
-	const [ready, setReady] = useState(false)
 	const [palId, setPalId] = useState<string | null>(null)
 	const [fitNonce, setFitNonce] = useState(0)
 	const [follow, setFollow] = useState(false)
@@ -473,10 +568,6 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 		if (follow && playerMap != null && playerMap !== map) setMap(playerMap)
 	}, [follow, playerMap, map])
 	const lastFocus = useRef<number | null>(null)
-
-	useEffect(() => {
-		loadIcons().then(() => setReady(true))
-	}, [])
 
 	// A pal opened from the Paldeck: show its habitat on whichever map holds most of it
 	useEffect(() => {
@@ -503,6 +594,8 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 	}, [uncaught, settings.disabledRegions])
 
 	const shownLayers = useMemo(() => mapLayers.filter((l) => prefs.layers.includes(l.id)), [prefs.layers])
+	const { setLooted } = useStore()
+	const onLootClick = useCallback((key: string, looted: boolean) => setLooted(key, looted ? null : Date.now()), [setLooted])
 	const tileUrl = asset(`map/${map === 0 ? 'main' : 'worldTree'}/z{z}x{x}y{y}.webp`)
 
 	return (
@@ -585,6 +678,8 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 					)}
 				</Box>
 
+				<LootTimers />
+
 				<Box>
 					<Typography variant="overline" color="text.secondary">
 						Markers
@@ -611,7 +706,9 @@ export function MapPage({ focus, visible }: { focus: { palId: string; nonce: num
 					style={{ height: '100%', width: '100%' }}
 				>
 					<TileLayer url={tileUrl} tileSize={512} minNativeZoom={0} maxNativeZoom={4} noWrap bounds={BOUNDS} />
-					{ready && shownLayers.map((l) => <LayerMarkers key={l.id} layer={l} map={map} />)}
+					{shownLayers.map((l) => (
+						<LayerMarkers key={l.id} layer={l} map={map} onLootClick={onLootClick} />
+					))}
 					{prefs.uncaught && <UncaughtShading map={map} palIds={uncaught} />}
 					{palId && <PalHabitat palId={palId} map={map} />}
 					{prefs.wild && <WildPalMarkers map={map} size={30} interactive />}

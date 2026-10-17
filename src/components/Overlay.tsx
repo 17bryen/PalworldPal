@@ -288,8 +288,15 @@ function Movable({
 					</Box>
 					<Box
 						onPointerDown={(e) => start(e, true)}
-						onPointerMove={move}
-						onPointerUp={end}
+						// Kept from reaching the box around it, whose move handler would put the old size back
+						onPointerMove={(e) => {
+							e.stopPropagation()
+							move(e)
+						}}
+						onPointerUp={(e) => {
+							e.stopPropagation()
+							end()
+						}}
 						title="Drag to resize"
 						sx={{ position: 'absolute', right: -7, bottom: -7, width: 14, height: 14, borderRadius: '3px', bgcolor: '#5cc8f0', cursor: 'nwse-resize' }}
 					/>

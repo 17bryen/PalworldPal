@@ -12,6 +12,8 @@
 		"build": "tsc && vite build",
 		"package": "tsc && vite build --mode package && electron-builder --win portable",
 		"data": "node scripts/build-data.mjs",
+		"expeditions": "node scripts/build-expeditions.mjs",
+		"recipes": "node scripts/build-recipes.mjs",
 		"icons": "node scripts/fetch-icons.mjs",
 		"test": "vitest run",
 		"preview": "vite preview"

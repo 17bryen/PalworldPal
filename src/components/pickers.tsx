@@ -63,7 +63,7 @@ export function PassivePicker({
 			multiple
 			size="small"
 			options={gameData.passives}
-			value={value.map((name) => gameData.passives.find((p) => p.name === name) ?? { name, ids: [], rank: 0, description: '', copyable: false })}
+			value={selected}
 			onChange={(_, list) => onChange(list.map((p) => p.name))}
 			getOptionLabel={(p) => p.name}
 			isOptionEqualToValue={(a, b) => a.name === b.name}
