@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Box, Tab, Tabs } from '@mui/material'
 import { useLoaded, useStoreSelect } from '../state/store'
+import type { PalFocus } from '../state/nav'
 import { useBreedingRelevant, usePlan } from '../state/usePlan'
 import { BreedingCalculator } from './BreedingCalculator'
 import { ListsPanel } from './ListsPanel'
@@ -20,7 +21,7 @@ function initialView(): View {
 	}
 }
 
-export function BreedingPage() {
+export function BreedingPage({ comboFocus }: { comboFocus: PalFocus }) {
 	const allOwned = useStoreSelect((s) => s.owned)
 	const wanted = useStoreSelect((s) => s.wanted)
 	const settings = useStoreSelect((s) => s.settings)
@@ -30,6 +31,11 @@ export function BreedingPage() {
 	// Plans keep up with the lists from any view, so the Planner is ready when opened
 	const owned = useBreedingRelevant(allOwned)
 	const { plan, progress, error } = usePlan(owned, wanted, settings, loaded)
+
+	// "Show Breeding Combinations" from another page opens the Calculator on that pal
+	useEffect(() => {
+		if (comboFocus) setView('calculator')
+	}, [comboFocus])
 
 	const choose = (v: View) => {
 		setView(v)
@@ -49,7 +55,7 @@ export function BreedingPage() {
 			</Tabs>
 			<Box sx={{ flex: 1, minHeight: 0 }}>
 				<Box sx={{ display: view === 'calculator' ? 'block' : 'none', height: '100%' }}>
-					<BreedingCalculator />
+					<BreedingCalculator focus={comboFocus} />
 				</Box>
 				<Box sx={{ display: view === 'planner' ? 'grid' : 'none', gridTemplateColumns: 'minmax(420px, 2fr) 3fr', gap: 2, height: '100%' }}>
 					<ListsPanel plan={plan} selectedWanted={selectedWanted} onSelectWanted={setSelectedWanted} />

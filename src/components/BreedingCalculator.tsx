@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
 	Box,
 	ButtonBase,
@@ -26,6 +26,7 @@ import EggIcon from '@mui/icons-material/EggOutlined'
 import { getPal, palIndex, pals, type Gender, type PalInfo } from '../data/gamedata'
 import { breedingTarget, childrenOf, isSpecialResult, parentsOf } from '../data/breeding'
 import { useStoreSelect } from '../state/store'
+import type { PalFocus } from '../state/nav'
 import { rarityColor } from '../theme'
 import { GenderIcon, PalAvatar } from './bits'
 import { LazyItem, LazyScroll } from './lazy'
@@ -463,9 +464,14 @@ function Combinations({ palId, setPalId }: { palId: string | null; setPalId: (id
 
 // ---- Page ----
 
-export const BreedingCalculator = memo(function BreedingCalculator() {
+export const BreedingCalculator = memo(function BreedingCalculator({ focus }: { focus: PalFocus }) {
 	const [mode, setMode] = useState<'two' | 'combos'>('two')
 	const [comboPal, setComboPal] = useState<string | null>(null)
+	useEffect(() => {
+		if (!focus) return
+		setComboPal(focus.palId)
+		setMode('combos')
+	}, [focus])
 	return (
 		<Paper variant="outlined" sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, p: 2 }}>
 			<ToggleButtonGroup size="small" exclusive value={mode} onChange={(_, v: 'two' | 'combos' | null) => v && setMode(v)} sx={{ alignSelf: 'flex-start' }}>

@@ -33,7 +33,7 @@ import { MerchantsPage } from './components/MerchantsPage'
 import { ExpeditionsPage } from './components/ExpeditionsPage'
 import { RecipesPage } from './components/RecipesPage'
 import { MapPage } from './components/MapPage'
-import { NavigationContext } from './state/nav'
+import { NavigationContext, type PalFocus } from './state/nav'
 import { GameLinkChip } from './components/GameLink'
 import { OverlayPage, useOverlaySync } from './components/OverlaySettings'
 import { useLootTracker } from './state/loot'
@@ -190,7 +190,8 @@ export function App() {
 	const [page, setPage] = useState<Page>(initialPage)
 	// Pages mount on first visit and then stay mounted, so switching back is instant
 	const [visited, setVisited] = useState<Set<Page>>(() => new Set([page]))
-	const [mapFocus, setMapFocus] = useState<{ palId: string; nonce: number } | null>(null)
+	const [mapFocus, setMapFocus] = useState<PalFocus>(null)
+	const [comboFocus, setComboFocus] = useState<PalFocus>(null)
 
 	const goTo = (v: Page) => {
 		setPage(v)
@@ -206,6 +207,10 @@ export function App() {
 			openPalOnMap: (palId: string) => {
 				setMapFocus((f) => ({ palId, nonce: (f?.nonce ?? 0) + 1 }))
 				goTo('map')
+			},
+			openPalCombos: (palId: string) => {
+				setComboFocus((f) => ({ palId, nonce: (f?.nonce ?? 0) + 1 }))
+				goTo('breeding')
 			}
 		}),
 		[]
@@ -258,7 +263,7 @@ export function App() {
 					<Box sx={{ flex: 1, minHeight: 0, p: 2 }}>
 						{/* Both pages stay mounted so switching tabs doesn't rebuild the 300-row table */}
 						<Box sx={{ display: page === 'breeding' ? 'block' : 'none', height: '100%' }}>
-							<BreedingPage />
+							<BreedingPage comboFocus={comboFocus} />
 						</Box>
 						<Box sx={{ display: page === 'paldeck' ? 'block' : 'none', height: '100%' }}>
 							{visited.has('paldeck') && <PaldeckPage />}
