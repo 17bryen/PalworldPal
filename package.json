@@ -2,7 +2,7 @@
 	"name": "palbreeder",
 	"productName": "PalworldPal",
 	"private": true,
-	"version": "0.2.0",
+	"version": "0.3.0",
 	"type": "module",
 	"description": "A Palworld companion: breeding planner, Paldeck, map, merchants and an in-game overlay.",
 	"author": "Brian Rogers",
