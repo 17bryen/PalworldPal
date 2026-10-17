@@ -27,12 +27,7 @@ import SearchIcon from '@mui/icons-material/Search'
 import MaleIcon from '@mui/icons-material/Male'
 import FemaleIcon from '@mui/icons-material/Female'
 import StarIcon from '@mui/icons-material/Star'
-import AddIcon from '@mui/icons-material/Add'
-import RestoreIcon from '@mui/icons-material/RestoreFromTrash'
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { getPal, YAKUMO_ID, type Gender } from '../data/gamedata'
-import { useGamePals } from '../state/bridge'
-import { describeLocation, ownedLocation, planAdd, type GamePal, type PalLocation } from '../state/gamepals'
 import { useActions, useStoreSelect } from '../state/store'
 import type { OwnedPal, Plan, PlanNode, TargetResult } from '../solver/types'
 import { GenderIcon, PalAvatar, PassiveList } from './bits'
@@ -245,48 +240,10 @@ function Located({ location, children }: { location?: string; children: React.Re
 	)
 }
 
-function GameRow({ pal, onAdd }: { pal: GamePal; onAdd: () => void }) {
-	return (
-		<Box
-			sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}
-		>
-			<Located location={pal.where && describeLocation(pal.where)}>
-				<PalAvatar palId={pal.palId} />
-			</Located>
-			<Box sx={{ flex: 1, minWidth: 0 }}>
-				<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: pal.passives.length ? 0.5 : 0 }}>
-					<Located location={pal.where && describeLocation(pal.where)}>
-						<Typography variant="body2" fontWeight={600} noWrap>
-							{getPal(pal.palId).name}
-						</Typography>
-					</Located>
-					<GenderIcon gender={pal.gender} size={16} />
-				</Box>
-				<PassiveList passives={pal.passives} />
-			</Box>
-			<Tooltip title="Add to My Pals">
-				<IconButton size="small" onClick={onAdd}>
-					<AddIcon fontSize="small" />
-				</IconButton>
-			</Tooltip>
-		</Box>
-	)
-}
-
 const rowEstimate = (passives: string[]) => (passives.length ? 65 : 49)
 
-/** One My Pals row; re-renders only when its pal or the game's pal list changes */
-const OwnedRow = memo(function OwnedRow({
-	pal,
-	whereByKey,
-	onEdit,
-	onDelete
-}: {
-	pal: OwnedPal
-	whereByKey: Map<string, PalLocation | undefined>
-	onEdit: (pal: OwnedPal) => void
-	onDelete: (uid: string) => void
-}) {
+/** One hand-added pal; re-renders only when that pal changes */
+const OwnedRow = memo(function OwnedRow({ pal, onEdit, onDelete }: { pal: OwnedPal; onEdit: (pal: OwnedPal) => void; onDelete: (uid: string) => void }) {
 	return (
 		<Row
 			palId={pal.palId}
@@ -295,7 +252,6 @@ const OwnedRow = memo(function OwnedRow({
 			stars={pal.stars}
 			onEdit={() => onEdit(pal)}
 			onDelete={() => onDelete(pal.uid)}
-			location={ownedLocation(pal, whereByKey)}
 		/>
 	)
 })
@@ -360,37 +316,20 @@ export const ListsPanel = memo(function ListsPanel({
 }) {
 	const allOwned = useStoreSelect((s) => s.owned)
 	const wanted = useStoreSelect((s) => s.wanted)
-	const removed = useStoreSelect((s) => s.removed)
 	const actions = useActions()
-	const gamePals = useGamePals()
 	const [tab, setTab] = useState<'wanted' | 'owned'>('wanted')
-	const [source, setSource] = useState<'all' | 'hand' | 'synced'>('all')
 	const [draft, setDraft] = useState<Draft>(emptyDraft)
 	const [search, setSearch] = useState('')
+	const [confirmRemove, setConfirmRemove] = useState(false)
 
 	const results = useMemo(() => new Map(plan?.targets.map((t) => [t.wantedUid, t])), [plan])
-	const handCount = useMemo(() => allOwned.filter((o) => !o.game).length, [allOwned])
+	// Pals from the game live in the Palbox tab; this list is the ones typed in by hand
+	const handAdded = useMemo(() => allOwned.filter((o) => !o.game), [allOwned])
+	const syncedCount = allOwned.length - handAdded.length
+	const sorted = useMemo(() => sortByName(handAdded), [handAdded])
 	// The list keeps up with typing; filtering waits a beat when it falls behind
 	const query = useDeferredValue(search)
-	const [confirmRemove, setConfirmRemove] = useState(false)
-	const [showRemoved, setShowRemoved] = useState(false)
-	// Everything in the chosen view, regardless of the search box
-	const inView = useMemo(
-		() => (source === 'all' ? allOwned : allOwned.filter((o) => (source === 'hand' ? !o.game : !!o.game))),
-		[allOwned, source]
-	)
-	const sorted = useMemo(() => sortByName(inView), [inView])
-	const viewName = source === 'all' ? 'pals from My Pals' : source === 'hand' ? 'hand-added pals' : 'game-synced pals'
 	const owned = useMemo(() => matching(sorted, query), [sorted, query])
-	const addPlan = useMemo(() => planAdd(allOwned, gamePals), [allOwned, gamePals])
-	const whereByKey = useMemo(() => new Map(gamePals.map((g) => [g.key, g.where])), [gamePals])
-	const pending = addPlan.links.size + addPlan.adds.length
-	// Pals seen in the game this session that aren't in My Pals yet, listed under Game Synced
-	const notAddedAll = useMemo(
-		() => (source === 'synced' ? sortByName(gamePals.filter((g) => !addPlan.linked.has(g.key))) : []),
-		[source, gamePals, addPlan]
-	)
-	const notAdded = useMemo(() => matching(notAddedAll, query), [notAddedAll, query])
 	const editOwned = useCallback((o: OwnedPal) => setDraft({ uid: o.uid, palId: o.palId, gender: o.gender, passives: o.passives, stars: o.stars ?? 0 }), [])
 
 	const switchTab = (next: 'wanted' | 'owned') => {
@@ -417,34 +356,22 @@ export const ListsPanel = memo(function ListsPanel({
 		<Paper variant="outlined" sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, height: '100%' }}>
 			<Tabs value={tab} onChange={(_, v) => switchTab(v)} sx={{ borderBottom: 1, borderColor: 'divider', px: 1 }}>
 				<Tab value="wanted" label={`Target Pals (${wanted.length})`} />
-				<Tab value="owned" label={`My Pals (${allOwned.length})`} />
+				<Tab value="owned" label={`Hand Added Pals (${handAdded.length})`} />
 			</Tabs>
-			{tab === 'owned' && (
+			{tab === 'owned' && (syncedCount > 0 || handAdded.length > 0) && (
 				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider' }}>
-					<ToggleButtonGroup size="small" exclusive value={source} onChange={(_, v: 'all' | 'hand' | 'synced' | null) => v && setSource(v)}>
-						<ToggleButton value="all">All</ToggleButton>
-						<ToggleButton value="hand">Hand Added ({handCount})</ToggleButton>
-						<ToggleButton value="synced">Game Synced ({allOwned.length - handCount})</ToggleButton>
-					</ToggleButtonGroup>
-					<Box sx={{ flex: 1 }} />
-					{inView.length > 0 && (
+					<Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
+						{syncedCount > 0 && `Plans also use your ${syncedCount} pals synced from the game, in the Palbox tab.`}
+					</Typography>
+					{handAdded.length > 0 && (
 						<Button size="small" color="error" onClick={() => setConfirmRemove(true)}>
 							Remove All
 						</Button>
 					)}
-					{source === 'synced' && gamePals.length > 0 && (
-						<Tooltip title="Your party and every Palbox page you've opened this session">
-							<span>
-								<Button size="small" variant="outlined" startIcon={<AddIcon />} disabled={!pending} onClick={() => actions.addFromGame(gamePals)}>
-									Add All ({pending})
-								</Button>
-							</span>
-						</Tooltip>
-					)}
 				</Box>
 			)}
-			{!(tab === 'owned' && source === 'synced') && <EntryForm withGender={tab === 'owned'} draft={draft} setDraft={setDraft} onSubmit={submit} />}
-			{tab === 'owned' && allOwned.length + notAddedAll.length > 8 && (
+			<EntryForm withGender={tab === 'owned'} draft={draft} setDraft={setDraft} onSubmit={submit} />
+			{tab === 'owned' && handAdded.length > 8 && (
 				<Box sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider' }}>
 					<TextField
 						size="small"
@@ -483,76 +410,16 @@ export const ListsPanel = memo(function ListsPanel({
 				{tab === 'owned' &&
 					owned.map((o) => (
 						<LazyItem key={o.uid} estimate={rowEstimate(o.passives)}>
-							<OwnedRow pal={o} whereByKey={whereByKey} onEdit={editOwned} onDelete={actions.removeOwned} />
+							<OwnedRow pal={o} onEdit={editOwned} onDelete={actions.removeOwned} />
 						</LazyItem>
 					))}
-				{tab === 'owned' && notAdded.length > 0 && (
-					<Typography variant="overline" color="text.secondary" component="div" sx={{ px: 1.5, pt: 1.5 }}>
-						Seen in Game, Not Added ({notAdded.length})
-					</Typography>
-				)}
-				{tab === 'owned' &&
-					notAdded.map((g) => (
-						<LazyItem key={g.key} estimate={rowEstimate(g.passives)}>
-							<GameRow pal={g} onAdd={() => actions.addFromGame([g])} />
-						</LazyItem>
-					))}
-				{tab === 'owned' && source !== 'hand' && removed.length > 0 && (
-					<Box sx={{ borderTop: 1, borderColor: 'divider', mt: 1 }}>
-						<Box sx={{ display: 'flex', alignItems: 'center', px: 1.5, pt: 1 }}>
-							<Tooltip
-								title="Synced pals that left your party and Palbox and didn't turn up anywhere else, so they were most likely sold, condensed or traded. They come back on their own if the game shows them again."
-								placement="top-start"
-							>
-								<Box onClick={() => setShowRemoved((v) => !v)} sx={{ display: 'flex', alignItems: 'center', flex: 1, cursor: 'pointer', userSelect: 'none' }}>
-									<Typography variant="overline" color="text.secondary">
-										Recently Removed ({removed.length})
-									</Typography>
-									<ExpandMoreIcon fontSize="small" sx={{ color: 'text.secondary', transform: showRemoved ? 'none' : 'rotate(-90deg)', transition: 'transform 150ms' }} />
-								</Box>
-							</Tooltip>
-							{showRemoved && (
-								<Button size="small" onClick={actions.clearRemoved}>
-									Clear
-								</Button>
-							)}
-						</Box>
-						{showRemoved &&
-							removed.map((r) => (
-								<Box key={r.uid} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider', opacity: 0.75 }}>
-									<PalAvatar palId={r.palId} />
-									<Box sx={{ flex: 1, minWidth: 0 }}>
-										<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: r.passives.length ? 0.5 : 0 }}>
-											<Typography variant="body2" fontWeight={600} noWrap>
-												{r.name ?? getPal(r.palId).name}
-											</Typography>
-											<GenderIcon gender={r.gender} size={16} />
-											<Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }} noWrap>
-												{new Date(r.removedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-											</Typography>
-										</Box>
-										<PassiveList passives={r.passives} />
-									</Box>
-									<Tooltip title="Put Back in My Pals">
-										<IconButton size="small" onClick={() => actions.restoreRemoved(r.uid)}>
-											<RestoreIcon fontSize="small" />
-										</IconButton>
-									</Tooltip>
-								</Box>
-							))}
-					</Box>
-				)}
-				{tab === 'wanted' && !wanted.length && (
-					<Empty text="Add the pals you want to breed. You can also star them in the Paldeck." />
-				)}
-				{tab === 'owned' && !owned.length && !notAdded.length && (
+				{tab === 'wanted' && !wanted.length && <Empty text="Add the pals you want to breed. You can also star them in the Paldeck." />}
+				{tab === 'owned' && !owned.length && (
 					<Empty
 						text={
-							source === 'hand'
-								? 'No pals added by hand.'
-								: source === 'synced'
-									? 'No pals from the game yet. With Game Link connected, open your Palbox in the game.'
-									: 'Add the pals you have, with their gender and passives, so plans can start from them.'
+							handAdded.length
+								? 'No pal matches.'
+								: 'Add pals the game link can\'t see, with their gender and passives, so plans can start from them.'
 						}
 					/>
 				)}
@@ -560,9 +427,7 @@ export const ListsPanel = memo(function ListsPanel({
 			<Dialog open={confirmRemove} onClose={() => setConfirmRemove(false)}>
 				<DialogTitle>Remove All</DialogTitle>
 				<DialogContent>
-					<DialogContentText>
-						This will remove all {inView.length} {viewName}.{source !== 'hand' && ' Pals from the game can be added back with Add All once their Palbox pages are open.'}
-					</DialogContentText>
+					<DialogContentText>This will remove all {handAdded.length} hand-added pals.</DialogContentText>
 				</DialogContent>
 				<DialogActions>
 					<Button onClick={() => setConfirmRemove(false)}>Cancel</Button>
@@ -570,11 +435,11 @@ export const ListsPanel = memo(function ListsPanel({
 						color="error"
 						variant="contained"
 						onClick={() => {
-							actions.removeOwnedMany(inView.map((o) => o.uid))
+							actions.removeOwnedMany(handAdded.map((o) => o.uid))
 							setConfirmRemove(false)
 						}}
 					>
-						Remove {inView.length}
+						Remove {handAdded.length}
 					</Button>
 				</DialogActions>
 			</Dialog>

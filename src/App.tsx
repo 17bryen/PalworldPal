@@ -27,6 +27,7 @@ import EggIcon from '@mui/icons-material/Egg'
 import { gameData } from './data/gamedata'
 import { sanitize, useActions, useStoreSelect, worldLabel } from './state/store'
 import { BreedingPage } from './components/BreedingPage'
+import { PalboxPage } from './components/PalboxPage'
 import { PaldeckPage } from './components/PaldeckPage'
 import { MerchantsPage } from './components/MerchantsPage'
 import { ExpeditionsPage } from './components/ExpeditionsPage'
@@ -164,8 +165,8 @@ function DataMenu() {
 	)
 }
 
-type Page = 'paldeck' | 'map' | 'breeding' | 'merchants' | 'expeditions' | 'recipes' | 'overlay'
-const PAGES: Page[] = ['paldeck', 'map', 'breeding', 'merchants', 'expeditions', 'recipes', 'overlay']
+type Page = 'paldeck' | 'palbox' | 'map' | 'breeding' | 'merchants' | 'expeditions' | 'recipes' | 'overlay'
+const PAGES: Page[] = ['paldeck', 'palbox', 'map', 'breeding', 'merchants', 'expeditions', 'recipes', 'overlay']
 const PAGE_KEY = 'palbreeder.page'
 
 /** The tab the app reopens on: the last one used, or the first */
@@ -240,6 +241,7 @@ export function App() {
 								onChange={(_, v: Page) => goTo(v)}
 							>
 								<Tab value="paldeck" label="Paldeck" />
+								<Tab value="palbox" label="Palbox" />
 								<Tab value="map" label="Map" />
 								<Tab value="breeding" label="Breeding" />
 								<Tab value="merchants" label="Merchants" />
@@ -260,6 +262,9 @@ export function App() {
 						</Box>
 						<Box sx={{ display: page === 'paldeck' ? 'block' : 'none', height: '100%' }}>
 							{visited.has('paldeck') && <PaldeckPage />}
+						</Box>
+						<Box sx={{ display: page === 'palbox' ? 'block' : 'none', height: '100%' }}>
+							{visited.has('palbox') && <PalboxPage />}
 						</Box>
 						<Box sx={{ display: page === 'map' ? 'block' : 'none', height: '100%' }}>
 							{visited.has('map') && <MapPage focus={mapFocus} visible={page === 'map'} />}
