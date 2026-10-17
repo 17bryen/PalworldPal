@@ -3,10 +3,8 @@ import {
 	Box,
 	Checkbox,
 	Chip,
-	Divider,
 	LinearProgress,
 	FormControlLabel,
-	IconButton,
 	InputAdornment,
 	Link,
 	ListItemIcon,
@@ -30,8 +28,6 @@ import {
 import SearchIcon from '@mui/icons-material/Search'
 import StarIcon from '@mui/icons-material/Star'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
-import AddIcon from '@mui/icons-material/Add'
-import RemoveIcon from '@mui/icons-material/Remove'
 import CheckIcon from '@mui/icons-material/Check'
 import EggIcon from '@mui/icons-material/EggOutlined'
 import MapIcon from '@mui/icons-material/MapOutlined'
@@ -47,8 +43,7 @@ import { useBridge } from '../state/bridge'
 import { palHabitat } from '../data/map'
 import { CATCH_TARGET } from '../data/paldeck'
 import { rarityColor } from '../theme'
-import type { CatchPref } from '../solver/types'
-import { PalAvatar, WORK_INFO, WorkIcon } from './bits'
+import { WORK_INFO, WorkIcon } from './bits'
 
 const asset = (file: string) => `${import.meta.env.BASE_URL}${file}`
 const ELEMENTS = ['Neutral', 'Fire', 'Water', 'Grass', 'Electric', 'Ice', 'Ground', 'Dark', 'Dragon']
@@ -60,8 +55,6 @@ type BreedFilter = 'any' | 'legendaryLine'
 type LegendFilter = 'any' | 'only' | 'none'
 type AccessFilter = 'any' | 'reachable' | 'unreachable'
 type CaughtFilter = 'any' | 'need' | 'done'
-
-const PREF_LABEL: Record<CatchPref | 'default', string> = { default: 'Normal', easy: 'Easy', hard: 'Hard', never: 'Never' }
 
 /** Short region names for the table; the full list is in the hover text */
 const SHORT: Record<string, string> = {
@@ -88,7 +81,7 @@ function initialView(): View {
 	}
 }
 
-/** Opens the pal's menu: Target Pals, breeding combinations, the map, catch preference */
+/** Opens the pal's menu: Target Pals, breeding combinations, the map */
 type OpenMenu = (palId: string, x: number, y: number) => void
 
 function Elements({ palId, size }: { palId: string; size: number }) {
@@ -119,47 +112,32 @@ function FoundIn({ palId, onShowOnMap }: { palId: string; onShowOnMap: (id: stri
 	)
 }
 
-/** Catch counter: minus, count (click to mark complete or clear), plus */
+/** Catch counter: minus, count (click to mark complete or clear), plus; plain buttons, styled by the table */
 function CatchStepper({ palId, count, onSet }: { palId: string; count: number; onSet: (id: string, n: number) => void }) {
 	const done = count >= CATCH_TARGET
 	return (
-		<Box sx={{ display: 'flex', alignItems: 'center' }}>
-			<IconButton size="small" disableRipple disabled={count === 0} title="One fewer" onClick={() => onSet(palId, count - 1)}>
-				<RemoveIcon sx={{ fontSize: 16 }} />
-			</IconButton>
-			<Box
-				component="button"
-				title={done ? 'Clear catches' : 'Mark all caught'}
-				onClick={() => onSet(palId, done ? 0 : CATCH_TARGET)}
-				sx={{
-					all: 'unset',
-					cursor: 'pointer',
-					minWidth: 40,
-					height: 24,
-					borderRadius: 12,
-					display: 'flex',
-					alignItems: 'center',
-					justifyContent: 'center',
-					fontSize: 13,
-					fontWeight: 700,
-					fontVariantNumeric: 'tabular-nums',
-					color: done ? 'success.main' : count ? 'text.primary' : 'text.disabled',
-					bgcolor: done ? 'rgba(111,207,138,0.12)' : 'transparent',
-					'&:hover': { bgcolor: 'action.hover' }
-				}}
-			>
-				{done ? <CheckIcon sx={{ fontSize: 18 }} /> : `${count}/${CATCH_TARGET}`}
-			</Box>
-			<IconButton size="small" disableRipple disabled={done} title="Caught one" onClick={() => onSet(palId, count + 1)}>
-				<AddIcon sx={{ fontSize: 16 }} />
-			</IconButton>
-		</Box>
+		<div className="stepper">
+			<button disabled={count === 0} title="One fewer" onClick={() => onSet(palId, count - 1)}>
+				-
+			</button>
+			<button className={`count${done ? ' done' : count ? '' : ' none'}`} title={done ? 'Clear catches' : 'Mark all caught'} onClick={() => onSet(palId, done ? 0 : CATCH_TARGET)}>
+				{done ? <CheckIcon sx={{ fontSize: 16, verticalAlign: 'middle' }} /> : `${count}/${CATCH_TARGET}`}
+			</button>
+			<button disabled={done} title="Caught one" onClick={() => onSet(palId, count + 1)}>
+				+
+			</button>
+		</div>
 	)
 }
 
+/** A portrait in a ring of its rarity color */
+const Portrait = ({ pal, size }: { pal: PalInfo; size: number }) => (
+	<img className="portrait" src={asset(`pals/${pal.id}.png`)} alt="" width={size} height={size} loading="lazy" style={{ borderColor: `${rarityColor(pal.rarity)}99`, background: `${rarityColor(pal.rarity)}1f` }} />
+)
+
 // ---- List ----
 
-// Rows render a lot of cells; plain elements and native hover titles keep the page quick
+// About 300 rows of 16 cells: plain table cells styled once by the table keep rendering and switching quick
 const PalRow = memo(function PalRow({
 	pal,
 	wanted,
@@ -176,69 +154,83 @@ const PalRow = memo(function PalRow({
 	onMenu: OpenMenu
 }) {
 	return (
-		<TableRow
-			hover
+		<tr
 			onContextMenu={(e) => {
 				e.preventDefault()
 				onMenu(pal.id, e.clientX, e.clientY)
 			}}
 		>
-			<TableCell>
-				<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-					<PalAvatar palId={pal.id} size={28} />
-					<Box sx={{ minWidth: 0 }}>
-						<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-							<Typography variant="body2" fontWeight={600} noWrap sx={{ color: pal.legendary ? rarityColor(20) : undefined }}>
-								{pal.name}
-							</Typography>
-							{wanted && <StarIcon titleAccess="In Target Pals" sx={{ fontSize: 14, color: rarityColor(20) }} />}
-						</Box>
-						<Typography variant="caption" color="text.secondary">
+			<td>
+				<div className="pal">
+					<Portrait pal={pal} size={28} />
+					<div className="name">
+						<div className={pal.legendary ? 'legendary' : undefined}>
+							{pal.name}
+							{wanted && <StarIcon titleAccess="In Target Pals" sx={{ fontSize: 14, color: rarityColor(20), ml: 0.5, verticalAlign: '-2px' }} />}
+						</div>
+						<span className="sub">
 							#{pal.dex}
 							{legendaryLine.has(pal.id) && (
-								<Box component="span" title="Can only be bred from itself or legendary pals" sx={{ ml: 0.75, color: rarityColor(20) }}>
+								<span className="legendary" title="Can only be bred from itself or legendary pals">
+									{' '}
 									Self-Bred
-								</Box>
+								</span>
 							)}
-						</Typography>
-					</Box>
-				</Box>
-			</TableCell>
-			<TableCell>
-				<Box sx={{ display: 'flex', gap: 0.5 }}>
+						</span>
+					</div>
+				</div>
+			</td>
+			<td>
+				<div className="types">
 					<Elements palId={pal.id} size={20} />
-				</Box>
-			</TableCell>
-			<TableCell>
+				</div>
+			</td>
+			<td>
 				<CatchStepper palId={pal.id} count={caught} onSet={onSetCatches} />
-			</TableCell>
-			{WORK_KINDS.map((kind) => {
+			</td>
+			{WORK_KINDS.map((kind, i) => {
 				const level = pal.work[kind]
 				return (
-					<TableCell key={kind} align="center" sx={{ px: 0.5 }}>
-						{level > 0 && (
-							<Typography variant="body2" sx={{ color: WORK_INFO[kind].color, fontWeight: 700, opacity: 0.45 + level * 0.11 }}>
-								{level}
-							</Typography>
-						)}
-					</TableCell>
+					<td key={kind} className={`work${i === 0 ? ' first' : ''}${i === WORK_KINDS.length - 1 ? ' last' : ''}`} style={level ? { color: WORK_INFO[kind].color, opacity: 0.45 + level * 0.11 } : undefined}>
+						{level > 0 && level}
+					</td>
 				)
 			})}
-			<TableCell>
+			<td>
 				<FoundIn palId={pal.id} onShowOnMap={onShowOnMap} />
-			</TableCell>
-		</TableRow>
+			</td>
+		</tr>
 	)
 })
 
-// ---- Grid ----
+/** Shared look for the list's rows; one stylesheet instead of styles on every cell */
+const listSx = {
+	flex: 1,
+	minHeight: 0,
+	'& table': { borderCollapse: 'separate', borderSpacing: 0, width: '100%' },
+	'& th': { px: 3 },
+	'& th.work': { px: 0.5 },
+	'& th.work.first, & td.work.first': { pl: 3 },
+	'& th.work.last, & td.work.last': { pr: 3 },
+	'& td': { px: 3, py: 0.75, borderBottom: '1px solid', borderColor: 'divider', fontSize: 14, verticalAlign: 'middle' },
+	'& td.work': { px: 0.5, textAlign: 'center', fontWeight: 700 },
+	'& tbody tr:hover': { bgcolor: 'action.hover' },
+	'& .pal': { display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 },
+	'& .name': { minWidth: 0, fontWeight: 600, whiteSpace: 'nowrap' },
+	'& .sub': { fontSize: 12, fontWeight: 400, color: 'text.secondary' },
+	'& .legendary': { color: rarityColor(20) },
+	'& .portrait': { borderRadius: '50%', border: '1.5px solid', flexShrink: 0, display: 'block' },
+	'& .types': { display: 'flex', gap: 0.5 },
+	'& .stepper': { display: 'flex', alignItems: 'center' },
+	'& .stepper button': { all: 'unset', cursor: 'pointer', height: 24, minWidth: 22, textAlign: 'center', borderRadius: 12, fontSize: 15, fontWeight: 700, color: 'text.secondary' },
+	'& .stepper button:hover:not(:disabled)': { bgcolor: 'action.hover' },
+	'& .stepper button:disabled': { cursor: 'default', opacity: 0.3 },
+	'& .stepper .count': { minWidth: 40, fontSize: 13, color: 'text.primary', fontVariantNumeric: 'tabular-nums' },
+	'& .stepper .count.none': { color: 'text.disabled' },
+	'& .stepper .count.done': { color: 'success.main', bgcolor: 'rgba(111,207,138,0.12)' }
+} as const
 
-const StatBadge = ({ label, value, color }: { label: string; value: number; color: string }) => (
-	<Box sx={{ display: 'flex', borderRadius: 0.75, overflow: 'hidden', fontSize: 10, fontWeight: 800, lineHeight: '16px' }}>
-		<Box sx={{ px: 0.5, bgcolor: color, color: '#0e1014' }}>{label}</Box>
-		<Box sx={{ px: 0.5, bgcolor: 'rgba(255,255,255,0.08)', fontVariantNumeric: 'tabular-nums' }}>{value}</Box>
-	</Box>
-)
+// ---- Grid ----
 
 const PalCard = memo(function PalCard({ pal, wanted, caught, onMenu }: { pal: PalInfo; wanted: boolean; caught: number; onMenu: OpenMenu }) {
 	const color = rarityColor(pal.rarity)
@@ -248,69 +240,100 @@ const PalCard = memo(function PalCard({ pal, wanted, caught, onMenu }: { pal: Pa
 		onMenu(pal.id, e.clientX, e.clientY)
 	}
 	return (
-		<Box
-			onClick={open}
-			onContextMenu={open}
-			sx={{
-				position: 'relative',
-				borderRadius: 2,
-				border: 1,
-				borderColor: 'divider',
-				overflow: 'hidden',
-				cursor: 'pointer',
-				bgcolor: 'rgba(255,255,255,0.03)',
-				transition: 'border-color 120ms, transform 120ms',
-				'&:hover': { borderColor: `${color}aa`, transform: 'translateY(-1px)' }
-			}}
-		>
-			<Box sx={{ position: 'relative', height: 96, background: `radial-gradient(circle at 50% 60%, ${color}38, transparent 68%)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-				<img src={asset(`pals/${pal.id}.png`)} alt="" width={88} height={88} loading="lazy" style={{ objectFit: 'contain' }} />
-				<Box sx={{ position: 'absolute', left: 6, top: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
-					<Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ lineHeight: 1.2 }}>
-						{pal.dex}
-					</Typography>
+		<div className="card" onClick={open} onContextMenu={open} style={{ ['--rarity' as string]: color }}>
+			<div className="art">
+				<img src={asset(`pals/${pal.id}.png`)} alt="" width={88} height={88} loading="lazy" />
+				<div className="left">
+					<span className="dex">{pal.dex}</span>
 					<Elements palId={pal.id} size={18} />
-				</Box>
-				<Box sx={{ position: 'absolute', right: 6, top: 5, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+				</div>
+				<div className="right">
 					{wanted && <StarIcon titleAccess="In Target Pals" sx={{ fontSize: 16, color: rarityColor(20) }} />}
-					<Box
-						title={`Caught ${Math.min(caught, CATCH_TARGET)} of ${CATCH_TARGET}`}
-						sx={{ px: 0.6, borderRadius: 1, fontSize: 11, fontWeight: 800, lineHeight: '16px', color: done ? 'success.main' : caught ? 'text.primary' : 'text.disabled', bgcolor: done ? 'rgba(111,207,138,0.14)' : 'rgba(0,0,0,0.35)' }}
-					>
+					<span className={`caught${done ? ' done' : caught ? '' : ' none'}`} title={`Caught ${Math.min(caught, CATCH_TARGET)} of ${CATCH_TARGET}`}>
 						{done ? <CheckIcon sx={{ fontSize: 13, verticalAlign: 'middle' }} /> : `${caught}/${CATCH_TARGET}`}
-					</Box>
-				</Box>
-			</Box>
-			<Box sx={{ px: 1, pb: 1, pt: 0.5 }}>
-				<Typography variant="body2" fontWeight={700} noWrap sx={{ color: pal.legendary ? rarityColor(20) : undefined }}>
-					{pal.name}
-				</Typography>
-				<Box sx={{ display: 'flex', gap: 0.5, mt: 0.5 }}>
-					<StatBadge label="HP" value={pal.stats.hp} color="#6fcf8a" />
-					<StatBadge label="ATK" value={pal.stats.attack} color="#f08a5c" />
-					<StatBadge label="DEF" value={pal.stats.defense} color="#5cc8f0" />
-				</Box>
-				<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 0.75, minHeight: 20 }}>
+					</span>
+				</div>
+			</div>
+			<div className="info">
+				<div className={`title${pal.legendary ? ' legendary' : ''}`}>{pal.name}</div>
+				<div className="stats">
+					<span className="stat hp">
+						<b>HP</b>
+						{pal.stats.hp}
+					</span>
+					<span className="stat atk">
+						<b>ATK</b>
+						{pal.stats.attack}
+					</span>
+					<span className="stat def">
+						<b>DEF</b>
+						{pal.stats.defense}
+					</span>
+				</div>
+				<div className="works">
 					{WORK_KINDS.filter((k) => pal.work[k] > 0).map((k) => (
-						<Box key={k} title={`${WORK_INFO[k].label} Lv ${pal.work[k]}`} sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+						<span key={k} title={`${WORK_INFO[k].label} Lv ${pal.work[k]}`}>
 							<WorkIcon kind={k} size={18} />
-							<Typography variant="caption" fontWeight={800}>
-								{pal.work[k]}
-							</Typography>
-						</Box>
+							{pal.work[k]}
+						</span>
 					))}
-				</Box>
-			</Box>
-		</Box>
+				</div>
+			</div>
+		</div>
 	)
 })
+
+/** Shared look for the cards */
+const gridSx = {
+	flex: 1,
+	minHeight: 0,
+	overflowY: 'auto',
+	p: 1.5,
+	'& .cards': { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 1.25 },
+	'& .card': {
+		position: 'relative',
+		borderRadius: 2,
+		border: '1px solid',
+		borderColor: 'divider',
+		overflow: 'hidden',
+		cursor: 'pointer',
+		bgcolor: 'rgba(255,255,255,0.03)',
+		transition: 'border-color 120ms, transform 120ms'
+	},
+	'& .card:hover': { borderColor: 'var(--rarity)', transform: 'translateY(-1px)' },
+	'& .art': {
+		position: 'relative',
+		height: 96,
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		background: 'radial-gradient(circle at 50% 60%, color-mix(in srgb, var(--rarity) 22%, transparent), transparent 68%)'
+	},
+	'& .art > img': { objectFit: 'contain' },
+	'& .left': { position: 'absolute', left: 6, top: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 },
+	'& .dex': { fontSize: 12, fontWeight: 700, color: 'text.secondary', lineHeight: 1.2 },
+	'& .right': { position: 'absolute', right: 6, top: 5, display: 'flex', alignItems: 'center', gap: 0.5 },
+	'& .caught': { px: 0.6, borderRadius: 1, fontSize: 11, fontWeight: 800, lineHeight: '16px', bgcolor: 'rgba(0,0,0,0.35)' },
+	'& .caught.none': { color: 'text.disabled' },
+	'& .caught.done': { color: 'success.main', bgcolor: 'rgba(111,207,138,0.14)' },
+	'& .info': { px: 1, pb: 1, pt: 0.5 },
+	'& .title': { fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+	'& .title.legendary': { color: rarityColor(20) },
+	'& .stats': { display: 'flex', gap: 0.5, mt: 0.5 },
+	'& .stat': { display: 'flex', borderRadius: 0.75, overflow: 'hidden', fontSize: 10, fontWeight: 800, lineHeight: '16px', bgcolor: 'rgba(255,255,255,0.08)', pr: 0.5 },
+	'& .stat b': { px: 0.5, mr: 0.5, color: '#0e1014' },
+	'& .stat.hp b': { bgcolor: '#6fcf8a' },
+	'& .stat.atk b': { bgcolor: '#f08a5c' },
+	'& .stat.def b': { bgcolor: '#5cc8f0' },
+	'& .works': { display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 0.75, minHeight: 20 },
+	'& .works span': { display: 'flex', alignItems: 'center', gap: 0.25, fontSize: 12, fontWeight: 800 }
+} as const
 
 // ---- Right-click menu ----
 
 function PalMenu({ menu, onClose }: { menu: { palId: string; x: number; y: number } | null; onClose: () => void }) {
 	const isWanted = useStoreSelect((s) => !!menu && s.wanted.some((w) => w.palId === menu.palId))
-	const pref = useStoreSelect((s) => (menu ? s.settings.catchPrefs[menu.palId] : undefined))
-	const { addWantedMany, removeWantedPal, setCatchPref } = useActions()
+	const { addWantedMany, removeWantedPal } = useActions()
 	const { openPalCombos, openPalOnMap } = useNavigation()
 	const pal = menu ? pals.find((p) => p.id === menu.palId) : undefined
 	const run = (fn: () => void) => () => {
@@ -348,17 +371,6 @@ function PalMenu({ menu, onClose }: { menu: { palId: string; x: number; y: numbe
 					Show on Map
 				</MenuItem>
 			)}
-			{pal && spawnRegions(pal.id).length > 0 && [
-				<Divider key="d" />,
-				<Tooltip key="h" title="How easy this pal is for you to find. Plans favor easy catches and never suggest Never." placement="right">
-					<ListSubheader sx={{ lineHeight: '28px', bgcolor: 'transparent' }}>Catching</ListSubheader>
-				</Tooltip>,
-				...(['default', 'easy', 'hard', 'never'] as const).map((p) => (
-					<MenuItem key={p} selected={(pref ?? 'default') === p} onClick={run(() => setCatchPref(pal.id, p === 'default' ? null : p))} sx={{ pl: 2 }}>
-						{PREF_LABEL[p]}
-					</MenuItem>
-				))
-			]}
 		</Menu>
 	)
 }
@@ -374,6 +386,8 @@ export function PaldeckPage() {
 	const { openPalOnMap } = useNavigation()
 	const { captures } = useBridge()
 	const [view, setView] = useState<View>(initialView)
+	// Views mount the first time they're shown and then stay, hidden, so switching back is instant
+	const [opened, setOpened] = useState<Set<View>>(() => new Set([view]))
 	const [search, setSearch] = useState('')
 	const [element, setElement] = useState('any')
 	const [work, setWork] = useState<WorkKind | 'any'>('any')
@@ -424,6 +438,12 @@ export function PaldeckPage() {
 
 	const chooseView = (v: View) => {
 		setView(v)
+		if (!opened.has(v)) {
+			// Mount the new view with its first rows, then fill in the rest in the background
+			setRowLimit(50)
+			setOpened((o) => new Set([...o, v]))
+			startTransition(() => setRowLimit(Infinity))
+		}
 		try {
 			localStorage.setItem(VIEW_KEY, v)
 		} catch {
@@ -563,28 +583,29 @@ export function PaldeckPage() {
 				</Box>
 			</Box>
 
-			{view === 'grid' ? (
-				<Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', p: 1.5 }}>
-					<Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 1.25 }}>
+			{opened.has('grid') && (
+				<Box sx={{ ...gridSx, display: view === 'grid' ? 'block' : 'none' }}>
+					<div className="cards">
 						{shown.map((p) => (
 							<PalCard key={p.id} pal={p} wanted={wantedIds.has(p.id)} caught={catches[p.id] ?? 0} onMenu={openMenu} />
 						))}
-					</Box>
+					</div>
 				</Box>
-			) : (
-				<TableContainer sx={{ flex: 1, minHeight: 0 }}>
+			)}
+			{opened.has('list') && (
+				<TableContainer sx={{ ...listSx, display: view === 'list' ? 'block' : 'none' }}>
 					<Table size="small" stickyHeader>
 						<TableHead>
 							<TableRow>
-								<TableCell sx={{ width: 220 }}>
+								<TableCell sx={{ width: 240 }}>
 									<TableSortLabel active={sortKey === 'dex' || sortKey === 'name'} direction={sortDesc ? 'desc' : 'asc'} onClick={() => sortBy(sortKey === 'dex' ? 'name' : 'dex')}>
 										{sortKey === 'name' ? 'Pal (by Name)' : 'Pal (by Number)'}
 									</TableSortLabel>
 								</TableCell>
-								<TableCell sx={{ width: 70 }}>Type</TableCell>
+								<TableCell sx={{ width: 76 }}>Type</TableCell>
 								<TableCell sx={{ width: 120 }}>Caught</TableCell>
-								{WORK_KINDS.map((kind) => (
-									<TableCell key={kind} align="center" sx={{ px: 0.5, width: 40 }}>
+								{WORK_KINDS.map((kind, i) => (
+									<TableCell key={kind} align="center" className={`work${i === 0 ? ' first' : ''}${i === WORK_KINDS.length - 1 ? ' last' : ''}`} sx={{ width: 40 }}>
 										<Tooltip title={WORK_INFO[kind].label}>
 											<TableSortLabel
 												active={sortKey === kind}

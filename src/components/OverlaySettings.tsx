@@ -3,9 +3,6 @@ import { Alert, Box, Button, MenuItem, Paper, Switch, TextField, Typography } fr
 import EditIcon from '@mui/icons-material/OpenWith'
 import { useBridge } from '../state/bridge'
 import { COMPASS_RANGES, defaultLayout, useActions, useLoaded, useStoreSelect, type OverlayLayout } from '../state/store'
-import { worldToPixel } from '../data/map'
-import { asset } from './MapPage'
-import { Compass, COMPASS_HEIGHT, MINIMAP_MARGIN, PREVIEW_LIVE } from './Overlay'
 
 interface DisplayInfo {
 	id: number
@@ -52,68 +49,6 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 const selectSx = { width: 180 }
-
-/** Your screen in miniature: the real compass and a minimap where the overlay puts them */
-function LayoutPreview({ display }: { display: DisplayInfo | undefined }) {
-	const overlay = useStoreSelect((s) => s.overlay)
-	const map = useStoreSelect((s) => s.map)
-	const w = display?.width ?? 1920
-	const h = display?.height ?? 1080
-	const scale = Math.min(560 / w, 320 / h)
-	const minimapLeft = overlay.minimapX == null ? w - overlay.size - MINIMAP_MARGIN : overlay.minimapX * w
-	const minimapTop = overlay.minimapY == null ? MINIMAP_MARGIN + (overlay.compass ? COMPASS_HEIGHT + 12 : 0) : overlay.minimapY * h
-	// The minimap shows the map tile around the sample position, at the chosen zoom
-	const here = worldToPixel(PREVIEW_LIVE.x, PREVIEW_LIVE.y)
-	const tileScale = 2 ** (overlay.zoom - 4)
-	const tileX = Math.floor(here.px / 512)
-	const tileY = Math.floor(here.py / 512)
-	return (
-		<Box sx={{ width: w * scale, height: h * scale, borderRadius: 1, overflow: 'hidden', border: 1, borderColor: 'divider', position: 'relative' }}>
-			<Box
-				sx={{
-					position: 'absolute',
-					left: 0,
-					top: 0,
-					width: w,
-					height: h,
-					transform: `scale(${scale})`,
-					transformOrigin: 'top left',
-					// A stand-in for the game behind the overlay
-					background: 'linear-gradient(180deg, #4d6a8a 0%, #7f98ad 38%, #5f7a55 40%, #3d5236 100%)'
-				}}
-			>
-				{overlay.compass && (
-					<Box sx={{ position: 'absolute', left: overlay.compassX * w - overlay.compassWidth / 2, top: overlay.compassY * h }}>
-						<Compass pose={PREVIEW_LIVE} layerIds={map.layers} range={overlay.range} width={overlay.compassWidth} prefs={overlay} />
-					</Box>
-				)}
-				{overlay.minimap && (
-					<Box
-						sx={{
-							position: 'absolute',
-							left: minimapLeft,
-							top: minimapTop,
-							width: overlay.size,
-							height: overlay.size,
-							borderRadius: '50%',
-							border: '3px solid rgba(232,236,242,0.85)',
-							boxShadow: '0 4px 18px rgba(0,0,0,0.6)',
-							backgroundColor: '#0e1014',
-							backgroundImage: `url(${asset(`map/main/z4x${tileX}y${tileY}.webp`)})`,
-							backgroundSize: `${512 * tileScale}px`,
-							backgroundPosition: `${overlay.size / 2 - (here.px - tileX * 512) * tileScale}px ${overlay.size / 2 - (here.py - tileY * 512) * tileScale}px`,
-							backgroundRepeat: 'no-repeat'
-						}}
-					>
-						<svg viewBox="0 0 34 34" width={34} height={34} style={{ position: 'absolute', left: overlay.size / 2 - 17, top: overlay.size / 2 - 17 }}>
-							<path d="M17 4 L26 27 L17 22 L8 27 Z" fill="#5cc8f0" stroke="#ffffff" strokeWidth={1.5} strokeLinejoin="round" />
-						</svg>
-					</Box>
-				)}
-			</Box>
-		</Box>
-	)
-}
 
 export function OverlayPage() {
 	const overlay = useStoreSelect((s) => s.overlay)
@@ -238,8 +173,7 @@ export function OverlayPage() {
 					<Typography variant="subtitle2" sx={{ mb: 1 }}>
 						Layout
 					</Typography>
-					<LayoutPreview display={display} />
-					<Box sx={{ display: 'flex', gap: 1, mt: 1.5 }}>
+					<Box sx={{ display: 'flex', gap: 1 }}>
 						<Button variant="contained" startIcon={<EditIcon />} onClick={() => window.palOverlay?.edit(!editing)}>
 							{editing ? 'Finish Editing' : 'Edit Layout'}
 						</Button>

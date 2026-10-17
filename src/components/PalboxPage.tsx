@@ -3,7 +3,6 @@ import {
 	Badge,
 	Box,
 	Button,
-	ButtonBase,
 	Chip,
 	Dialog,
 	DialogActions,
@@ -53,7 +52,7 @@ import {
 } from '../state/palbox'
 import { useActions, useStoreSelect } from '../state/store'
 import { rarityColor } from '../theme'
-import { GenderIcon, PalAvatar, PassiveList, passiveColor, WORK_INFO, WorkIcon } from './bits'
+import { GenderIcon, PalAvatar, passiveColor, WORK_INFO, WorkIcon } from './bits'
 import { PassivePicker } from './pickers'
 import { LazyItem, LazyScroll } from './lazy'
 
@@ -69,7 +68,7 @@ function where(p: BoxPal): string {
 	return p.live ? describeLocation(p.where) : `Last Seen: ${describeLocation(p.where)}`
 }
 
-/** One party or Palbox slot; click to see it in the panel beside the box */
+/** One party or Palbox slot; click to see it in the panel beside the box. Plain elements, styled by boxSx */
 const Slot = memo(function Slot({
 	pal,
 	dim,
@@ -83,45 +82,136 @@ const Slot = memo(function Slot({
 	selected: boolean
 	onSelect: (pal: BoxPal) => void
 }) {
-	const base = {
+	if (!pal) return <div className="slot" />
+	const classes = [
+		'slot',
+		'pal',
+		dim && 'dim',
+		// Seen this session but not in My Pals yet
+		!pal.added && 'new',
+		pal.alpha && 'alpha',
+		lucky(pal) && 'lucky',
+		selected && 'selected',
+		flash && 'flash'
+	]
+	const color = rarityColor(getPal(pal.palId).rarity)
+	return (
+		<button className={classes.filter(Boolean).join(' ')} title={`${displayName(pal)}${pal.level != null ? `, Lv ${pal.level}` : ''}`} onClick={() => onSelect(pal)}>
+			<img src={asset(`pals/${pal.palId}.png`)} alt="" width={52} height={52} style={{ borderColor: `${color}99`, background: `${color}1f` }} />
+			{pal.level != null && <span className="lv">Lv {pal.level}</span>}
+			<span className="gender">
+				<GenderIcon gender={pal.gender} size={14} />
+			</span>
+			{(pal.alpha || lucky(pal)) && (
+				<span className="marks">
+					{pal.alpha && <CrownIcon sx={{ fontSize: 14, color: '#f07a7a' }} />}
+					{lucky(pal) && <CloverIcon sx={{ fontSize: 14, color: '#f0c35c' }} />}
+				</span>
+			)}
+		</button>
+	)
+})
+
+/** The party and page slots' look, set once for all of them */
+const boxSx = {
+	'& .slot': {
+		all: 'unset',
+		boxSizing: 'border-box',
 		width: CELL,
 		height: CELL,
 		borderRadius: 1.5,
-		border: 1,
+		border: '1px solid',
 		borderColor: 'divider',
 		bgcolor: 'rgba(255,255,255,0.03)',
-		position: 'relative' as const,
+		position: 'relative',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
 		transition: 'opacity 150ms, box-shadow 200ms'
+	},
+	'& .slot.pal': { cursor: 'pointer', borderColor: 'rgba(255,255,255,0.16)' },
+	'& .slot.pal:hover': { bgcolor: 'rgba(255,255,255,0.07)' },
+	'& .slot img': { borderRadius: '50%', border: '1.5px solid' },
+	'& .slot.dim': { opacity: 0.22 },
+	'& .slot.new': { borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.35)' },
+	'& .slot.lucky': { borderColor: '#f0c35c' },
+	'& .slot.alpha': { borderColor: '#f07a7a' },
+	'& .slot.selected': { borderColor: 'primary.main', bgcolor: 'rgba(92,200,240,0.1)', boxShadow: (t: { palette: { primary: { main: string } } }) => `0 0 0 1px ${t.palette.primary.main}` },
+	'& .slot.flash': { borderColor: 'primary.main', boxShadow: (t: { palette: { primary: { main: string } } }) => `0 0 0 2px ${t.palette.primary.main}, 0 0 18px ${t.palette.primary.main}` },
+	'& .slot .lv': { position: 'absolute', left: 3, bottom: 1, fontSize: 11, fontWeight: 800, textShadow: '0 1px 2px #000' },
+	'& .slot .gender': { position: 'absolute', right: 1, top: 1, display: 'flex' },
+	'& .slot .marks': { position: 'absolute', left: 2, top: 1, display: 'flex' },
+	'& .pages': { display: 'grid', gridTemplateColumns: 'repeat(16, 1fr)', gap: 0.5, mt: 1.5, width: PAGE_COLUMNS * CELL + (PAGE_COLUMNS - 1) * GAP },
+	'& .pages button': {
+		all: 'unset',
+		boxSizing: 'border-box',
+		position: 'relative',
+		height: 24,
+		borderRadius: 0.75,
+		fontSize: 11,
+		fontWeight: 700,
+		textAlign: 'center',
+		lineHeight: '22px',
+		cursor: 'pointer',
+		border: '1px solid',
+		borderColor: 'divider',
+		color: 'text.disabled'
+	},
+	'& .pages button.filled': { bgcolor: 'rgba(255,255,255,0.06)', color: 'text.primary' },
+	'& .pages button.match': { color: 'primary.main' },
+	'& .pages button.faded': { opacity: 0.45 },
+	'& .pages button.stale': { opacity: 0.5 },
+	'& .pages button.current': { borderColor: 'primary.main', bgcolor: 'action.selected' },
+	'& .pages .count': {
+		position: 'absolute',
+		top: -6,
+		right: -5,
+		minWidth: 14,
+		height: 14,
+		px: 0.4,
+		borderRadius: 7,
+		bgcolor: 'primary.main',
+		color: 'primary.contrastText',
+		fontSize: 9,
+		lineHeight: '14px',
+		zIndex: 1
 	}
-	if (!pal) return <Box sx={base} />
-	const lit = flash || selected
+} as const
+
+/** Every page at a glance: which have pals, which are out of date, where the matches are */
+const PageStrip = memo(function PageStrip({
+	filled,
+	stale,
+	counts,
+	page,
+	searching,
+	onPick
+}: {
+	filled: boolean[]
+	stale: Set<number>
+	counts: number[]
+	page: number
+	searching: boolean
+	onPick: (page: number) => void
+}) {
 	return (
-		<Tooltip title={`${displayName(pal)}${pal.level != null ? `, Lv ${pal.level}` : ''}`} placement="top" enterDelay={500}>
-			<ButtonBase
-				onClick={() => onSelect(pal)}
-				sx={{
-					...base,
-					opacity: dim ? 0.22 : 1,
-					// Seen this session but not in My Pals yet
-					borderStyle: pal.added ? 'solid' : 'dashed',
-					borderColor: lit ? 'primary.main' : pal.alpha ? '#f07a7a' : lucky(pal) ? '#f0c35c' : pal.added ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.35)',
-					bgcolor: selected ? 'rgba(92,200,240,0.1)' : base.bgcolor,
-					boxShadow: flash ? (t) => `0 0 0 2px ${t.palette.primary.main}, 0 0 18px ${t.palette.primary.main}` : selected ? (t) => `0 0 0 1px ${t.palette.primary.main}` : 'none'
-				}}
-			>
-				<PalAvatar palId={pal.palId} size={52} />
-				{pal.level != null && (
-					<Box sx={{ position: 'absolute', left: 3, bottom: 1, fontSize: 11, fontWeight: 800, textShadow: '0 1px 2px #000' }}>Lv {pal.level}</Box>
-				)}
-				<Box sx={{ position: 'absolute', right: 1, top: 1, display: 'flex' }}>
-					<GenderIcon gender={pal.gender} size={14} />
-				</Box>
-				<Box sx={{ position: 'absolute', left: 2, top: 1, display: 'flex' }}>
-					{pal.alpha && <CrownIcon sx={{ fontSize: 14, color: '#f07a7a' }} />}
-					{lucky(pal) && <CloverIcon sx={{ fontSize: 14, color: '#f0c35c' }} />}
-				</Box>
-			</ButtonBase>
-		</Tooltip>
+		<div className="pages">
+			{filled.map((has, i) => {
+				const count = counts[i]
+				const classes = [has && 'filled', count > 0 && 'match', stale.has(i) ? 'stale' : searching && !count && 'faded', i === page && 'current']
+				return (
+					<button
+						key={i}
+						className={classes.filter(Boolean).join(' ')}
+						title={`Page ${i + 1}${stale.has(i) ? ', out of date' : ''}${count ? `, ${count} match${count > 1 ? 'es' : ''}` : ''}`}
+						onClick={() => onPick(i)}
+					>
+						{i + 1}
+						{count > 0 && <span className="count">{count}</span>}
+					</button>
+				)
+			})}
+		</div>
 	)
 })
 
@@ -167,7 +257,7 @@ function StatRow({ icon, label, value, iv, soul }: { icon: React.ReactNode; labe
 	)
 }
 
-function PalDetail({ pal }: { pal: BoxPal | null }) {
+const PalDetail = memo(function PalDetail({ pal }: { pal: BoxPal | null }) {
 	if (!pal) {
 		return (
 			<Typography variant="body2" color="text.secondary" sx={{ p: 3, textAlign: 'center' }}>
@@ -297,7 +387,7 @@ function PalDetail({ pal }: { pal: BoxPal | null }) {
 			</Typography>
 		</Box>
 	)
-}
+})
 
 // ---- Search ----
 
@@ -356,43 +446,65 @@ function Filters({ filter, setFilter }: { filter: BoxFilter; setFilter: (f: BoxF
 	)
 }
 
-/** A pal in the List view; clicking it shows it in the grid */
+/** A pal in the List view; clicking it shows it in the grid. Plain elements, styled once by the list */
 const ResultRow = memo(function ResultRow({ pal, onJump }: { pal: BoxPal; onJump: (pal: BoxPal) => void }) {
 	const jumpable = pal.where?.box === 'party' || pal.where?.box === 'palbox'
+	const color = rarityColor(getPal(pal.palId).rarity)
 	return (
-		<ButtonBase
-			disabled={!jumpable}
-			onClick={() => onJump(pal)}
-			sx={{ display: 'flex', width: '100%', justifyContent: 'flex-start', textAlign: 'left', gap: 1.25, px: 1.5, py: 0.75, borderBottom: 1, borderColor: 'divider', '&:hover': { bgcolor: 'action.hover' } }}
-		>
-			<PalAvatar palId={pal.palId} size={34} />
-			<Box sx={{ width: 260, minWidth: 0 }}>
-				<Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-					<Typography variant="body2" fontWeight={600} noWrap>
-						{displayName(pal)}
-					</Typography>
+		<button className="row" disabled={!jumpable} onClick={() => onJump(pal)}>
+			<img className="portrait" src={asset(`pals/${pal.palId}.png`)} alt="" width={34} height={34} loading="lazy" style={{ borderColor: `${color}99`, background: `${color}1f` }} />
+			<span className="who">
+				<span className="name">
+					{displayName(pal)}
 					<GenderIcon gender={pal.gender} size={15} />
-					{pal.level != null && (
-						<Typography variant="caption" color="text.secondary">
-							Lv {pal.level}
-						</Typography>
-					)}
-				</Box>
-				<Typography variant="caption" color={pal.live ? 'text.secondary' : 'warning.main'} noWrap component="div">
-					{where(pal)}
-				</Typography>
-			</Box>
-			{pal.stats && (
-				<Typography variant="caption" color="text.secondary" sx={{ width: 150, fontVariantNumeric: 'tabular-nums' }}>
-					IVs {pal.stats.ivs.join(' / ')}
-				</Typography>
-			)}
-			<Box sx={{ flex: 1, minWidth: 0 }}>
-				<PassiveList passives={pal.passives} />
-			</Box>
-		</ButtonBase>
+					{pal.level != null && <span className="sub">Lv {pal.level}</span>}
+				</span>
+				<span className={pal.live ? 'sub' : 'sub stale'}>{where(pal)}</span>
+			</span>
+			<span className="ivs">{pal.stats ? `IVs ${pal.stats.ivs.join(' / ')}` : ''}</span>
+			<span className="passives">
+				{pal.passives.map((name) => {
+					const p = getPassive(name)
+					const c = passiveColor(p?.rank ?? 0)
+					return (
+						<span key={name} title={p?.description || name} style={{ color: c, borderColor: `${c}66` }}>
+							{name}
+						</span>
+					)
+				})}
+			</span>
+		</button>
 	)
 })
+
+const listSx = {
+	flex: 1,
+	minHeight: 0,
+	flexDirection: 'column',
+	'& .row': {
+		all: 'unset',
+		boxSizing: 'border-box',
+		display: 'flex',
+		alignItems: 'center',
+		gap: 1.5,
+		width: '100%',
+		px: 1.5,
+		py: 0.75,
+		borderBottom: '1px solid',
+		borderColor: 'divider',
+		cursor: 'pointer'
+	},
+	'& .row:hover': { bgcolor: 'action.hover' },
+	'& .row:disabled': { cursor: 'default' },
+	'& .portrait': { borderRadius: '50%', border: '1.5px solid', flexShrink: 0 },
+	'& .who': { width: 260, minWidth: 0, display: 'flex', flexDirection: 'column' },
+	'& .name': { display: 'flex', alignItems: 'center', gap: 0.5, fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden' },
+	'& .sub': { fontSize: 12, fontWeight: 400, color: 'text.secondary', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+	'& .sub.stale': { color: 'warning.main' },
+	'& .ivs': { width: 150, fontSize: 12, color: 'text.secondary', fontVariantNumeric: 'tabular-nums' },
+	'& .passives': { flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', gap: 0.5 },
+	'& .passives span': { fontSize: 12, px: 1, lineHeight: '22px', borderRadius: 11, border: '1px solid' }
+} as const
 
 function RecentlyRemoved() {
 	const removed = useStoreSelect((s) => s.removed)
@@ -454,6 +566,12 @@ export function PalboxPage() {
 	const { addFromGame, removeOwnedMany } = useActions()
 	const gamePals = useGamePals()
 	const [view, setView] = useState<View>('grid')
+	// The list mounts the first time it's shown and then stays, hidden, so switching back is instant
+	const [opened, setOpened] = useState<Set<View>>(() => new Set(['grid']))
+	const showView = useCallback((v: View) => {
+		setView(v)
+		setOpened((o) => (o.has(v) ? o : new Set([...o, v])))
+	}, [])
 	const [page, setPage] = useState(0)
 	const [filter, setFilter] = useState<BoxFilter>(emptyFilter)
 	const [selectedKey, setSelectedKey] = useState<string | null>(null)
@@ -479,6 +597,7 @@ export function PalboxPage() {
 		if (matchKeys) for (const p of matches) if (p.where?.box === 'palbox') counts[pageOf(p.where.slot)]++
 		return counts
 	}, [matches, matchKeys])
+	const filled = useMemo(() => box.pages.map((slots) => slots.some(Boolean)), [box])
 	const partyMatches = matchKeys ? box.party.filter((p) => p && matchKeys.has(p.key)).length : 0
 
 	const select = useCallback((pal: BoxPal) => setSelectedKey(pal.key), [])
@@ -499,7 +618,7 @@ export function PalboxPage() {
 	return (
 		<Paper variant="outlined" sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
 			<Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
-				<ToggleButtonGroup size="small" exclusive value={view} onChange={(_, v: View | null) => v && setView(v)}>
+				<ToggleButtonGroup size="small" exclusive value={view} onChange={(_, v: View | null) => v && showView(v)}>
 					<ToggleButton value="grid" sx={{ gap: 0.5 }}>
 						<GridIcon fontSize="small" />
 						Grid
@@ -530,8 +649,10 @@ export function PalboxPage() {
 				<Typography variant="body2" color="text.secondary" sx={{ p: 4, textAlign: 'center' }}>
 					Your Palbox shows up here once the game link is connected. Open your Palbox pages in the game to sync them.
 				</Typography>
-			) : view === 'list' ? (
-				<Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+			) : (
+				<>
+					{opened.has('list') && (
+				<Box sx={{ ...listSx, display: view === 'list' ? 'flex' : 'none' }}>
 					<Box sx={{ px: 1.5, py: 1, borderBottom: 1, borderColor: 'divider' }}>
 						<Typography variant="subtitle2">
 							{searching ? `${matches.length} Match${matches.length === 1 ? '' : 'es'}` : `All Synced Pals (${matches.length})`}
@@ -551,8 +672,8 @@ export function PalboxPage() {
 					</LazyScroll>
 					<RecentlyRemoved />
 				</Box>
-			) : (
-				<Box sx={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'auto auto minmax(360px, 504px)', justifyContent: 'center', gap: 3, p: 2 }}>
+					)}
+				<Box sx={{ ...boxSx, flex: 1, minHeight: 0, display: view === 'grid' ? 'grid' : 'none', gridTemplateColumns: 'auto auto minmax(360px, 504px)', justifyContent: 'center', gap: 3, p: 2 }}>
 					<Box>
 						<Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, height: 34, mb: 1 }}>
 							<Typography variant="subtitle2">Party</Typography>
@@ -598,49 +719,15 @@ export function PalboxPage() {
 								</Box>
 							)}
 						</Box>
-						{/* Every page at a glance: which have pals, which are out of date, where the matches are */}
-						<Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(16, 1fr)', gap: 0.5, mt: 1.5, width: PAGE_COLUMNS * CELL + (PAGE_COLUMNS - 1) * GAP }}>
-							{box.pages.map((slots, i) => {
-								const filled = slots.some(Boolean)
-								const count = pageMatches[i]
-								return (
-									<Tooltip key={i} title={`Page ${i + 1}${box.stale.has(i) ? ', out of date' : ''}${count ? `, ${count} match${count > 1 ? 'es' : ''}` : ''}`}>
-										<ButtonBase
-											onClick={() => setPage(i)}
-											sx={{
-												position: 'relative',
-												height: 24,
-												borderRadius: 0.75,
-												fontSize: 11,
-												fontWeight: 700,
-												border: 1,
-												borderColor: i === page ? 'primary.main' : 'divider',
-												bgcolor: i === page ? 'action.selected' : filled ? 'rgba(255,255,255,0.06)' : 'transparent',
-												color: count ? 'primary.main' : filled ? 'text.primary' : 'text.disabled',
-												opacity: box.stale.has(i) ? 0.5 : searching && !count ? 0.45 : 1,
-												fontStyle: box.stale.has(i) ? 'italic' : 'normal'
-											}}
-										>
-											{i + 1}
-											{count > 0 && (
-												<Box
-													component="span"
-													sx={{ position: 'absolute', top: -6, right: -5, minWidth: 14, height: 14, px: 0.4, borderRadius: 7, bgcolor: 'primary.main', color: 'primary.contrastText', fontSize: 9, lineHeight: '14px', fontStyle: 'normal', zIndex: 1 }}
-												>
-													{count}
-												</Box>
-											)}
-										</ButtonBase>
-									</Tooltip>
-								)
-							})}
-						</Box>
+						<PageStrip filled={filled} stale={box.stale} counts={pageMatches} page={page} searching={searching} onPick={setPage} />
 					</Box>
 
 					<Paper variant="outlined" sx={{ minHeight: 0, overflowY: 'auto' }}>
 						<PalDetail pal={selected} />
 					</Paper>
 				</Box>
+				</>
+
 			)}
 
 			<Dialog open={confirmRemove} onClose={() => setConfirmRemove(false)}>
