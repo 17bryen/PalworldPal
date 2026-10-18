@@ -658,7 +658,8 @@ export function PalboxPage() {
 							{searching ? `${matches.length} Match${matches.length === 1 ? '' : 'es'}` : `All Synced Pals (${matches.length})`}
 						</Typography>
 					</Box>
-					<LazyScroll>
+					{/* Rebuilt for each search, so rows can never linger from an earlier one */}
+					<LazyScroll key={JSON.stringify(deferred)}>
 						{matches.map((p) => (
 							<LazyItem key={p.key} estimate={52}>
 								<ResultRow pal={p} onJump={jump} />

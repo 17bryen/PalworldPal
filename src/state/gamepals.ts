@@ -65,6 +65,7 @@ export interface GamePal {
 /** Your pals from the mod's list, skipping humans and anything this app doesn't know */
 export function normalizeGamePals(raw: RawGamePal[]): GamePal[] {
 	const out: GamePal[] = []
+	const keys = new Set<string>()
 	const seen = new Map<string, number>()
 	for (const r of raw) {
 		const palId = palIdFromGame(r.c)
@@ -90,7 +91,11 @@ export function normalizeGamePals(raw: RawGamePal[]): GamePal[] {
 		const name = typeof r.n === 'string' && r.n.trim() ? r.n.trim() : undefined
 		const contentKey = n > 1 ? `${base}#${n}` : base
 		const id = typeof r.id === 'string' && /^[0-9a-f]{32}$/.test(r.id) && r.id !== NO_ID ? r.id : undefined
-		out.push({ key: id ? `id:${id}` : contentKey, contentKey, palId, gender, passives, where, stats, ivs, alpha: /^boss_/i.test(r.c), name })
+		const key = id ? `id:${id}` : contentKey
+		// The game can briefly hold two copies of a pal (while it's being moved, say); keep the first
+		if (keys.has(key)) continue
+		keys.add(key)
+		out.push({ key, contentKey, palId, gender, passives, where, stats, ivs, alpha: /^boss_/i.test(r.c), name })
 	}
 	return out
 }

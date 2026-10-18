@@ -65,6 +65,7 @@ export function buildBox(owned: OwnedPal[], gamePals: GamePal[], added: Set<stri
 	const livePages = new Set<number>()
 	let liveParty = false
 	for (const g of gamePals) {
+		if (liveKeys.has(g.key)) continue
 		liveKeys.add(g.key)
 		if (g.where?.box === 'palbox') livePages.add(pageOf(g.where.slot))
 		if (g.where?.box === 'party') liveParty = true
@@ -73,8 +74,10 @@ export function buildBox(owned: OwnedPal[], gamePals: GamePal[], added: Set<stri
 	}
 
 	const stale = new Set<number>()
+	const savedKeys = new Set<string>()
 	for (const o of owned) {
-		if (!o.game || liveKeys.has(o.game)) continue
+		if (!o.game || liveKeys.has(o.game) || savedKeys.has(o.game)) continue
+		savedKeys.add(o.game)
 		const w = o.seen
 		// Moved on: the game has shown its page (or the party) this session without it
 		if (w?.box === 'palbox' && livePages.has(pageOf(w.slot))) continue
@@ -85,7 +88,9 @@ export function buildBox(owned: OwnedPal[], gamePals: GamePal[], added: Set<stri
 		} else outside.push(p)
 	}
 
-	const all = [...party, ...pages.flat(), ...outside].filter((p): p is BoxPal => !!p)
+	// Each pal once: lists are keyed by it, and a repeated key leaves stale rows on screen
+	const listed = new Set<string>()
+	const all = [...party, ...pages.flat(), ...outside].filter((p): p is BoxPal => !!p && !listed.has(p.key) && !!listed.add(p.key))
 	return { party, pages, stale, outside, all }
 }
 

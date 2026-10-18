@@ -58,6 +58,12 @@ describe('palbox layout', () => {
 		expect(view.stale.size).toBe(0)
 	})
 
+	it('lists each pal once, even when the game or My Pals repeats one', () => {
+		const pal = game('a', 'SheepBall', 'palbox', 3)
+		const view = buildBox([saved('b', 'Anubis', 'palbox', 40), saved('b', 'Anubis', 'palbox', 41)], [pal, { ...pal }], new Set())
+		expect(view.all.map((p) => p.key)).toEqual(['a', 'b'])
+	})
+
 	it('ignores hand-added pals', () => {
 		const view = buildBox([{ uid: 'h', palId: 'SheepBall', gender: 'M', passives: [] }], [], new Set())
 		expect(view.all).toEqual([])

@@ -13,6 +13,12 @@ describe('game pals', () => {
 		expect(parsePals('{"v":1,"pals":[{"c":"Pink', 7)).toBeNull()
 	})
 
+	it('keeps one copy of a pal the game reports twice', () => {
+		const id = '0123456789abcdef0123456789abcdef'
+		const pal = { id, c: 'PinkCat', g: 2, p: [], iv: [1, 2, 3], in: 'box', s: 4 }
+		expect(normalizeGamePals([pal, { ...pal }]).map((p) => p.key)).toEqual([`id:${id}`])
+	})
+
 	it('maps game ids to pals and passives, folding alphas and case', () => {
 		const pals = normalizeGamePals([
 			{ c: 'BOSS_KingBahamut', g: 1, p: ['ElementBoost_Fire_2_PAL', 'TrainerATK_UP_1'], iv: [92, 86, 99] },
