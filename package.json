@@ -2,10 +2,11 @@
 	"name": "palbreeder",
 	"productName": "PalworldPal",
 	"private": true,
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"type": "module",
 	"description": "A Palworld companion: breeding planner, Paldeck, map, merchants and an in-game overlay.",
 	"author": "Brian Rogers",
+	"license": "MIT",
 	"scripts": {
 		"dev": "vite",
 		"dev:web": "vite --mode web",
